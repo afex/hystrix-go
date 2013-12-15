@@ -1,0 +1,5 @@
+language: go
+script: "cd hystrix/ && go test"
+go:
+  - 1.2
+  - tip
