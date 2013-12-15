@@ -1,0 +1,5 @@
+package hystrix
+
+func Execute() {
+	
+}
