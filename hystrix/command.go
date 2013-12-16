@@ -8,8 +8,21 @@ type Command struct {
 	Fallback FallbackFunc
 	ResultChannel chan Result
 	FallbackChannel chan Result
-	ExecutorPoolName string
-	ExecutorPoolSize int
+	ExecutorPool *ExecutorPool
+
+	Observer ObserverFunc
+}
+
+func NewCommand(run RunFunc, fallback FallbackFunc) *Command {
+	command := new(Command)
+
+	command.Run = run
+	command.Fallback = fallback
+	command.ResultChannel = make(chan Result, 1)
+	command.FallbackChannel = make(chan Result, 1)
+	command.ExecutorPool = NewExecutorPool("hystrix", 10)
+
+	return command
 }
 
 func (command *Command) Execute() (Result) {
@@ -23,28 +36,32 @@ func (command *Command) Queue() (Future) {
 	return future
 }
 
+func (command *Command) Observe() (Observable) {
+	observable := Observable{ Observer: command.Observer, ValueChannel: make(chan Result, 10) }
+	go func() {
+		for {
+			value := <-observable.ValueChannel
+			go observable.Observer(value)
+		}
+	}()
+	go command.try_observe(observable.ValueChannel)
+	return observable
+}
+
 func (command *Command) try_run(value_channel chan Result) {
 	// TODO: fallback if circuit is open
-	var result Result
-	result_channel := make(chan Result, 1)
-	fallback_channel := make(chan Result, 1)
-
-	command.ResultChannel = result_channel
-	command.FallbackChannel = fallback_channel
-	command.create_executor_pool()
-
 	var executor *Executor
 
 	select {
-	case executor = <-executor_pools[command.ExecutorPoolName]:
-		go executor.Run(command)
-
+	case executor = <-command.ExecutorPool.Executors:
 		defer func() {
-			executor_pools[command.ExecutorPoolName] <- executor
+			command.ExecutorPool.Executors <- executor
 		}()
 
+		go executor.Run(command)
+
 		select {
-		case result = <-result_channel:
+		case result := <-command.ResultChannel:
 			if result.Error != nil {
 				// fallback if run fails
 				value_channel <- command.try_fallback(result.Error)
@@ -62,23 +79,46 @@ func (command *Command) try_run(value_channel chan Result) {
 }
 
 func (command *Command) try_fallback(err error) (Result) {
-	go command.Fallback(err, command.FallbackChannel)
-	// TODO: implement case for if fallback never returns
-	return <-command.FallbackChannel
+	if command.Fallback != nil {
+		go command.Fallback(err, command.FallbackChannel)
+		// TODO: implement case for if fallback never returns
+		return <-command.FallbackChannel
+	} else {
+		return Result{ Error: err }
+	}
 }
 
-func (command *Command) create_executor_pool() {
-	// TODO: handle concurrent calls to this to prevent races
-	if command.ExecutorPoolName == "" {
-		command.ExecutorPoolName = "hystrix"
-	}
-	if executor_pools[command.ExecutorPoolName] == nil {
-		if command.ExecutorPoolSize == 0 {
-			command.ExecutorPoolSize = 10
+func (command *Command) try_observe(value_channel chan Result) {
+	// TODO: fallback if circuit is open
+	var executor *Executor
+
+	select {
+	case executor = <-command.ExecutorPool.Executors:
+		defer func() {
+			command.ExecutorPool.Executors <- executor
+		}()
+
+		go executor.Run(command)
+
+		for {
+			select {
+			case result, more := <-command.ResultChannel:
+				if !more {
+					return
+				}
+				if result.Error != nil {
+					// fallback if run fails
+					value_channel <- command.try_fallback(result.Error)
+				} else {
+					value_channel <- result
+				}
+			case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
+				// fallback if timeout is reached
+				value_channel <- command.try_fallback(errors.New("Timeout"))
+			}
 		}
-		executor_pools[command.ExecutorPoolName] = make(chan *Executor, command.ExecutorPoolSize)
-		for i := 0; i < command.ExecutorPoolSize; i++ {
-			executor_pools[command.ExecutorPoolName] <- &Executor{}
-		}
+	default:
+		// fallback if executor pool is full
+		value_channel <- command.try_fallback(errors.New("Executor Pool Full"))
 	}
 }
