@@ -32,7 +32,7 @@ func (command *Command) Execute() Result {
 
 func (command *Command) Queue() Future {
 	future := Future{ValueChannel: make(chan Result)}
-	go command.try_run(future.ValueChannel)
+	go command.tryRun(future.ValueChannel)
 	return future
 }
 
@@ -44,16 +44,16 @@ func (command *Command) Observe() Observable {
 			go observable.Observer(value)
 		}
 	}()
-	go command.try_observe(observable.ValueChannel)
+	go command.tryObserve(observable.ValueChannel)
 	return observable
 }
 
 // TODO: figure out a way to merge try_run and try_observe
 
-func (command *Command) try_run(value_channel chan Result) {
+func (command *Command) tryRun(value_channel chan Result) {
 	if command.ExecutorPool.Circuit.IsOpen {
 		// fallback if circuit is open due to too many recent failures
-		value_channel <- command.try_fallback(errors.New("Circuit Open"))
+		value_channel <- command.tryFallback(errors.New("Circuit Open"))
 	} else {
 		select {
 		case executor := <-command.ExecutorPool.Executors:
@@ -67,22 +67,22 @@ func (command *Command) try_run(value_channel chan Result) {
 			case result := <-command.ResultChannel:
 				if result.Error != nil {
 					// fallback if run fails
-					value_channel <- command.try_fallback(result.Error)
+					value_channel <- command.tryFallback(result.Error)
 				} else {
 					value_channel <- result
 				}
 			case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
 				// fallback if timeout is reached
-				value_channel <- command.try_fallback(errors.New("Timeout"))
+				value_channel <- command.tryFallback(errors.New("Timeout"))
 			}
 		default:
 			// fallback if executor pool is full
-			value_channel <- command.try_fallback(errors.New("Executor Pool Full"))
+			value_channel <- command.tryFallback(errors.New("Executor Pool Full"))
 		}
 	}
 }
 
-func (command *Command) try_fallback(err error) Result {
+func (command *Command) tryFallback(err error) Result {
 	if command.Fallback != nil {
 		go command.Fallback(err, command.FallbackChannel)
 		// TODO: implement case for if fallback never returns
@@ -92,10 +92,10 @@ func (command *Command) try_fallback(err error) Result {
 	}
 }
 
-func (command *Command) try_observe(value_channel chan Result) {
+func (command *Command) tryObserve(value_channel chan Result) {
 	if command.ExecutorPool.Circuit.IsOpen {
 		// fallback if circuit is open due to too many recent failures
-		value_channel <- command.try_fallback(errors.New("Circuit Open"))
+		value_channel <- command.tryFallback(errors.New("Circuit Open"))
 	} else {
 		select {
 		case executor := <-command.ExecutorPool.Executors:
@@ -113,18 +113,18 @@ func (command *Command) try_observe(value_channel chan Result) {
 					}
 					if result.Error != nil {
 						// fallback if run fails
-						value_channel <- command.try_fallback(result.Error)
+						value_channel <- command.tryFallback(result.Error)
 					} else {
 						value_channel <- result
 					}
 				case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
 					// fallback if timeout is reached
-					value_channel <- command.try_fallback(errors.New("Timeout"))
+					value_channel <- command.tryFallback(errors.New("Timeout"))
 				}
 			}
 		default:
 			// fallback if executor pool is full
-			value_channel <- command.try_fallback(errors.New("Executor Pool Full"))
+			value_channel <- command.tryFallback(errors.New("Executor Pool Full"))
 		}
 	}
 }
