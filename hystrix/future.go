@@ -4,7 +4,7 @@ type Future struct {
 	ValueChannel chan Result
 }
 
-func (future *Future) Value() (Result) {
+func (future *Future) Value() Result {
 	// TODO: make value cached, since future only returns one value
 	defer func() {
 		close(future.ValueChannel)
@@ -13,6 +13,6 @@ func (future *Future) Value() (Result) {
 }
 
 type Observable struct {
-	Observer ObserverFunc
+	Observer     ObserverFunc
 	ValueChannel chan Result
 }

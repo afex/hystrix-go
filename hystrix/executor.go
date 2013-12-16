@@ -1,6 +1,6 @@
 package hystrix
 
-type Executor struct {}
+type Executor struct{}
 
 var executor_pools = make(map[string]*ExecutorPool)
 
@@ -9,21 +9,21 @@ func (executor *Executor) Run(command *Command) {
 }
 
 type ExecutorPool struct {
-	Name string
-	Size int
+	Name      string
+	Size      int
 	Executors chan *Executor
-	Circuit *CircuitBreaker
+	Circuit   *CircuitBreaker
 }
 
 func NewExecutorPool(name string, size int) *ExecutorPool {
 	// TODO: handle concurrent calls to this to prevent races
 
 	if executor_pools[name] == nil {
-		pool := &ExecutorPool{ 
-			Name: name, 
-			Size: size, 
+		pool := &ExecutorPool{
+			Name:      name,
+			Size:      size,
 			Executors: make(chan *Executor, size),
-			Circuit: NewCircuitBreaker(),
+			Circuit:   NewCircuitBreaker(),
 		}
 		for i := 0; i < pool.Size; i++ {
 			pool.Executors <- &Executor{}
