@@ -8,19 +8,19 @@ import "github.com/afex/hystrix-go/hystrix"
 
 // function we want to protect with a bulkhead
 func run(results chan hystrix.Result) {
-  // i.e. access an external service which may be abnormally slow or unavailable
+  // example: access an external service which may be slow or unavailable
   response, err := http.Get("http://service/")
   if err != nil {
     results <- hystrix.Result{ Error: err }
-    return
+  } else {
+    results <- hystrix.Result{ Result: response }
   }
-  
-  results <- hystrix.Result{ Result: string(body) }
 }
 
 // function executed when the "run" function cannot be completed
 func fallback(results chan hystrix.Result) {
-  cached_result := // when primary service is unavailable, read from the cache instead
+  // example: when primary service is unavailable, read from a cache instead
+  cached_result := ???
   results <- hystrix.Result{ Result: cached_result }
 }
 
