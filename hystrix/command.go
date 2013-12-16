@@ -48,33 +48,37 @@ func (command *Command) Observe() (Observable) {
 	return observable
 }
 
+// TODO: figure out a way to merge try_run and try_observe
+
 func (command *Command) try_run(value_channel chan Result) {
-	// TODO: fallback if circuit is open
-	var executor *Executor
-
-	select {
-	case executor = <-command.ExecutorPool.Executors:
-		defer func() {
-			command.ExecutorPool.Executors <- executor
-		}()
-
-		go executor.Run(command)
-
+	if command.ExecutorPool.Circuit.IsOpen {
+		// fallback if circuit is open due to too many recent failures
+		value_channel <- command.try_fallback(errors.New("Circuit Open"))
+	} else {
 		select {
-		case result := <-command.ResultChannel:
-			if result.Error != nil {
-				// fallback if run fails
-				value_channel <- command.try_fallback(result.Error)
-			} else {
-				value_channel <- result
-			}	
-		case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
-			// fallback if timeout is reached
-			value_channel <- command.try_fallback(errors.New("Timeout"))
+		case executor := <-command.ExecutorPool.Executors:
+			defer func() {
+				command.ExecutorPool.Executors <- executor
+			}()
+
+			go executor.Run(command)
+
+			select {
+			case result := <-command.ResultChannel:
+				if result.Error != nil {
+					// fallback if run fails
+					value_channel <- command.try_fallback(result.Error)
+				} else {
+					value_channel <- result
+				}	
+			case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
+				// fallback if timeout is reached
+				value_channel <- command.try_fallback(errors.New("Timeout"))
+			}
+		default:
+			// fallback if executor pool is full
+			value_channel <- command.try_fallback(errors.New("Executor Pool Full"))
 		}
-	default:
-		// fallback if executor pool is full
-		value_channel <- command.try_fallback(errors.New("Executor Pool Full"))
 	}
 }
 
@@ -89,36 +93,38 @@ func (command *Command) try_fallback(err error) (Result) {
 }
 
 func (command *Command) try_observe(value_channel chan Result) {
-	// TODO: fallback if circuit is open
-	var executor *Executor
+	if command.ExecutorPool.Circuit.IsOpen {
+		// fallback if circuit is open due to too many recent failures
+		value_channel <- command.try_fallback(errors.New("Circuit Open"))
+	} else {
+		select {
+		case executor := <-command.ExecutorPool.Executors:
+			defer func() {
+				command.ExecutorPool.Executors <- executor
+			}()
 
-	select {
-	case executor = <-command.ExecutorPool.Executors:
-		defer func() {
-			command.ExecutorPool.Executors <- executor
-		}()
+			go executor.Run(command)
 
-		go executor.Run(command)
-
-		for {
-			select {
-			case result, more := <-command.ResultChannel:
-				if !more {
-					return
+			for {
+				select {
+				case result, more := <-command.ResultChannel:
+					if !more {
+						return
+					}
+					if result.Error != nil {
+						// fallback if run fails
+						value_channel <- command.try_fallback(result.Error)
+					} else {
+						value_channel <- result
+					}
+				case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
+					// fallback if timeout is reached
+					value_channel <- command.try_fallback(errors.New("Timeout"))
 				}
-				if result.Error != nil {
-					// fallback if run fails
-					value_channel <- command.try_fallback(result.Error)
-				} else {
-					value_channel <- result
-				}
-			case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
-				// fallback if timeout is reached
-				value_channel <- command.try_fallback(errors.New("Timeout"))
 			}
+		default:
+			// fallback if executor pool is full
+			value_channel <- command.try_fallback(errors.New("Executor Pool Full"))
 		}
-	default:
-		// fallback if executor pool is full
-		value_channel <- command.try_fallback(errors.New("Executor Pool Full"))
 	}
 }

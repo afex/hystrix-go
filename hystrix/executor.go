@@ -12,13 +12,19 @@ type ExecutorPool struct {
 	Name string
 	Size int
 	Executors chan *Executor
+	Circuit *CircuitBreaker
 }
 
 func NewExecutorPool(name string, size int) *ExecutorPool {
 	// TODO: handle concurrent calls to this to prevent races
 
 	if executor_pools[name] == nil {
-		pool := &ExecutorPool{ Name: name, Size: size, Executors: make(chan *Executor, size) }	
+		pool := &ExecutorPool{ 
+			Name: name, 
+			Size: size, 
+			Executors: make(chan *Executor, size),
+			Circuit: NewCircuitBreaker(),
+		}
 		for i := 0; i < pool.Size; i++ {
 			pool.Executors <- &Executor{}
 		}
@@ -27,4 +33,14 @@ func NewExecutorPool(name string, size int) *ExecutorPool {
 	}
 
 	return executor_pools[name]
+}
+
+type CircuitBreaker struct {
+	IsOpen bool
+}
+
+func NewCircuitBreaker() *CircuitBreaker {
+	c := &CircuitBreaker{}
+	c.IsOpen = false
+	return c
 }

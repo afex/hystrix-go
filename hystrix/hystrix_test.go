@@ -134,3 +134,15 @@ func TestFullExecutorPool(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestOpenCircuit(t *testing.T) {
+	command := NewCommand(
+		func(result_channel chan Result) { result_channel <- Result{ Result: 1} },
+		nil,
+	)
+	command.ExecutorPool.Circuit.IsOpen = true
+	result := command.Execute()
+	if result.Error == nil {
+		t.Fail()
+	}
+}
