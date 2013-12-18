@@ -2,6 +2,7 @@ package hystrix
 
 type Executor struct{}
 
+// TODO: this global sucks, refactor so state is not carried over between tests
 var executor_pools = make(map[string]*ExecutorPool)
 
 func (executor *Executor) Run(command *Command) {
