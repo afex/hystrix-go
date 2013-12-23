@@ -34,9 +34,9 @@ func TestObserve(t *testing.T) {
 		close(results)
 	}
 
-	var value int = 0
+	validation := make(chan int, 3)
 	observer_func := func(result Result) {
-		value += result.Result.(int)
+		validation <- result.Result.(int)
 	}
 
 	command := NewCommand(run_func, nil)
@@ -45,7 +45,8 @@ func TestObserve(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	if value != 6 {
+	sum := <-validation + <-validation + <-validation
+	if sum != 6 {
 		t.Fail()
 	}
 }
