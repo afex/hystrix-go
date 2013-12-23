@@ -2,7 +2,7 @@ language: go
 script:
   - cd hystrix
   - go test
-  - go test -race
+# - go test -race
 go:
   - 1.2
   - tip
