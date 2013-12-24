@@ -1,7 +1,7 @@
 package hystrix
 
 type CircuitBreaker struct {
-	IsOpen bool
+	IsOpen        bool
 	HealthUpdates chan int
 }
 
