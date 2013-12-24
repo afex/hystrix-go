@@ -35,13 +35,3 @@ func NewExecutorPool(name string, size int) *ExecutorPool {
 
 	return executor_pools[name]
 }
-
-type CircuitBreaker struct {
-	IsOpen bool
-}
-
-func NewCircuitBreaker() *CircuitBreaker {
-	c := &CircuitBreaker{}
-	c.IsOpen = false
-	return c
-}
