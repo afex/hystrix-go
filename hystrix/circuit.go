@@ -1,13 +1,13 @@
 package hystrix
 
 type CircuitBreaker struct {
-	IsOpen        bool
+	health        float32
 	HealthUpdates chan int
 }
 
 func NewCircuitBreaker() *CircuitBreaker {
 	c := &CircuitBreaker{}
-	c.IsOpen = false
+	c.health = 0
 	c.HealthUpdates = make(chan int)
 
 	// go c.monitorHealth()
@@ -25,7 +25,11 @@ func NewCircuitBreaker() *CircuitBreaker {
 // 	}
 // }
 
-// func (circuit *CircuitBreaker) IsOpen() bool {
-// 	// TODO: have this based on recent_healths
-// 	return false
-// }
+func (circuit *CircuitBreaker) IsOpen() bool {
+	// TODO: have this based on recent_healths
+	return circuit.health != 0
+}
+
+func (circuit *CircuitBreaker) Open() {
+	circuit.health = 1
+}

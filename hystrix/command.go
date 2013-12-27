@@ -51,7 +51,7 @@ func (command *Command) Observe() Observable {
 // TODO: figure out a way to merge try_run and try_observe
 
 func (command *Command) tryRun(value_channel chan Result) {
-	if command.ExecutorPool.Circuit.IsOpen {
+	if command.ExecutorPool.Circuit.IsOpen() {
 		// fallback if circuit is open due to too many recent failures
 		value_channel <- command.tryFallback(errors.New("Circuit Open"))
 	} else {
@@ -93,7 +93,7 @@ func (command *Command) tryFallback(err error) Result {
 }
 
 func (command *Command) tryObserve(value_channel chan Result) {
-	if command.ExecutorPool.Circuit.IsOpen {
+	if command.ExecutorPool.Circuit.IsOpen() {
 		// fallback if circuit is open due to too many recent failures
 		value_channel <- command.tryFallback(errors.New("Circuit Open"))
 	} else {
