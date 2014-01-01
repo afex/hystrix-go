@@ -1,16 +1,19 @@
 package hystrix
 
 import "time"
+import "sync"
 
 type Health struct {
 	Updates chan HealthUpdate
 	Buckets map[int64]*HealthBucket
+	mutex   *sync.Mutex
 }
 
 func NewHealth() Health {
 	h := Health{}
 	h.Updates = make(chan HealthUpdate)
 	h.Buckets = map[int64]*HealthBucket{}
+	h.mutex = &sync.Mutex{}
 
 	go h.Monitor()
 
@@ -27,13 +30,16 @@ func (health *Health) Monitor() {
 			health.Buckets[healthUpdate.ts.Unix()] = &HealthBucket{}
 			b = health.Buckets[healthUpdate.ts.Unix()]
 		}
-		Update(b, healthUpdate)
+		health.mutex.Lock()
+		if healthUpdate.success {
+			b.num_success += 1
+		} else {
+			b.num_failure += 1
+		}
+		health.mutex.Unlock()
+
 		// TODO: clean old map entries
 	}
-}
-
-func (health *Health) ForceUnhealthy() {
-
 }
 
 func (health *Health) IsHealthy() bool {
@@ -41,7 +47,8 @@ func (health *Health) IsHealthy() bool {
 	successes := 0
 	failures := 0
 
-	// return circuit.health != 0
+	health.mutex.Lock()
+	defer health.mutex.Unlock()
 	for _, value := range health.Buckets {
 		successes += value.num_success
 		failures += value.num_failure
@@ -58,12 +65,4 @@ type HealthUpdate struct {
 type HealthBucket struct {
 	num_success int
 	num_failure int
-}
-
-func Update(bucket *HealthBucket, health HealthUpdate) {
-	if health.success {
-		bucket.num_success += 1
-	} else {
-		bucket.num_failure += 1
-	}
 }
