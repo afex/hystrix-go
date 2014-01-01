@@ -119,7 +119,7 @@ func TestOpenCircuit(t *testing.T) {
 		func(result_channel chan Result) { result_channel <- Result{Result: 1} },
 		nil,
 	)
-	command.ExecutorPool.Circuit.Open()
+	command.ExecutorPool.Circuit.ForceOpen = true
 	result := command.Execute()
 	if result.Error == nil {
 		t.Fail()
