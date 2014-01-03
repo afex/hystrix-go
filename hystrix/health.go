@@ -4,15 +4,25 @@ import "time"
 import "sync"
 
 type Health struct {
-	Updates chan HealthUpdate
-	Buckets map[int64]*HealthBucket
+	Updates chan Update
+	Buckets map[int64]*Bucket
 	mutex   *sync.Mutex
+}
+
+type Update struct {
+	success bool
+	ts      time.Time
+}
+
+type Bucket struct {
+	num_success int
+	num_failure int
 }
 
 func NewHealth() Health {
 	h := Health{}
-	h.Updates = make(chan HealthUpdate)
-	h.Buckets = map[int64]*HealthBucket{}
+	h.Updates = make(chan Update)
+	h.Buckets = map[int64]*Bucket{}
 	h.mutex = &sync.Mutex{}
 
 	go h.Monitor()
@@ -21,48 +31,39 @@ func NewHealth() Health {
 }
 
 func (health *Health) Monitor() {
-	var healthUpdate HealthUpdate
+	var update Update
 
 	for {
-		healthUpdate = <-health.Updates
-		b, exists := health.Buckets[healthUpdate.ts.Unix()]
+		update = <-health.Updates
+		b, exists := health.Buckets[update.ts.Unix()]
 		if !exists {
-			health.Buckets[healthUpdate.ts.Unix()] = &HealthBucket{}
-			b = health.Buckets[healthUpdate.ts.Unix()]
+			health.Buckets[update.ts.Unix()] = &Bucket{}
+			b = health.Buckets[update.ts.Unix()]
 		}
 		health.mutex.Lock()
-		if healthUpdate.success {
+		if update.success {
 			b.num_success += 1
 		} else {
 			b.num_failure += 1
 		}
 		health.mutex.Unlock()
 
-		// TODO: clean old map entries
+		// TODO: clean old map entries.  will leak until this is coded
 	}
 }
 
 func (health *Health) IsHealthy() bool {
-	// TODO: have this based on recent_healths
 	successes := 0
 	failures := 0
 
 	health.mutex.Lock()
 	defer health.mutex.Unlock()
-	for _, value := range health.Buckets {
-		successes += value.num_success
-		failures += value.num_failure
+	for timestamp, value := range health.Buckets {
+		if timestamp >= time.Now().Unix()-10 {
+			successes += value.num_success
+			failures += value.num_failure
+		}
 	}
 
 	return failures <= successes
-}
-
-type HealthUpdate struct {
-	success bool
-	ts      time.Time
-}
-
-type HealthBucket struct {
-	num_success int
-	num_failure int
 }
