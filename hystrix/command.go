@@ -31,7 +31,7 @@ func (command *Command) Execute() Result {
 }
 
 func (command *Command) Queue() Future {
-	future := Future{ValueChannel: make(chan Result)}
+	future := Future{ValueChannel: make(chan Result, 1)}
 	go command.tryRun(future.ValueChannel)
 	return future
 }
@@ -51,6 +51,7 @@ func (command *Command) Observe() Observable {
 // TODO: figure out a way to merge try_run and try_observe
 
 func (command *Command) tryRun(value_channel chan Result) {
+	defer close(value_channel)
 	if command.ExecutorPool.Circuit.IsOpen() {
 		// fallback if circuit is open due to too many recent failures
 		value_channel <- command.tryFallback(errors.New("Circuit Open"))
