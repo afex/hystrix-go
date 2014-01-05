@@ -27,7 +27,7 @@ func TestQueue(t *testing.T) {
 }
 
 func TestObserve(t *testing.T) {
-	run_func := func(results chan Result) {
+	runFunc := func(results chan Result) {
 		results <- Result{Result: 1}
 		results <- Result{Result: 2}
 		results <- Result{Result: 3}
@@ -35,12 +35,12 @@ func TestObserve(t *testing.T) {
 	}
 
 	validation := make(chan int, 3)
-	observer_func := func(result Result) {
+	observerFunc := func(result Result) {
 		validation <- result.Result.(int)
 	}
 
-	command := NewCommand(run_func, nil)
-	command.Observer = observer_func
+	command := NewCommand(runFunc, nil)
+	command.Observer = observerFunc
 	command.Observe()
 
 	time.Sleep(10 * time.Millisecond)
@@ -126,5 +126,5 @@ func TestOpenCircuit(t *testing.T) {
 	}
 
 	// BUG: the executor pool is not naturally reset between tests
-	executor_pools = make(map[string]*ExecutorPool)
+	executorPools = make(map[string]*ExecutorPool)
 }

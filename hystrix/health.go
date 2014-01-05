@@ -15,8 +15,8 @@ type Update struct {
 }
 
 type Bucket struct {
-	num_success int
-	num_failure int
+	numSuccess int
+	numFailure int
 }
 
 func NewHealth() Health {
@@ -42,9 +42,9 @@ func (health *Health) Monitor() {
 		}
 		health.mutex.Lock()
 		if update.success {
-			b.num_success += 1
+			b.numSuccess++
 		} else {
-			b.num_failure += 1
+			b.numFailure++
 		}
 		health.mutex.Unlock()
 
@@ -60,8 +60,8 @@ func (health *Health) IsHealthy() bool {
 	defer health.mutex.Unlock()
 	for timestamp, value := range health.Buckets {
 		if timestamp >= time.Now().Unix()-10 {
-			successes += value.num_success
-			failures += value.num_failure
+			successes += value.numSuccess
+			failures += value.numFailure
 		}
 	}
 
