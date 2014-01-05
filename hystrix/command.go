@@ -36,6 +36,7 @@ func (command *Command) Queue() Future {
 	return future
 }
 
+// TODO: replace this "reactive" style api with one which returns a channel to be more Go-like
 func (command *Command) Observe() Observable {
 	observable := Observable{Observer: command.Observer, ValueChannel: make(chan Result, 10)}
 	go func() {

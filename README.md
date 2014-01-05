@@ -13,13 +13,21 @@ hystrix-go aims to allow Go programmers to easily build applications with simila
 
 For more about how Hystrix works, refer to the [Java Hystrix wiki](https://github.com/Netflix/Hystrix/wiki)
 
-Example Code
-------------
+
+How to use
+----------
+
+*hystrix-go is a learning project for me, and as such I expect the API to transform as I learn more appropriate Go patterns.*
 
 ```go
 import "github.com/afex/hystrix-go/hystrix"
+```
 
-// function we want to protect with a bulkhead
+### Define run and fallback functions
+
+First, we'll need to define your application logic which relies on external systems. This is the "run" function and when the system is healthy will be the only thing which executes.
+
+```go
 func run(results chan hystrix.Result) {
   // example: access an external service which may be slow or unavailable
   response, err := http.Get("http://service/")
@@ -29,26 +37,36 @@ func run(results chan hystrix.Result) {
     results <- hystrix.Result{ Result: response }
   }
 }
+```
 
-// function executed when the "run" function cannot be completed
+Next, we define the "fallback" function.  This is triggered whenever the run function is unable to complete, based on a [variety of health checks](https://github.com/Netflix/Hystrix/wiki/How-it-Works).
+
+```go
 func fallback(results chan hystrix.Result) {
   // example: when primary service is unavailable, read from a cache instead
   cached_result := ???
   results <- hystrix.Result{ Result: cached_result }
 }
+```
 
+### Synchronous execution
+
+Start a command, and wait for it to finish.
+
+```go
 command := hystrix.NewCommand(run, fallback)
 
-// run the command synchronously
 result := command.Execute()
+```
 
-// or, run the command asynchronously
+### Asynchronous execution
+
+Start a command, and receive a future to grab the response later.
+
+```go
+command := hystrix.NewCommand(run, fallback)
+
 future := command.Queue()
-result = future.Value() // grab result later
 
-// or, define an observer
-command.Observer = func(result Result) {
-  // act on result parameter
-}
-command.Observe()
+result = future.Value()
 ```
