@@ -17,7 +17,7 @@ For more about how Hystrix works, refer to the [Java Hystrix wiki](https://githu
 How to use
 ----------
 
-*hystrix-go is a learning project for me, and as such I expect the API to transform as I learn more appropriate Go patterns.*
+__hystrix-go is a learning project for me, and as such I expect the API to transform as I learn more appropriate Go patterns.__
 
 ```go
 import "github.com/afex/hystrix-go/hystrix"
