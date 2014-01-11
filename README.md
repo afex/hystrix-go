@@ -55,7 +55,6 @@ Start a command, and wait for it to finish.
 
 ```go
 command := hystrix.NewCommand(run, fallback)
-
 result := command.Execute()
 ```
 
@@ -65,8 +64,6 @@ Start a command, and receive a channel to grab the response later.
 
 ```go
 command := hystrix.NewCommand(run, fallback)
-
 channel := command.Queue()
-
 result = <-channel
 ```
