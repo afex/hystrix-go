@@ -17,13 +17,7 @@ func Execute(run RunFunc, fallback FallbackFunc) Result {
 	return command.Execute()
 }
 
-func Queue(run RunFunc, fallback FallbackFunc) Future {
+func Queue(run RunFunc, fallback FallbackFunc) chan Result {
 	command := NewCommand(run, fallback)
 	return command.Queue()
-}
-
-func Observe(run RunFunc, fallback FallbackFunc, observer ObserverFunc) Observable {
-	command := NewCommand(run, fallback)
-	command.Observer = observer
-	return command.Observe()
 }

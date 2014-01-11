@@ -61,12 +61,12 @@ result := command.Execute()
 
 ### Asynchronous execution
 
-Start a command, and receive a future to grab the response later.
+Start a command, and receive a channel to grab the response later.
 
 ```go
 command := hystrix.NewCommand(run, fallback)
 
-future := command.Queue()
+channel := command.Queue()
 
-result = future.Value()
+result = <-channel
 ```

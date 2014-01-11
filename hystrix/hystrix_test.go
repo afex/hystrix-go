@@ -15,11 +15,11 @@ func TestPackageLevelExecute(t *testing.T) {
 }
 
 func TestPackageLevelQueue(t *testing.T) {
-	future := Queue(
+	channel := Queue(
 		func(result_channel chan Result) { result_channel <- Result{Result: 1} },
 		func(err error, result_channel chan Result) { result_channel <- Result{Error: nil} },
 	)
-	if future.Value().Result != 1 {
+	if r := <-channel; r.Result != 1 {
 		t.Fail()
 	}
 }

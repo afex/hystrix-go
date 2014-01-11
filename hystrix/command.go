@@ -26,30 +26,15 @@ func NewCommand(run RunFunc, fallback FallbackFunc) *Command {
 }
 
 func (command *Command) Execute() Result {
-	future := command.Queue()
-	return future.Value()
+	channel := command.Queue()
+	return <-channel
 }
 
-func (command *Command) Queue() Future {
-	future := Future{ValueChannel: make(chan Result, 1)}
-	go command.tryRun(future.ValueChannel)
-	return future
+func (command *Command) Queue() chan Result {
+	channel := make(chan Result, 1)
+	go command.tryRun(channel)
+	return channel
 }
-
-// TODO: replace this "reactive" style api with one which returns a channel to be more Go-like
-func (command *Command) Observe() Observable {
-	observable := Observable{Observer: command.Observer, ValueChannel: make(chan Result, 10)}
-	go func() {
-		for {
-			value := <-observable.ValueChannel
-			go observable.Observer(value)
-		}
-	}()
-	go command.tryObserve(observable.ValueChannel)
-	return observable
-}
-
-// TODO: figure out a way to merge try_run and try_observe
 
 func (command *Command) tryRun(valueChannel chan Result) {
 	defer close(valueChannel)
@@ -92,41 +77,4 @@ func (command *Command) tryFallback(err error) Result {
 	}
 
 	return Result{Error: err}
-}
-
-func (command *Command) tryObserve(valueChannel chan Result) {
-	if command.ExecutorPool.Circuit.IsOpen() {
-		// fallback if circuit is open due to too many recent failures
-		valueChannel <- command.tryFallback(errors.New("circuit open"))
-	} else {
-		select {
-		case executor := <-command.ExecutorPool.Executors:
-			defer func() {
-				command.ExecutorPool.Executors <- executor
-			}()
-
-			go executor.Run(command)
-
-			for {
-				select {
-				case result, more := <-command.ResultChannel:
-					if !more {
-						return
-					}
-					if result.Error != nil {
-						// fallback if run fails
-						valueChannel <- command.tryFallback(result.Error)
-					} else {
-						valueChannel <- result
-					}
-				case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
-					// fallback if timeout is reached
-					valueChannel <- command.tryFallback(errors.New("timeout"))
-				}
-			}
-		default:
-			// fallback if executor pool is full
-			valueChannel <- command.tryFallback(errors.New("executor pool full"))
-		}
-	}
 }

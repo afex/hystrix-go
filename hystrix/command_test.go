@@ -20,33 +20,8 @@ func TestQueue(t *testing.T) {
 		func(result_channel chan Result) { result_channel <- Result{Result: 1} },
 		func(err error, result_channel chan Result) { result_channel <- Result{Error: nil} },
 	)
-	future := command.Queue()
-	if future.Value().Result != 1 {
-		t.Fail()
-	}
-}
-
-func TestObserve(t *testing.T) {
-	runFunc := func(results chan Result) {
-		results <- Result{Result: 1}
-		results <- Result{Result: 2}
-		results <- Result{Result: 3}
-		close(results)
-	}
-
-	validation := make(chan int, 3)
-	observerFunc := func(result Result) {
-		validation <- result.Result.(int)
-	}
-
-	command := NewCommand(runFunc, nil)
-	command.Observer = observerFunc
-	command.Observe()
-
-	time.Sleep(10 * time.Millisecond)
-
-	sum := <-validation + <-validation + <-validation
-	if sum != 6 {
+	channel := command.Queue()
+	if r := <-channel; r.Result != 1 {
 		t.Fail()
 	}
 }
