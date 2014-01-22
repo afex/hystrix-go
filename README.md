@@ -67,3 +67,12 @@ command := hystrix.NewCommand(run, fallback)
 channel := command.Queue()
 result = <-channel
 ```
+
+Build and Test
+--------------
+
+- Install vagrant and VirtualBox
+- Clone the hystrix-go repository
+- Inside the hystrix-go directory, run ```vagrant up```, then ```vagrant ssh```
+- ```cd hystrix-go/hystrix/```
+- ```go test```
