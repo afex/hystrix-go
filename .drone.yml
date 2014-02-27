@@ -1,4 +1,0 @@
-image: bradrydzewski/go:1.2
-script:
-  - cd hystrix
-  - go test
