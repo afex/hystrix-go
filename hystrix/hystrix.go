@@ -9,7 +9,7 @@ type Result struct {
 	Error  error
 }
 
-// Execute creates a command and executes it synchronously.
+/*// Execute creates a command and executes it synchronously.
 func Execute(run func(chan Result), fallback func(error, chan Result)) Result {
 	command := NewCommand(run, fallback)
 	return command.Execute()
@@ -19,4 +19,4 @@ func Execute(run func(chan Result), fallback func(error, chan Result)) Result {
 func Queue(run func(chan Result), fallback func(error, chan Result)) chan Result {
 	command := NewCommand(run, fallback)
 	return command.Queue()
-}
+}*/

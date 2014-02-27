@@ -6,21 +6,26 @@ import "errors"
 // Command is the core struct for hystrix execution.  It represents both the
 // happy path and fallback when accessing remote systems, as well as result delivery.
 type Command struct {
-	Run             func(chan Result)
-	Fallback        func(error, chan Result)
+	// TODO: better name than "inner"
+	InnerCommand    CommandInterface
 	ResultChannel   chan Result
 	FallbackChannel chan Result
 	ExecutorPool    *ExecutorPool
 }
 
+// TODO: refactor so "Command" is the interface not the struct
+type CommandInterface interface {
+	Run(chan Result)
+	Fallback(error, chan Result)
+}
+
 // BUG(keith): all commands share the same executor pool, instead of being grouped by name
 
 // NewCommand maps the given run and fallback functions with result channels and an executor pool
-func NewCommand(run func(chan Result), fallback func(error, chan Result)) *Command {
+func NewCommand(inner CommandInterface) *Command {
 	command := new(Command)
 
-	command.Run = run
-	command.Fallback = fallback
+	command.InnerCommand = inner
 	command.ResultChannel = make(chan Result, 1)
 	command.FallbackChannel = make(chan Result, 1)
 	command.ExecutorPool = NewExecutorPool("hystrix", 10)
@@ -75,11 +80,7 @@ func (command *Command) tryRun(valueChannel chan Result) {
 }
 
 func (command *Command) tryFallback(err error) Result {
-	if command.Fallback != nil {
-		go command.Fallback(err, command.FallbackChannel)
-		// TODO: implement case for if fallback never returns
-		return <-command.FallbackChannel
-	}
-
-	return Result{Error: err}
+	go command.InnerCommand.Fallback(err, command.FallbackChannel)
+	// TODO: implement case for if fallback never returns
+	return <-command.FallbackChannel
 }
