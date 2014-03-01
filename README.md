@@ -17,18 +17,18 @@ For more about how Hystrix works, refer to the [Java Hystrix wiki](https://githu
 How to use
 ----------
 
-__hystrix-go is a learning project for me, and as such I expect the API to transform as I learn more appropriate Go patterns.__
-
 ```go
 import "github.com/afex/hystrix-go/hystrix"
 ```
 
-### Define run and fallback functions
+### Implement Runner interface with Run and Fallback methods
 
 First, we'll need to define your application logic which relies on external systems. This is the "run" function and when the system is healthy will be the only thing which executes.
 
 ```go
-func run(results chan hystrix.Result) {
+type MyCommand struct{}
+
+func (c *MyCommand) Run(results chan hystrix.Result) {
   // example: access an external service which may be slow or unavailable
   response, err := http.Get("http://service/")
   if err != nil {
@@ -42,7 +42,7 @@ func run(results chan hystrix.Result) {
 Next, we define the "fallback" function.  This is triggered whenever the run function is unable to complete, based on a [variety of health checks](https://github.com/Netflix/Hystrix/wiki/How-it-Works).
 
 ```go
-func fallback(results chan hystrix.Result) {
+func (c *MyCommand) Fallback(results chan hystrix.Result) {
   // example: when primary service is unavailable, read from a cache instead
   cached_result := ???
   results <- hystrix.Result{ Result: cached_result }
@@ -54,7 +54,7 @@ func fallback(results chan hystrix.Result) {
 Start a command, and wait for it to finish.
 
 ```go
-command := hystrix.NewCommand(run, fallback)
+command := hystrix.NewCommand(&MyCommand{})
 result := command.Execute()
 ```
 
@@ -63,7 +63,7 @@ result := command.Execute()
 Start a command, and receive a channel to grab the response later.
 
 ```go
-command := hystrix.NewCommand(run, fallback)
+command := hystrix.NewCommand(&MyCommand{})
 channel := command.Queue()
 result = <-channel
 ```
@@ -74,5 +74,5 @@ Build and Test
 - Install vagrant and VirtualBox
 - Clone the hystrix-go repository
 - Inside the hystrix-go directory, run ```vagrant up```, then ```vagrant ssh```
-- ```cd hystrix-go/hystrix/```
-- ```go test```
+- ```cd /go/src/github.com/afex/hystrix-go```
+- ```go test ./...```
