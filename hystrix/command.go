@@ -3,18 +3,18 @@ package hystrix
 import "time"
 import "errors"
 
-// Command is the core struct for hystrix execution.  It represents both the
-// happy path and fallback when accessing remote systems, as well as result delivery.
+// Command is the core struct for hystrix execution.  It maps the user-defined
+// Runner with channels for delivering results.
 type Command struct {
-	// TODO: better name than "inner"
-	InnerCommand    CommandInterface
+	Runner          Runner
 	ResultChannel   chan Result
 	FallbackChannel chan Result
 	ExecutorPool    *ExecutorPool
 }
 
-// TODO: refactor so "Command" is the interface not the struct
-type CommandInterface interface {
+// Runner is the user-defined pair of functions for the execution and fallback
+// of the command.
+type Runner interface {
 	Run(chan Result)
 	Fallback(error, chan Result)
 }
@@ -22,10 +22,10 @@ type CommandInterface interface {
 // BUG(keith): all commands share the same executor pool, instead of being grouped by name
 
 // NewCommand maps the given run and fallback functions with result channels and an executor pool
-func NewCommand(inner CommandInterface) *Command {
+func NewCommand(runner Runner) *Command {
 	command := new(Command)
 
-	command.InnerCommand = inner
+	command.Runner = runner
 	command.ResultChannel = make(chan Result, 1)
 	command.FallbackChannel = make(chan Result, 1)
 	command.ExecutorPool = NewExecutorPool("hystrix", 10)
@@ -80,7 +80,7 @@ func (command *Command) tryRun(valueChannel chan Result) {
 }
 
 func (command *Command) tryFallback(err error) Result {
-	go command.InnerCommand.Fallback(err, command.FallbackChannel)
+	go command.Runner.Fallback(err, command.FallbackChannel)
 	// TODO: implement case for if fallback never returns
 	return <-command.FallbackChannel
 }

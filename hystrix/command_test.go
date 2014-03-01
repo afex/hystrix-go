@@ -4,11 +4,16 @@ import "testing"
 import "time"
 import "errors"
 
+type GoodCommand struct {}
+func (t *GoodCommand) Run(result_channel chan Result) {
+	result_channel <- Result{Result: 1}
+}
+func (t *GoodCommand) Fallback(err error, result_channel chan Result) {
+	result_channel <- Result{Result: 2} 
+}
+
 func TestExecute(t *testing.T) {
-	command := NewCommand(
-		func(result_channel chan Result) { result_channel <- Result{Result: 1} },
-		func(err error, result_channel chan Result) { result_channel <- Result{Error: nil} },
-	)
+	command := NewCommand(&GoodCommand{})
 	result := command.Execute()
 	if result.Result != 1 {
 		t.Fail()
@@ -16,44 +21,41 @@ func TestExecute(t *testing.T) {
 }
 
 func TestQueue(t *testing.T) {
-	command := NewCommand(
-		func(result_channel chan Result) { result_channel <- Result{Result: 1} },
-		func(err error, result_channel chan Result) { result_channel <- Result{Error: nil} },
-	)
+	command := NewCommand(&GoodCommand{})
 	channel := command.Queue()
 	if r := <-channel; r.Result != 1 {
 		t.Fail()
 	}
 }
 
-func TestFallbackMissing(t *testing.T) {
-	command := NewCommand(
-		func(result_channel chan Result) { result_channel <- Result{Error: errors.New("failure")} },
-		nil,
-	)
-	result := command.Execute()
-	if !(result.Result == nil && result.Error.Error() == "failure") {
-		t.Fail()
-	}
+type BadCommand struct {}
+func (c *BadCommand) Run(result_channel chan Result) {
+	result_channel <- Result{Error: errors.New("sup")}
+}
+func (c *BadCommand) Fallback(err error, result_channel chan Result) {
+	result_channel <- Result{Result: 1}
 }
 
 func TestFallback(t *testing.T) {
-	command := NewCommand(
-		func(result_channel chan Result) { result_channel <- Result{Error: errors.New("sup")} },
-		func(err error, result_channel chan Result) { result_channel <- Result{Result: 1} },
-	)
+	command := NewCommand(&BadCommand{})
 	result := command.Execute()
 	if result.Result != 1 {
 		t.Fail()
 	}
 }
 
+type SlowCommand struct {}
+func (c *SlowCommand) Run(result_channel chan Result) {
+	time.Sleep(1 * time.Second)
+	result_channel <- Result{Result: 2}
+}
+func (c *SlowCommand) Fallback(err error, result_channel chan Result) {
+	result_channel <- Result{Result: 1}
+}
+
 // TODO: how can we be sure the fallback is triggered from timeout.  error type?
 func TestTimeout(t *testing.T) {
-	command := NewCommand(
-		func(result_channel chan Result) { time.Sleep(1 * time.Second); result_channel <- Result{Result: 2} },
-		func(err error, result_channel chan Result) { result_channel <- Result{Result: 1} },
-	)
+	command := NewCommand(&SlowCommand{})
 	result := command.Execute()
 	if result.Result != 1 {
 		t.Fail()
@@ -64,39 +66,27 @@ func TestTimeout(t *testing.T) {
 func TestFullExecutorPool(t *testing.T) {
 	pool := NewExecutorPool("TestFullExecutorPool", 2)
 
-	command1 := NewCommand(
-		func(result_channel chan Result) { time.Sleep(10 * time.Millisecond) },
-		func(err error, result_channel chan Result) { result_channel <- Result{Result: 1} },
-	)
+	command1 := NewCommand(&SlowCommand{})
 	command1.ExecutorPool = pool
-	command2 := NewCommand(
-		func(result_channel chan Result) { time.Sleep(10 * time.Millisecond) },
-		func(err error, result_channel chan Result) { result_channel <- Result{Result: 1} },
-	)
+	command2 := NewCommand(&SlowCommand{})
 	command2.ExecutorPool = pool
-	command3 := NewCommand(
-		func(result_channel chan Result) { result_channel <- Result{Result: 2} },
-		func(err error, result_channel chan Result) { result_channel <- Result{Result: 1} },
-	)
+	command3 := NewCommand(&GoodCommand{})
 	command3.ExecutorPool = pool
 
 	command1.Queue()
 	command2.Queue()
 	result := command3.Execute()
 
-	if result.Result != 1 {
+	if result.Result != 2 {
 		t.Fail()
 	}
 }
 
 func TestOpenCircuit(t *testing.T) {
-	command := NewCommand(
-		func(result_channel chan Result) { result_channel <- Result{Result: 1} },
-		nil,
-	)
+	command := NewCommand(&GoodCommand{})
 	command.ExecutorPool.Circuit.ForceOpen = true
 	result := command.Execute()
-	if result.Error == nil {
+	if result.Result == 1 {
 		t.Fail()
 	}
 

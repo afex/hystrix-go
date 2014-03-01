@@ -8,7 +8,7 @@ var executorPools = make(map[string]*ExecutorPool)
 
 // Run is used to ensure that commands only execute when an executor is available.
 func (executor *Executor) Run(command *Command) {
-	command.InnerCommand.Run(command.ResultChannel)
+	command.Runner.Run(command.ResultChannel)
 }
 
 // ExecutorPool provides a channel for easy checkout/checkin of Executors
