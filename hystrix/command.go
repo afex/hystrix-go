@@ -12,8 +12,8 @@ type Command struct {
 	ExecutorPool    *ExecutorPool
 }
 
-// Runner is the user-defined pair of functions for the execution and fallback
-// of the command.
+// Runner is the user-defined methods for the execution/fallback
+// of the command, as well as configurable settings.
 type Runner interface {
 	Run(chan Result)
 	Fallback(error, chan Result)
