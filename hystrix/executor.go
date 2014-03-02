@@ -7,8 +7,8 @@ type Executor struct{}
 var executorPools = make(map[string]*ExecutorPool)
 
 // Run is used to ensure that commands only execute when an executor is available.
-func (executor *Executor) Run(command *Command) {
-	command.Runner.Run(command.ResultChannel)
+func (executor *Executor) Run(command *Command) (interface{}, error) {
+	return command.Runner.Run()
 }
 
 // ExecutorPool provides a channel for easy checkout/checkin of Executors

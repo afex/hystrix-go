@@ -4,66 +4,69 @@ import "testing"
 import "time"
 import "errors"
 
-type GoodCommand struct {}
-func (c *GoodCommand) Run(result_channel chan Result) {
-	result_channel <- Result{Result: 1}
+type GoodCommand struct{}
+
+func (c *GoodCommand) Run() (interface{}, error) {
+	return 1, nil
 }
-func (c *GoodCommand) Fallback(err error, result_channel chan Result) {
-	result_channel <- Result{Result: 2} 
+func (c *GoodCommand) Fallback(err error) (interface{}, error) {
+	return 2, nil
 }
-func (c *GoodCommand) PoolName() string { return "GoodCommand" }
+func (c *GoodCommand) PoolName() string       { return "GoodCommand" }
 func (c *GoodCommand) Timeout() time.Duration { return time.Millisecond * 100 }
 
 func TestExecute(t *testing.T) {
 	command := NewCommand(&GoodCommand{})
-	result := command.Execute()
-	if result.Result != 1 {
+	result, _ := command.Execute()
+	if result != 1 {
 		t.Fail()
 	}
 }
 
 func TestQueue(t *testing.T) {
 	command := NewCommand(&GoodCommand{})
-	channel := command.Queue()
-	if r := <-channel; r.Result != 1 {
+	results, _ := command.Queue()
+	if r := <-results; r != 1 {
 		t.Fail()
 	}
 }
 
-type BadCommand struct {}
-func (c *BadCommand) Run(result_channel chan Result) {
-	result_channel <- Result{Error: errors.New("sup")}
+type BadCommand struct{}
+
+func (c *BadCommand) Run() (interface{}, error) {
+	return nil, errors.New("sup")
 }
-func (c *BadCommand) Fallback(err error, result_channel chan Result) {
-	result_channel <- Result{Result: 1}
+func (c *BadCommand) Fallback(err error) (interface{}, error) {
+	return 1, nil
 }
-func (c *BadCommand) PoolName() string { return "BadCommand" }
+func (c *BadCommand) PoolName() string       { return "BadCommand" }
 func (c *BadCommand) Timeout() time.Duration { return time.Millisecond * 100 }
 
 func TestFallback(t *testing.T) {
 	command := NewCommand(&BadCommand{})
-	result := command.Execute()
-	if result.Result != 1 {
+	result, _ := command.Execute()
+	if result != 1 {
 		t.Fail()
 	}
 }
 
-type SlowCommand struct {}
-func (c *SlowCommand) Run(result_channel chan Result) {
+type SlowCommand struct{}
+
+func (c *SlowCommand) Run() (interface{}, error) {
 	time.Sleep(1 * time.Second)
-	result_channel <- Result{Result: 2}
+	return 2, nil
 }
-func (c *SlowCommand) Fallback(err error, result_channel chan Result) {
-	result_channel <- Result{Result: 1}
+func (c *SlowCommand) Fallback(err error) (interface{}, error) {
+	return 1, nil
 }
-func (c *SlowCommand) PoolName() string { return "SlowCommand" }
+func (c *SlowCommand) PoolName() string       { return "SlowCommand" }
 func (c *SlowCommand) Timeout() time.Duration { return time.Millisecond * 100 }
 
 // TODO: how can we be sure the fallback is triggered from timeout.  error type?
 func TestTimeout(t *testing.T) {
 	command := NewCommand(&SlowCommand{})
-	result := command.Execute()
-	if result.Result != 1 {
+	result, _ := command.Execute()
+	if result != 1 {
 		t.Fail()
 	}
 }
@@ -81,9 +84,9 @@ func TestFullExecutorPool(t *testing.T) {
 
 	command1.Queue()
 	command2.Queue()
-	result := command3.Execute()
+	result, _ := command3.Execute()
 
-	if result.Result != 2 {
+	if result != 2 {
 		t.Fail()
 	}
 }
@@ -91,8 +94,8 @@ func TestFullExecutorPool(t *testing.T) {
 func TestOpenCircuit(t *testing.T) {
 	command := NewCommand(&GoodCommand{})
 	command.ExecutorPool.Circuit.ForceOpen = true
-	result := command.Execute()
-	if result.Result == 1 {
+	result, _ := command.Execute()
+	if result == 1 {
 		t.Fail()
 	}
 
