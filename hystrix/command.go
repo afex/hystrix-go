@@ -17,9 +17,9 @@ type Command struct {
 type Runner interface {
 	Run(chan Result)
 	Fallback(error, chan Result)
+	PoolName() string
+	Timeout() time.Duration
 }
-
-// BUG(keith): all commands share the same executor pool, instead of being grouped by name
 
 // NewCommand maps the given run and fallback functions with result channels and an executor pool
 func NewCommand(runner Runner) *Command {
@@ -28,7 +28,7 @@ func NewCommand(runner Runner) *Command {
 	command.Runner = runner
 	command.ResultChannel = make(chan Result, 1)
 	command.FallbackChannel = make(chan Result, 1)
-	command.ExecutorPool = NewExecutorPool("hystrix", 10)
+	command.ExecutorPool = NewExecutorPool(runner.PoolName(), 10)
 
 	return command
 }
@@ -68,7 +68,7 @@ func (command *Command) tryRun(valueChannel chan Result) {
 				} else {
 					valueChannel <- result
 				}
-			case <-time.After(time.Millisecond * 100): // TODO: make timeout dynamic
+			case <-time.After(command.Runner.Timeout()):
 				// fallback if timeout is reached
 				valueChannel <- command.tryFallback(errors.New("timeout"))
 			}

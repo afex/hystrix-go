@@ -21,13 +21,25 @@ How to use
 import "github.com/afex/hystrix-go/hystrix"
 ```
 
-### Implement Runner interface with Run and Fallback methods
-
-First, we'll need to define your application logic which relies on external systems. This is the "run" function and when the system is healthy will be the only thing which executes.
+### Define your struct with basic settings
 
 ```go
 type MyCommand struct{}
 
+func (c *MyCommand) PoolName() string {
+	return "MyCommand"
+}
+
+func (c *MyCommand) Timeout() time.Duration {
+	return time.Millisecond * 100
+}
+```
+
+### Implement Run and Fallback methods
+
+First, we'll need to define your application logic which relies on external systems. This is the "run" method and when the system is healthy will be the only thing which executes.
+
+```go
 func (c *MyCommand) Run(results chan hystrix.Result) {
   // example: access an external service which may be slow or unavailable
   response, err := http.Get("http://service/")
@@ -39,7 +51,7 @@ func (c *MyCommand) Run(results chan hystrix.Result) {
 }
 ```
 
-Next, we define the "fallback" function.  This is triggered whenever the run function is unable to complete, based on a [variety of health checks](https://github.com/Netflix/Hystrix/wiki/How-it-Works).
+Next, we define the "fallback" method.  This is triggered whenever the run method is unable to complete, based on a [variety of health checks](https://github.com/Netflix/Hystrix/wiki/How-it-Works).
 
 ```go
 func (c *MyCommand) Fallback(results chan hystrix.Result) {

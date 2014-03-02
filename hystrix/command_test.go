@@ -5,12 +5,14 @@ import "time"
 import "errors"
 
 type GoodCommand struct {}
-func (t *GoodCommand) Run(result_channel chan Result) {
+func (c *GoodCommand) Run(result_channel chan Result) {
 	result_channel <- Result{Result: 1}
 }
-func (t *GoodCommand) Fallback(err error, result_channel chan Result) {
+func (c *GoodCommand) Fallback(err error, result_channel chan Result) {
 	result_channel <- Result{Result: 2} 
 }
+func (c *GoodCommand) PoolName() string { return "GoodCommand" }
+func (c *GoodCommand) Timeout() time.Duration { return time.Millisecond * 100 }
 
 func TestExecute(t *testing.T) {
 	command := NewCommand(&GoodCommand{})
@@ -35,6 +37,8 @@ func (c *BadCommand) Run(result_channel chan Result) {
 func (c *BadCommand) Fallback(err error, result_channel chan Result) {
 	result_channel <- Result{Result: 1}
 }
+func (c *BadCommand) PoolName() string { return "BadCommand" }
+func (c *BadCommand) Timeout() time.Duration { return time.Millisecond * 100 }
 
 func TestFallback(t *testing.T) {
 	command := NewCommand(&BadCommand{})
@@ -52,6 +56,8 @@ func (c *SlowCommand) Run(result_channel chan Result) {
 func (c *SlowCommand) Fallback(err error, result_channel chan Result) {
 	result_channel <- Result{Result: 1}
 }
+func (c *SlowCommand) PoolName() string { return "SlowCommand" }
+func (c *SlowCommand) Timeout() time.Duration { return time.Millisecond * 100 }
 
 // TODO: how can we be sure the fallback is triggered from timeout.  error type?
 func TestTimeout(t *testing.T) {
