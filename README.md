@@ -42,7 +42,7 @@ This triggers when your code returns an error, or whenever it is unable to compl
 hystrix.Go("my_command", func() error {
 	// talk to other services
 	return nil
-}, func() error {
+}, func(err error) error {
 	// do this when services are down
 	return nil
 })

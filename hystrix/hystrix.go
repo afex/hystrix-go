@@ -8,18 +8,20 @@ package hystrix
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
-type hystrixFunc func() error
+type hystrixRunFunc func() error
+type hystrixFallbackFunc func(error) error
 
 // Go runs your function while tracking the health of previous calls to it.
-// If your function begins slowing down or failing repeatedly, we will block 
-// new calls to it for you to give the dependent service time to repair.  
-// 
+// If your function begins slowing down or failing repeatedly, we will block
+// new calls to it for you to give the dependent service time to repair.
+//
 // Define a fallback function if you want to define some code to execute during outages.
-func Go(name string, run hystrixFunc, fallback hystrixFunc) chan error {
-	errChan := make(chan error)
+func Go(name string, run hystrixRunFunc, fallback hystrixFallbackFunc) chan error {
+	errChan := make(chan error, 1)
 	finished := make(chan bool, 1)
 
 	// dont have methods with explicit params and returns
@@ -30,17 +32,17 @@ func Go(name string, run hystrixFunc, fallback hystrixFunc) chan error {
 	// TODO: throttle per command name
 
 	go func() {
-		err := run()
+		runErr := run()
 
-		if err != nil {
+		if runErr != nil {
 			if fallback != nil {
-				err := fallback()
-				if err != nil {
-					// TODO: this should contain merged error information to show both run and fallback messages
-					errChan <- err
+				fallbackErr := fallback(runErr)
+				if fallbackErr != nil {
+					errChan <- fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, runErr)
 				}
+			} else {
+				errChan <- runErr
 			}
-			errChan <- err
 		}
 
 		finished <- true
