@@ -1,5 +1,15 @@
 package hystrix
 
+// Ticket is grabbed by each command before execution can start
+type Ticket struct {}
+
+// ConcurrentThrottle hands out a channel which commands use to throttle how many of 
+// each command can run at a time.  If a command can't pull from the channel on the first attempt
+// it triggers the fallback.
+func ConcurrentThrottle(name string) (chan *Ticket, error) {
+	return nil, nil
+}
+
 // Executor represents an available slot for concurrent commands to run.
 type Executor struct{}
 
@@ -38,12 +48,4 @@ func NewExecutorPool(name string, size int) *ExecutorPool {
 	}
 
 	return executorPools[name]
-}
-
-func GetExecutorsForCommand(name string) (chan *Executor, error) {
-	return nil, nil
-}
-
-func GetCircuitForCommand(name string) *CircuitBreaker {
-	return nil
 }

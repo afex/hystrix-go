@@ -28,40 +28,53 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	// let data come in and out naturally, like with any closure
 	// explicit error return to give place for us to kill switch the operation (fallback)
 
-	// TODO: check circuit breaker
-	// TODO: throttle per command name
-
 	go func() {
-		executors, err := GetExecutorsForCommand(name)
+		defer func() { finished <- true }
+
+		circuit, updates, err := GetCircuitWithUpdater(name)
 		if err != nil {
 			errChan <- err
+			return
 		}
 
-		if executors != nil {
-			select {
-			case executor := <-executors:
-				defer func() { executors <- executor }()
+		if !circuit.IsOpen() {
+			errChan <- errors.New("circuit open")
+			return
+		}
 
-				runErr := run()
-				if runErr != nil {
-					if fallback != nil {
-						err := tryFallback(fallback, runErr)
-						if err != nil {
-							errChan <- err
-						}
-					} else {
-						errChan <- runErr
-					}
-				}
-			default:
-				err := tryFallback(fallback, errors.New("unable to grab executor"))
-				if err != nil {
-					errChan <- err
-				}
+		tickets, err := ConcurrentThrotle(name)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		// As backends falter, requests take longer but don't always fail. 
+		//
+		// When requests slow down but the incoming rate of requests stays the same, you have to 
+		// run more at a time to keep up. By controlling concurrency during these situations, you can
+		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
+		select {
+		case ticket := <-tickets:
+			defer func() { tickets <- ticket }()
+		default:
+			err := tryFallback(fallback, errors.New("unable to grab executor"))
+			if err != nil {
+				errChan <- err
+				return
 			}
 		}
 
-		finished <- true
+		runErr := run()
+		if runErr != nil {
+			if fallback != nil {
+				err := tryFallback(fallback, runErr)
+				if err != nil {
+					errChan <- err
+				}
+			} else {
+				errChan <- runErr
+			}
+		}
 	}()
 
 	go func() {

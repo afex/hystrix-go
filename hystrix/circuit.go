@@ -7,6 +7,15 @@ type CircuitBreaker struct {
 	ForceOpen bool
 }
 
+// GetCircuitWithUpdater returns the circuit for the given command, and a write-only channel to 
+// update the perceived health of a command.
+//
+// Enough failures over a duration and the Command will be treated as unhealthy, preventing new
+// executions.
+func GetCircuitWithUpdater(name string) (*CircuitBreaker, chan<- *healthUpdate, error) {
+	return nil, nil, nil
+}
+
 // NewCircuitBreaker creates a CircuitBreaker with associated Health
 func NewCircuitBreaker() *CircuitBreaker {
 	c := &CircuitBreaker{}

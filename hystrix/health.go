@@ -11,7 +11,7 @@ type Health struct {
 }
 
 // Update is a success/failure message sent for every command execution.
-type Update struct {
+type healthUpdate struct {
 	success bool
 	ts      time.Time
 }
