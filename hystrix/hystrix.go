@@ -29,9 +29,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	// explicit error return to give place for us to kill switch the operation (fallback)
 
 	go func() {
-		defer func() { finished <- true }
+		defer func() { finished <- true }()
 
-		circuit, updates, err := GetCircuitWithUpdater(name)
+		circuit, _, err := GetCircuitWithUpdater(name)
 		if err != nil {
 			errChan <- err
 			return
@@ -42,7 +42,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			return
 		}
 
-		tickets, err := ConcurrentThrotle(name)
+		tickets, err := ConcurrentThrottle(name)
 		if err != nil {
 			errChan <- err
 			return

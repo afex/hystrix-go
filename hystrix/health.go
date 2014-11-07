@@ -5,7 +5,7 @@ import "sync"
 
 // Health represents the last 10 seconds of Updates, tracking the ratio of success to failure.
 type Health struct {
-	Updates chan Update
+	Updates chan healthUpdate
 	Buckets map[int64]*Bucket
 	mutex   *sync.Mutex
 }
@@ -25,7 +25,7 @@ type Bucket struct {
 // NewHealth creates a channel for Updates and monitors it.
 func NewHealth() Health {
 	h := Health{}
-	h.Updates = make(chan Update)
+	h.Updates = make(chan healthUpdate)
 	h.Buckets = map[int64]*Bucket{}
 	h.mutex = &sync.Mutex{}
 
@@ -36,7 +36,7 @@ func NewHealth() Health {
 
 // Monitor subscribes to Updates as they are sent after command execution, and updates the success ratio for the given second.
 func (health *Health) Monitor() {
-	var update Update
+	var update healthUpdate
 
 	for {
 		update = <-health.Updates
