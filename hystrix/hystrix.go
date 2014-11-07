@@ -12,15 +12,15 @@ import (
 	"time"
 )
 
-type hystrixRunFunc func() error
-type hystrixFallbackFunc func(error) error
+type runFunc func() error
+type fallbackFunc func(error) error
 
 // Go runs your function while tracking the health of previous calls to it.
 // If your function begins slowing down or failing repeatedly, we will block
 // new calls to it for you to give the dependent service time to repair.
 //
 // Define a fallback function if you want to define some code to execute during outages.
-func Go(name string, run hystrixRunFunc, fallback hystrixFallbackFunc) chan error {
+func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	errChan := make(chan error, 1)
 	finished := make(chan bool, 1)
 
@@ -32,16 +32,32 @@ func Go(name string, run hystrixRunFunc, fallback hystrixFallbackFunc) chan erro
 	// TODO: throttle per command name
 
 	go func() {
-		runErr := run()
+		executors, err := GetExecutorsForCommand(name)
+		if err != nil {
+			errChan <- err
+		}
 
-		if runErr != nil {
-			if fallback != nil {
-				fallbackErr := fallback(runErr)
-				if fallbackErr != nil {
-					errChan <- fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, runErr)
+		if executors != nil {
+			select {
+			case executor := <-executors:
+				defer func() { executors <- executor }()
+
+				runErr := run()
+				if runErr != nil {
+					if fallback != nil {
+						err := tryFallback(fallback, runErr)
+						if err != nil {
+							errChan <- err
+						}
+					} else {
+						errChan <- runErr
+					}
 				}
-			} else {
-				errChan <- runErr
+			default:
+				err := tryFallback(fallback, errors.New("unable to grab executor"))
+				if err != nil {
+					errChan <- err
+				}
 			}
 		}
 
@@ -57,4 +73,17 @@ func Go(name string, run hystrixRunFunc, fallback hystrixFallbackFunc) chan erro
 	}()
 
 	return errChan
+}
+
+func tryFallback(fallback fallbackFunc, err error) error {
+	if fallback == nil {
+		return nil
+	}
+
+	fallbackErr := fallback(err)
+	if fallbackErr != nil {
+		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
+	}
+
+	return nil
 }

@@ -39,3 +39,11 @@ func NewExecutorPool(name string, size int) *ExecutorPool {
 
 	return executorPools[name]
 }
+
+func GetExecutorsForCommand(name string) (chan *Executor, error) {
+	return nil, nil
+}
+
+func GetCircuitForCommand(name string) *CircuitBreaker {
+	return nil
+}
