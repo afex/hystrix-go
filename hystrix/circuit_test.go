@@ -7,7 +7,7 @@ func TestOpenBlah(t *testing.T) {
 	c := NewCircuitBreaker()
 
 	for i := 0; i < 10; i++ {
-		c.health.Updates <- Update{false, time.Now()}
+		c.health.Updates <- healthUpdate{false, time.Now()}
 	}
 
 	if !c.IsOpen() {

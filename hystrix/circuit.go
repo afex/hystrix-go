@@ -3,7 +3,7 @@ package hystrix
 // CircuitBreaker is created for each ExecutorPool to track whether requests
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
-	health    Health
+	health    *Health
 	ForceOpen bool
 }
 
@@ -13,7 +13,7 @@ type CircuitBreaker struct {
 // Enough failures over a duration and the Command will be treated as unhealthy, preventing new
 // executions.
 func GetCircuitWithUpdater(name string) (*CircuitBreaker, chan<- *healthUpdate, error) {
-	return nil, nil, nil
+	return NewCircuitBreaker(), make(chan *healthUpdate), nil
 }
 
 // NewCircuitBreaker creates a CircuitBreaker with associated Health

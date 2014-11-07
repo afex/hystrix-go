@@ -16,11 +16,20 @@ func (c *GoodCommand) PoolName() string       { return "GoodCommand" }
 func (c *GoodCommand) Timeout() time.Duration { return time.Millisecond * 100 }
 
 func TestExecute(t *testing.T) {
-	command := NewCommand(&GoodCommand{})
-	result, _ := command.Execute()
-	if result != 1 {
-		t.Fail()
-	}
+	resultChan := make(chan int)
+	errChan := Go("good", func() error {
+		resultChan <- 1
+		return nil
+	}, nil)
+
+	select {
+		case result := <-resultChan:
+			if result != 1 {
+				t.Fail()
+			}
+		case _ = <-errChan:
+			t.Fail()
+	}	
 }
 
 func TestQueue(t *testing.T) {

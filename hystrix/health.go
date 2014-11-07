@@ -23,7 +23,7 @@ type Bucket struct {
 }
 
 // NewHealth creates a channel for Updates and monitors it.
-func NewHealth() Health {
+func NewHealth() *Health {
 	h := Health{}
 	h.Updates = make(chan healthUpdate)
 	h.Buckets = map[int64]*Bucket{}
@@ -31,7 +31,7 @@ func NewHealth() Health {
 
 	go h.Monitor()
 
-	return h
+	return &h
 }
 
 // Monitor subscribes to Updates as they are sent after command execution, and updates the success ratio for the given second.
