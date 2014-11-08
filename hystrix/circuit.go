@@ -14,11 +14,7 @@ func init() {
 	circuitBreakers = make(map[string]*CircuitBreaker)
 }
 
-// GetCircuitWithUpdater returns the circuit for the given command, and a write-only channel to
-// update the perceived health of a command.
-//
-// Enough failures over a duration and the Command will be treated as unhealthy, preventing new
-// executions.
+// GetCircuit returns the circuit for the given command
 func GetCircuit(name string) (*CircuitBreaker, error) {
 	_, ok := circuitBreakers[name]
 	if !ok {
@@ -28,6 +24,8 @@ func GetCircuit(name string) (*CircuitBreaker, error) {
 	return circuitBreakers[name], nil
 }
 
+// ForceCircuitOpen allows manually causing the fallback logic for all instances
+// of a given command.
 func ForceCircuitOpen(name string, toggle bool) error {
 	circuit, err := GetCircuit(name)
 	if err != nil {
