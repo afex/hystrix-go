@@ -31,14 +31,17 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	go func() {
 		defer func() { finished <- true }()
 
-		circuit, _, err := GetCircuitWithUpdater(name)
+		circuit, err := GetCircuit(name)
 		if err != nil {
 			errChan <- err
 			return
 		}
 
-		if !circuit.IsOpen() {
-			errChan <- errors.New("circuit open")
+		if circuit.IsOpen() {
+			err := tryFallback(fallback, errors.New("circuit open"))
+			if err != nil {
+				errChan <- err
+			}
 			return
 		}
 
@@ -48,16 +51,16 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			return
 		}
 
-		// As backends falter, requests take longer but don't always fail. 
+		// As backends falter, requests take longer but don't always fail.
 		//
-		// When requests slow down but the incoming rate of requests stays the same, you have to 
+		// When requests slow down but the incoming rate of requests stays the same, you have to
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
 		select {
 		case ticket := <-tickets:
 			defer func() { tickets <- ticket }()
 		default:
-			err := tryFallback(fallback, errors.New("unable to grab executor"))
+			err := tryFallback(fallback, errors.New("max concurrency"))
 			if err != nil {
 				errChan <- err
 				return
@@ -80,8 +83,11 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	go func() {
 		select {
 		case <-finished:
-		case <-time.After(timeoutForCommand(name)):
-			errChan <- errors.New("timeout")
+		case <-time.After(GetTimeout(name)):
+			err := tryFallback(fallback, errors.New("timeout"))
+			if err != nil {
+				errChan <- err
+			}
 		}
 	}()
 
