@@ -1,13 +1,18 @@
 package hystrix
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
-func TestOpenBlah(t *testing.T) {
+func TestOpen(t *testing.T) {
 	c := NewCircuitBreaker()
 
 	for i := 0; i < 10; i++ {
 		c.Health.Updates <- false
 	}
+
+	c.toggleOpenFromHealth(time.Now())
 
 	if !c.IsOpen() {
 		t.Fail()

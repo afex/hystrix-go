@@ -6,6 +6,7 @@ import "time"
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
 	Health    *Health
+	Open      bool
 	ForceOpen bool
 }
 
@@ -41,13 +42,36 @@ func ForceCircuitOpen(name string, toggle bool) error {
 func NewCircuitBreaker() *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Health = NewHealth()
+
+	go c.watchHealth()
+
 	return c
+}
+
+// watchHealth checks every second to see if it should toggle the
+// open/closed state of the circuit
+func (circuit *CircuitBreaker) watchHealth() {
+	for {
+		time.Sleep(1 * time.Second)
+		circuit.toggleOpenFromHealth(time.Now())
+	}
+}
+
+// toggleOpenFromHealth updates the Open state based on a query to Health over
+// the previous time window
+func (circuit *CircuitBreaker) toggleOpenFromHealth(now time.Time) {
+	healthy := circuit.Health.IsHealthy(now)
+	if healthy && circuit.Open {
+		circuit.Open = false
+	} else if !healthy && !circuit.Open {
+		circuit.Open = true
+	}
 }
 
 // IsOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
-	return circuit.ForceOpen || !circuit.Health.IsHealthy(time.Now())
+	return circuit.ForceOpen || circuit.Open
 }
 
 func (circuit *CircuitBreaker) AllowRequest() bool {
