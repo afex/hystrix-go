@@ -1,10 +1,11 @@
 package hystrix
 
+import "time"
+
 // CircuitBreaker is created for each ExecutorPool to track whether requests
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
-	health    *Health
-	Updates   chan *healthUpdate
+	Health    *Health
 	ForceOpen bool
 }
 
@@ -39,15 +40,14 @@ func ForceCircuitOpen(name string, toggle bool) error {
 // NewCircuitBreaker creates a CircuitBreaker with associated Health
 func NewCircuitBreaker() *CircuitBreaker {
 	c := &CircuitBreaker{}
-	c.health = NewHealth()
-	c.Updates = make(chan *healthUpdate)
+	c.Health = NewHealth()
 	return c
 }
 
 // IsOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
-	return circuit.ForceOpen || !circuit.health.IsHealthy()
+	return circuit.ForceOpen || !circuit.Health.IsHealthy(time.Now())
 }
 
 func (circuit *CircuitBreaker) AllowRequest() bool {
@@ -56,8 +56,4 @@ func (circuit *CircuitBreaker) AllowRequest() bool {
 
 func (circuit *CircuitBreaker) allowSingleTest() bool {
 	return false
-}
-
-func (circuit *CircuitBreaker) markSuccess() {
-
 }

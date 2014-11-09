@@ -28,26 +28,29 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	// let data come in and out naturally, like with any closure
 	// explicit error return to give place for us to kill switch the operation (fallback)
 
+	circuit, err := GetCircuit(name)
+	if err != nil {
+		errChan <- err
+	}
+
 	go func() {
 		defer func() { finished <- true }()
 
-		circuit, err := GetCircuit(name)
+		tickets, err := ConcurrentThrottle(name)
 		if err != nil {
+			circuit.Health.Updates <- false
 			errChan <- err
 			return
 		}
 
+		// Circuits get opened when recent executions have shown to have a high error rate.
+		// Rejecting new executions allows backends to recover, and the circuit will allow
+		// new traffic when it feels a healthly state has returned.
 		if circuit.IsOpen() {
 			err := tryFallback(fallback, errors.New("circuit open"))
 			if err != nil {
 				errChan <- err
 			}
-			return
-		}
-
-		tickets, err := ConcurrentThrottle(name)
-		if err != nil {
-			errChan <- err
 			return
 		}
 
@@ -60,6 +63,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		case ticket := <-tickets:
 			defer func() { tickets <- ticket }()
 		default:
+			circuit.Health.Updates <- false
 			err := tryFallback(fallback, errors.New("max concurrency"))
 			if err != nil {
 				errChan <- err
@@ -69,6 +73,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 		runErr := run()
 		if runErr != nil {
+			circuit.Health.Updates <- false
 			if fallback != nil {
 				err := tryFallback(fallback, runErr)
 				if err != nil {
@@ -78,12 +83,15 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 				errChan <- runErr
 			}
 		}
+
+		circuit.Health.Updates <- true
 	}()
 
 	go func() {
 		select {
 		case <-finished:
 		case <-time.After(GetTimeout(name)):
+			circuit.Health.Updates <- false
 			err := tryFallback(fallback, errors.New("timeout"))
 			if err != nil {
 				errChan <- err

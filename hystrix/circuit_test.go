@@ -1,13 +1,12 @@
 package hystrix
 
 import "testing"
-import "time"
 
 func TestOpenBlah(t *testing.T) {
 	c := NewCircuitBreaker()
 
 	for i := 0; i < 10; i++ {
-		c.health.Updates <- healthUpdate{false, time.Now()}
+		c.Health.Updates <- false
 	}
 
 	if !c.IsOpen() {
