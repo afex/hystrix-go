@@ -19,7 +19,17 @@ func TestOpen(t *testing.T) {
 	}
 }
 
-// TODO: circuit re-closes when failures stop
 func TestClose(t *testing.T) {
+	c := NewCircuitBreaker()
+	c.Open = true
 
+	for i := 0; i < 10; i++ {
+		c.Health.Updates <- true
+	}
+
+	c.toggleOpenFromHealth(time.Now())
+
+	if c.IsOpen() {
+		t.Fail()
+	}		
 }
