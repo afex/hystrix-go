@@ -49,3 +49,15 @@ func NewCircuitBreaker() *CircuitBreaker {
 func (circuit *CircuitBreaker) IsOpen() bool {
 	return circuit.ForceOpen || !circuit.health.IsHealthy()
 }
+
+func (circuit *CircuitBreaker) AllowRequest() bool {
+	return !circuit.IsOpen() || circuit.allowSingleTest()
+}
+
+func (circuit *CircuitBreaker) allowSingleTest() bool {
+	return false
+}
+
+func (circuit *CircuitBreaker) markSuccess() {
+
+}
