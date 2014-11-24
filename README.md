@@ -21,67 +21,50 @@ How to use
 import "github.com/afex/hystrix-go/hystrix"
 ```
 
-### Define your struct with basic settings
+### Execute code as a Hystrix command
+
+Define your application logic which relies on external systems, passing your function to ```hystrix.Go```. When that system is healthy this will be the only thing which executes.
 
 ```go
-type MyCommand struct{}
-
-func (c *MyCommand) PoolName() string {
-	return "MyCommand"
-}
-
-func (c *MyCommand) Timeout() time.Duration {
-	return time.Millisecond * 100
-}
+hystrix.Go("my_command", func() error {
+	// talk to other services
+	return nil
+}, nil)
 ```
 
-### Implement Run and Fallback methods
+### Defining fallback behavior
 
-Define your application logic which relies on external systems. When that system is healthy this will be the only thing which executes.
+If you want code to execute during a service outage, pass in a second function to ```hystrix.Go```. Ideally, the logic here will allow your application to gracefully handle external services being unavailable.
+
+This triggers when your code returns an error, or whenever it is unable to complete based on a [variety of health checks](https://github.com/Netflix/Hystrix/wiki/How-it-Works).
 
 ```go
-func (c *MyCommand) Run() (interface{}, error) {
-	// example: load the friends list from an external service, and return the count
-	response, err := http.Get("http://service/friend_list")
-	count := // snip: parse response count friends 
-	if err != nil {
-		return nil, err
-	} else {
-		return count, nil
-	}
-}
+hystrix.Go("my_command", func() error {
+	// talk to other services
+	return nil
+}, func(err error) error {
+	// do this when services are down
+	return nil
+})
 ```
 
-Define your fallback behavior. Ideally, the logic here will allow your application to gracefully handle the ```Run()``` method being unavailable.
+### Waiting for output
 
-This triggers when your ```Run()``` method returns an error, or whenever it is unable to complete based on a [variety of health checks](https://github.com/Netflix/Hystrix/wiki/How-it-Works).
-
-```go
-func (c *MyCommand) Fallback(err error) (interface{}, error) {
-	// example: when friends service is slow or unavailable, act as though the user has no friends.
-	return 0, nil
-}
-```
-
-### Synchronous execution
-
-Start a command, and wait for it to finish.
+Calling ```hystrix.Go``` is like launching a goroutine, except you receive a channel of errors you can choose to monitor.
 
 ```go
-command := hystrix.NewCommand(&MyCommand{})
-result, err := command.Execute()
-```
+output := make(chan bool, 1)
+errors := hystrix.Go("my_command", func() error {
+	// talk to other services
+	output <- true
+	return nil
+}, nil)
 
-### Asynchronous execution
-
-Start a command, and receive channels to grab the response or error later.
-
-```go
-command := hystrix.NewCommand(&MyCommand{})
-results, errors := command.Queue()
 select {
-case result := <-results:
+case out := <-output:
+	// success
 case err := <-errors:
+	// failure
 }
 ```
 

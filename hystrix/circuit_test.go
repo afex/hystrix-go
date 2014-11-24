@@ -1,21 +1,35 @@
 package hystrix
 
-import "testing"
-import "time"
+import (
+	"testing"
+	"time"
+)
 
-func TestOpenBlah(t *testing.T) {
+func TestOpen(t *testing.T) {
 	c := NewCircuitBreaker()
 
 	for i := 0; i < 10; i++ {
-		c.health.Updates <- Update{false, time.Now()}
+		c.Health.Updates <- false
 	}
+
+	c.toggleOpenFromHealth(time.Now())
 
 	if !c.IsOpen() {
 		t.Fail()
 	}
 }
 
-// TODO: circuit re-closes when failures stop
 func TestClose(t *testing.T) {
+	c := NewCircuitBreaker()
+	c.Open = true
 
+	for i := 0; i < 10; i++ {
+		c.Health.Updates <- true
+	}
+
+	c.toggleOpenFromHealth(time.Now())
+
+	if c.IsOpen() {
+		t.Fail()
+	}		
 }
