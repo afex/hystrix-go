@@ -130,3 +130,17 @@ func TestOpenCircuit(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 }
+
+func TestFailedFallback(t *testing.T) {
+	errChan := Go("failed_fallback", func() error {
+		return fmt.Errorf("run_error")
+	}, func (err error) error {
+		return fmt.Errorf("fallback_error")
+	})
+
+	err := <-errChan
+
+	if err.Error() != "fallback failed with 'fallback_error'. run error was 'run_error'" {
+		t.Errorf("did not get expected error: %v", err)
+	}
+}
