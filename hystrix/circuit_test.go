@@ -31,5 +31,5 @@ func TestClose(t *testing.T) {
 
 	if c.IsOpen() {
 		t.Fail()
-	}		
+	}
 }

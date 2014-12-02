@@ -132,9 +132,9 @@ func TestOpenCircuit(t *testing.T) {
 }
 
 func TestFailedFallback(t *testing.T) {
-	errChan := Go("failed_fallback", func() error {
+	errChan := Go("fallback_error", func() error {
 		return fmt.Errorf("run_error")
-	}, func (err error) error {
+	}, func(err error) error {
 		return fmt.Errorf("fallback_error")
 	})
 

@@ -50,7 +50,10 @@ func ConcurrentThrottle(name string) (chan *Ticket, error) {
 	if val, ok := config.Concurrency[name]; ok {
 		return val, nil
 	}
-	config.Concurrency[name] = make(chan *Ticket, 10)
 
+	config.Concurrency[name] = make(chan *Ticket, 10)
+	for i := 0; i < 10; i++ {
+		config.Concurrency[name] <- &Ticket{}
+	}
 	return config.Concurrency[name], nil
 }
