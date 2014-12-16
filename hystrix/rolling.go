@@ -30,19 +30,6 @@ func (r *RollingNumber) removeOldBuckets() {
 	}
 }
 
-func (r *RollingNumber) sumValues() uint64 {
-	sum := uint64(0)
-	now := time.Now()
-
-	for timestamp, bucket := range r.Buckets {
-		if timestamp >= now.Unix()-10 {
-			sum += bucket.Value
-		}
-	}
-
-	return sum
-}
-
 func NewRollingNumber() *RollingNumber {
 	r := &RollingNumber{
 		Buckets: make(map[int64]*NumberBucket),
@@ -56,6 +43,14 @@ func (r *RollingNumber) Increment() {
 	r.removeOldBuckets()
 }
 
-func (r *RollingNumber) Sum() uint64 {
-	return r.sumValues()
+func (r *RollingNumber) Sum(now time.Time) uint64 {
+	sum := uint64(0)
+
+	for timestamp, bucket := range r.Buckets {
+		if timestamp >= now.Unix()-10 {
+			sum += bucket.Value
+		}
+	}
+
+	return sum
 }

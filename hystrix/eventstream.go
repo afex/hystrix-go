@@ -70,12 +70,11 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		return err
 	}
 
-	reqCount := cb.Metrics.Count.Sum()
-	errCount := cb.Metrics.Errors.Sum()
-	var errPct float64
-	if reqCount > 0 {
-		errPct = (float64(errCount) / float64(reqCount) * 100)
-	}
+	now := time.Now()
+
+	reqCount := cb.Metrics.Count.Sum(now)
+	errCount := cb.Metrics.Errors.Sum(now)
+	errPct := cb.Metrics.ErrorPercent(now)
 
 	eventBytes, err := json.Marshal(&streamCmdEvent{
 		Type:               "HystrixCommand",

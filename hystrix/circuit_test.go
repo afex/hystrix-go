@@ -9,10 +9,12 @@ func TestOpen(t *testing.T) {
 	c := NewCircuitBreaker("foo")
 
 	for i := 0; i < 10; i++ {
-		c.Health.Updates <- false
+		c.Metrics.Updates <- &ExecutionMetric{
+			Type: "failure",
+		}
 	}
 
-	c.toggleOpenFromHealth(time.Now())
+	c.toggleOpenFromMetrics(time.Now())
 
 	if !c.IsOpen() {
 		t.Fail()
@@ -24,10 +26,12 @@ func TestClose(t *testing.T) {
 	c.Open = true
 
 	for i := 0; i < 10; i++ {
-		c.Health.Updates <- true
+		c.Metrics.Updates <- &ExecutionMetric{
+			Type: "success",
+		}
 	}
 
-	c.toggleOpenFromHealth(time.Now())
+	c.toggleOpenFromMetrics(time.Now())
 
 	if c.IsOpen() {
 		t.Fail()

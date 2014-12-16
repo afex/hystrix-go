@@ -6,7 +6,6 @@ import "time"
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
 	Name      string
-	Health    *Health
 	Metrics   *Metrics
 	Open      bool
 	ForceOpen bool
@@ -44,7 +43,6 @@ func ForceCircuitOpen(name string, toggle bool) error {
 func NewCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
-	c.Health = NewHealth()
 	c.Metrics = NewMetrics()
 
 	go c.watchHealth()
@@ -57,14 +55,14 @@ func NewCircuitBreaker(name string) *CircuitBreaker {
 func (circuit *CircuitBreaker) watchHealth() {
 	for {
 		time.Sleep(1 * time.Second)
-		circuit.toggleOpenFromHealth(time.Now())
+		circuit.toggleOpenFromMetrics(time.Now())
 	}
 }
 
 // toggleOpenFromHealth updates the Open state based on a query to Health over
 // the previous time window
-func (circuit *CircuitBreaker) toggleOpenFromHealth(now time.Time) {
-	healthy := circuit.Health.IsHealthy(now)
+func (circuit *CircuitBreaker) toggleOpenFromMetrics(now time.Time) {
+	healthy := circuit.Metrics.IsHealthy(now)
 	if healthy && circuit.Open {
 		circuit.Open = false
 	} else if !healthy && !circuit.Open {

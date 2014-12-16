@@ -40,7 +40,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 		tickets, err := ConcurrentThrottle(name)
 		if err != nil {
-			circuit.Health.Updates <- false
 			errChan <- err
 			return
 		}
@@ -49,6 +48,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if circuit.IsOpen() {
+			circuit.Metrics.Updates <- &ExecutionMetric{
+				Type: "short-circuit",
+			}
 			err := tryFallback(fallback, errors.New("circuit open"))
 			if err != nil {
 				errChan <- err
@@ -65,7 +67,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		case ticket := <-tickets:
 			defer func() { tickets <- ticket }()
 		default:
-			circuit.Health.Updates <- false
+			circuit.Metrics.Updates <- &ExecutionMetric{
+				Type: "rejected",
+			}
 			err := tryFallback(fallback, errors.New("max concurrency"))
 			if err != nil {
 				errChan <- err
@@ -77,7 +81,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		runErr := run()
 		runDuration := time.Now().Sub(runStart)
 		if runErr != nil {
-			circuit.Health.Updates <- false
+			circuit.Metrics.Updates <- &ExecutionMetric{
+				Type: "failure",
+			}
 			if fallback != nil {
 				err := tryFallback(fallback, runErr)
 				if err != nil {
@@ -90,7 +96,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 		totalDuration := time.Now().Sub(start)
 
-		circuit.Health.Updates <- true
 		circuit.Metrics.Updates <- &ExecutionMetric{
 			Type:          "success",
 			Time:          time.Now(),
@@ -103,7 +108,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		select {
 		case <-finished:
 		case <-time.After(GetTimeout(name)):
-			circuit.Health.Updates <- false
+			circuit.Metrics.Updates <- &ExecutionMetric{
+				Type: "timeout",
+			}
 			err := tryFallback(fallback, errors.New("timeout"))
 			if err != nil {
 				errChan <- err

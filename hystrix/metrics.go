@@ -51,10 +51,18 @@ func (m *Metrics) Monitor() {
 	}
 }
 
-func (m *Metrics) RequestCount() uint64 {
-	return m.Count.Sum()
+func (m *Metrics) ErrorPercent(now time.Time) float64 {
+	var errPct float64
+	reqs := m.Count.Sum(now)
+	errs := m.Errors.Sum(now)
+
+	if reqs > 0 {
+		errPct = (float64(errs) / float64(reqs) * 100)
+	}
+
+	return errPct
 }
 
-func (m *Metrics) ErrorCount() uint64 {
-	return m.Errors.Sum()
+func (m *Metrics) IsHealthy(now time.Time) bool {
+	return m.ErrorPercent(now) < 50
 }
