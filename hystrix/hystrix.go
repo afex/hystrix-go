@@ -85,6 +85,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		}
 
 		circuit.Health.Updates <- true
+		circuit.Metrics.Updates <- &ExecutionMetric{Type: "success"}
 	}()
 
 	go func() {

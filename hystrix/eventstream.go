@@ -55,9 +55,8 @@ func (sh *StreamHandler) loop() {
 	for {
 		select {
 		case <-tick:
-			for cmd, cb := range circuitBreakers {
-				log.Print(cmd)
-				sh.publishMetrics(cb.Metrics)
+			for _, cb := range circuitBreakers {
+				sh.publishMetrics(cb)
 			}
 		case <-sh.done:
 			return
@@ -65,29 +64,32 @@ func (sh *StreamHandler) loop() {
 	}
 }
 
-func (sh *StreamHandler) publishMetrics(metrics CommandMetrics) error {
+func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	var b bytes.Buffer
 	_, err := b.Write([]byte("data:"))
 	if err != nil {
 		return err
 	}
-	reqCount := metrics.RequestCount()
-	errCount := metrics.ErrorCount()
+
+	reqCount := cb.Metrics.RequestCount()
+	errCount := cb.Metrics.ErrorCount()
 	var errPct float64
 	if reqCount > 0 {
 		errPct = (float64(errCount) / float64(reqCount) * 100)
 	}
 
+	log.Print(cb.Name)
+
 	eventBytes, err := json.Marshal(&streamCmdEvent{
 		Type:               "HystrixCommand",
-		Name:               "Test",
-		Group:              "TestGroup",
+		Name:               cb.Name,
+		Group:              cb.Name,
 		ReportingHosts:     1,
 		Time:               currentTime(),
 		RequestCount:       reqCount,
 		ErrorCount:         errCount,
 		ErrorPct:           errPct,
-		CircuitBreakerOpen: false,
+		CircuitBreakerOpen: cb.IsOpen(),
 
 		RollingStatsWindow: 100000,
 	})

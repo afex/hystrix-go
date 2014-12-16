@@ -5,8 +5,9 @@ import "time"
 // CircuitBreaker is created for each ExecutorPool to track whether requests
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
+	Name      string
 	Health    *Health
-	Metrics   CommandMetrics
+	Metrics   *Metrics
 	Open      bool
 	ForceOpen bool
 }
@@ -21,7 +22,7 @@ func init() {
 func GetCircuit(name string) (*CircuitBreaker, error) {
 	_, ok := circuitBreakers[name]
 	if !ok {
-		circuitBreakers[name] = NewCircuitBreaker()
+		circuitBreakers[name] = NewCircuitBreaker(name)
 	}
 
 	return circuitBreakers[name], nil
@@ -40,10 +41,11 @@ func ForceCircuitOpen(name string, toggle bool) error {
 }
 
 // NewCircuitBreaker creates a CircuitBreaker with associated Health
-func NewCircuitBreaker() *CircuitBreaker {
+func NewCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
+	c.Name = name
 	c.Health = NewHealth()
-	c.Metrics = &testCmdMetrics{}
+	c.Metrics = NewMetrics()
 
 	go c.watchHealth()
 

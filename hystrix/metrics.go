@@ -1,72 +1,78 @@
 package hystrix
 
 import (
+	"log"
 	"math/rand"
 	"time"
 )
 
-// CommandMetrics implementations track metrics for commands.
-// These metrics are used to determine the health of a command as well
-// as for monitoring.
-type CommandMetrics interface {
-	RequestCount() uint32
-	ErrorCount() uint32
-
-	Timing0() time.Duration
-	Timing25() time.Duration
-	Timing50() time.Duration
-	Timing75() time.Duration
-	Timing90() time.Duration
-	Timing95() time.Duration
-	Timing99() time.Duration
-	Timing995() time.Duration
-	Timing100() time.Duration
+type ExecutionMetric struct {
+	Type     string
+	Time     int64
+	Duration time.Duration
 }
 
-type testCmdMetrics struct{}
+type Metrics struct {
+	Updates chan *ExecutionMetric
+}
 
-var _ CommandMetrics = (*testCmdMetrics)(nil)
+func NewMetrics() *Metrics {
+	m := &Metrics{}
 
-func (m *testCmdMetrics) RequestCount() uint32 {
+	m.Updates = make(chan *ExecutionMetric)
+
+	go m.Monitor()
+
+	return m
+}
+
+func (m *Metrics) Monitor() {
+	for update := range m.Updates {
+		log.Printf("%+v", *update)
+		// increment rolling values
+	}
+}
+
+func (m *Metrics) RequestCount() uint32 {
 	return rand.Uint32()
 }
 
-func (m *testCmdMetrics) ErrorCount() uint32 {
+func (m *Metrics) ErrorCount() uint32 {
 	return rand.Uint32()
 }
 
-func (m *testCmdMetrics) Timing0() time.Duration {
+func (m *Metrics) Timing0() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
 
-func (m *testCmdMetrics) Timing25() time.Duration {
+func (m *Metrics) Timing25() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
 
-func (m *testCmdMetrics) Timing50() time.Duration {
+func (m *Metrics) Timing50() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
 
-func (m *testCmdMetrics) Timing75() time.Duration {
+func (m *Metrics) Timing75() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
 
-func (m *testCmdMetrics) Timing90() time.Duration {
+func (m *Metrics) Timing90() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
 
-func (m *testCmdMetrics) Timing95() time.Duration {
+func (m *Metrics) Timing95() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
 
-func (m *testCmdMetrics) Timing99() time.Duration {
+func (m *Metrics) Timing99() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
 
-func (m *testCmdMetrics) Timing995() time.Duration {
+func (m *Metrics) Timing995() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
 
-func (m *testCmdMetrics) Timing100() time.Duration {
+func (m *Metrics) Timing100() time.Duration {
 	return time.Duration(rand.Float32() * 10000)
 }
