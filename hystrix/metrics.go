@@ -2,24 +2,35 @@ package hystrix
 
 import (
 	"log"
-	"math/rand"
 	"time"
 )
 
 type ExecutionMetric struct {
 	Type     string
-	Time     int64
-	Duration time.Duration
+	Time     time.Time
+	TotalDuration time.Duration
+	RunDuration time.Duration
 }
 
 type Metrics struct {
 	Updates chan *ExecutionMetric
+
+	Count  *RollingNumber
+	Errors *RollingNumber
+
+	TotalDuration *RollingPercentile
+	RunDuration *RollingPercentile
 }
 
 func NewMetrics() *Metrics {
 	m := &Metrics{}
 
 	m.Updates = make(chan *ExecutionMetric)
+
+	m.Count = &RollingNumber{}
+	m.Errors = &RollingNumber{}
+	m.TotalDuration = NewRollingPercentile()
+	m.RunDuration = NewRollingPercentile()
 
 	go m.Monitor()
 
@@ -29,50 +40,21 @@ func NewMetrics() *Metrics {
 func (m *Metrics) Monitor() {
 	for update := range m.Updates {
 		log.Printf("%+v", *update)
-		// increment rolling values
+
+		m.Count.Increment()
+		if update.Type != "success" {
+			m.Errors.Increment()
+		}
+
+		m.TotalDuration.Add(update.TotalDuration)
+		m.RunDuration.Add(update.RunDuration)
 	}
 }
 
 func (m *Metrics) RequestCount() uint32 {
-	return rand.Uint32()
+	return m.Count.Sum()
 }
 
 func (m *Metrics) ErrorCount() uint32 {
-	return rand.Uint32()
-}
-
-func (m *Metrics) Timing0() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
-}
-
-func (m *Metrics) Timing25() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
-}
-
-func (m *Metrics) Timing50() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
-}
-
-func (m *Metrics) Timing75() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
-}
-
-func (m *Metrics) Timing90() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
-}
-
-func (m *Metrics) Timing95() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
-}
-
-func (m *Metrics) Timing99() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
-}
-
-func (m *Metrics) Timing995() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
-}
-
-func (m *Metrics) Timing100() time.Duration {
-	return time.Duration(rand.Float32() * 10000)
+	return m.Errors.Sum()
 }

@@ -21,6 +21,8 @@ type fallbackFunc func(error) error
 //
 // Define a fallback function if you want to define some code to execute during outages.
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
+	start := time.Now()
+
 	errChan := make(chan error, 1)
 	finished := make(chan bool, 1)
 
@@ -71,7 +73,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			}
 		}
 
+		runStart := time.Now()
 		runErr := run()
+		runDuration := time.Now().Sub(runStart)
 		if runErr != nil {
 			circuit.Health.Updates <- false
 			if fallback != nil {
@@ -84,8 +88,15 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			}
 		}
 
+		totalDuration := time.Now().Sub(start)
+
 		circuit.Health.Updates <- true
-		circuit.Metrics.Updates <- &ExecutionMetric{Type: "success"}
+		circuit.Metrics.Updates <- &ExecutionMetric{
+			Type: "success",
+			Time: time.Now(),
+			RunDuration: runDuration,
+			TotalDuration: totalDuration,
+		}
 	}()
 
 	go func() {

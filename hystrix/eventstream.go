@@ -71,8 +71,8 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		return err
 	}
 
-	reqCount := cb.Metrics.RequestCount()
-	errCount := cb.Metrics.ErrorCount()
+	reqCount := cb.Metrics.Count.Sum()
+	errCount := cb.Metrics.Errors.Sum()
 	var errPct float64
 	if reqCount > 0 {
 		errPct = (float64(errCount) / float64(reqCount) * 100)
@@ -91,7 +91,8 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		ErrorPct:           errPct,
 		CircuitBreakerOpen: cb.IsOpen(),
 
-		RollingStatsWindow: 100000,
+		LatencyTotal:   cb.Metrics.TotalDuration.Timings(),
+		LatencyExecute: cb.Metrics.RunDuration.Timings(),    
 	})
 	if err != nil {
 		return err
