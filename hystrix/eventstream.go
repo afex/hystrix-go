@@ -3,6 +3,7 @@ package hystrix
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -51,58 +52,67 @@ func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 func (sh *StreamHandler) loop() {
 	tick := time.Tick(1 * time.Second)
-	metrics := testCmdMetrics{}
 	for {
 		select {
 		case <-tick:
-			var b bytes.Buffer
-			_, err := b.Write([]byte("data:"))
-			if err != nil {
-				continue
+			for cmd, cb := range circuitBreakers {
+				log.Print(cmd)
+				sh.publishMetrics(cb.Metrics)
 			}
-			reqCount := metrics.RequestCount()
-			errCount := metrics.ErrorCount()
-			var errPct float64
-			if reqCount > 0 {
-				errPct = (float64(errCount) / float64(reqCount) * 100)
-			}
-			eventBytes, err := json.Marshal(&streamCmdEvent{
-				Type:               "HystrixCommand",
-				Name:               "Test",
-				Group:              "TestGroup",
-				ReportingHosts:     1,
-				Time:               currentTime(),
-				RequestCount:       reqCount,
-				ErrorCount:         errCount,
-				ErrorPct:           errPct,
-				CircuitBreakerOpen: false,
-
-				RollingStatsWindow: 100000,
-			})
-			if err != nil {
-				continue
-			}
-			_, err = b.Write(eventBytes)
-			if err != nil {
-				continue
-			}
-			_, err = b.Write([]byte("\n\n"))
-			if err != nil {
-				continue
-			}
-			dataBytes := b.Bytes()
-			sh.mu.RLock()
-			for _, requestEvents := range sh.requests {
-				select {
-				case requestEvents <- dataBytes:
-				default:
-				}
-			}
-			sh.mu.RUnlock()
 		case <-sh.done:
 			return
 		}
 	}
+}
+
+func (sh *StreamHandler) publishMetrics(metrics CommandMetrics) error {
+	var b bytes.Buffer
+	_, err := b.Write([]byte("data:"))
+	if err != nil {
+		return err
+	}
+	reqCount := metrics.RequestCount()
+	errCount := metrics.ErrorCount()
+	var errPct float64
+	if reqCount > 0 {
+		errPct = (float64(errCount) / float64(reqCount) * 100)
+	}
+
+	eventBytes, err := json.Marshal(&streamCmdEvent{
+		Type:               "HystrixCommand",
+		Name:               "Test",
+		Group:              "TestGroup",
+		ReportingHosts:     1,
+		Time:               currentTime(),
+		RequestCount:       reqCount,
+		ErrorCount:         errCount,
+		ErrorPct:           errPct,
+		CircuitBreakerOpen: false,
+
+		RollingStatsWindow: 100000,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = b.Write(eventBytes)
+	if err != nil {
+		return err
+	}
+	_, err = b.Write([]byte("\n\n"))
+	if err != nil {
+		return err
+	}
+	dataBytes := b.Bytes()
+	sh.mu.RLock()
+	for _, requestEvents := range sh.requests {
+		select {
+		case requestEvents <- dataBytes:
+		default:
+		}
+	}
+	sh.mu.RUnlock()
+
+	return nil
 }
 
 func (sh *StreamHandler) register(req *http.Request) <-chan []byte {

@@ -6,6 +6,7 @@ import "time"
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
 	Health    *Health
+	Metrics   CommandMetrics
 	Open      bool
 	ForceOpen bool
 }
@@ -42,6 +43,7 @@ func ForceCircuitOpen(name string, toggle bool) error {
 func NewCircuitBreaker() *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Health = NewHealth()
+	c.Metrics = &testCmdMetrics{}
 
 	go c.watchHealth()
 
