@@ -199,5 +199,5 @@ type streamCmdLatency struct {
 }
 
 func currentTime() int64 {
-	return time.Now().Unix() / int64(1000)
+	return time.Now().UnixNano() / int64(1000000)
 }
