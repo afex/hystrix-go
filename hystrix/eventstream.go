@@ -3,7 +3,6 @@ package hystrix
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -77,8 +76,6 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	if reqCount > 0 {
 		errPct = (float64(errCount) / float64(reqCount) * 100)
 	}
-
-	log.Print(cb.Name)
 
 	eventBytes, err := json.Marshal(&streamCmdEvent{
 		Type:               "HystrixCommand",

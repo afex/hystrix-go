@@ -4,30 +4,27 @@ import "testing"
 
 func TestOrdinal(t *testing.T) {
 	r := &RollingTiming{}
-	if r.ordinal(5, 30) != 2 {
-		t.Fatalf("expected ordinal of 2, got %v", r.ordinal(5, 30))
+	var ordinalTests = []struct {
+		length   int
+		perc     float64
+		expected int64
+	}{
+		{1, 0, 1},
+		{2, 0, 1},
+		{2, 50, 1},
+		{2, 51, 2},
+		{5, 30, 2},
+		{5, 40, 2},
+		{5, 50, 3},
+		{11, 25, 3},
+		{11, 50, 6},
+		{11, 75, 9},
+		{11, 100, 11},
 	}
-	if r.ordinal(5, 40) != 2 {
-		t.Fatalf("expected ordinal of 2, got %v", r.ordinal(5, 40))
+	for _, s := range ordinalTests {
+		o := r.ordinal(s.length, s.perc)
+		if o != s.expected {
+			t.Fatalf("expected ordinal for length=%v, percentile=%v to be %v, got %v", s.length, s.perc, s.expected, o)
+		}
 	}
-	if r.ordinal(5, 50) != 3 {
-		t.Fatalf("expected ordinal of 3, got %v", r.ordinal(5, 50))
-	}
-}
-
-func TestOrdinalLength1(t *testing.T) {
-	r := &RollingTiming{}
-	if r.ordinal(1, 0) != 1 {
-		t.Fatalf("expected ordinal of 1, got %v", r.ordinal(1, 0))
-	}	
-}
-
-func TestOrdinalLength2(t *testing.T) {
-	r := &RollingTiming{}
-	if r.ordinal(2, 50) != 1 {
-		t.Fatalf("expected ordinal of 1, got %v", r.ordinal(2, 50))
-	}
-	if r.ordinal(2, 51) != 2 {
-		t.Fatalf("expected ordinal of 1, got %v", r.ordinal(2, 50))
-	}	
 }

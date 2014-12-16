@@ -1,7 +1,6 @@
 package hystrix
 
 import (
-	"log"
 	"math"
 	"sort"
 	"time"
@@ -30,10 +29,13 @@ func (c ByDuration) Less(i, j int) bool { return c[i] < c[j] }
 
 func (r *RollingTiming) SortedDurations() ByDuration {
 	var durations ByDuration
+	now := time.Now()
 
-	for _, b := range r.Buckets {
-		for _, d := range b.Durations {
-			durations = append(durations, d)
+	for timestamp, b := range r.Buckets {
+		if timestamp >= now.Unix()-10 {
+			for _, d := range b.Durations {
+				durations = append(durations, d)
+			}
 		}
 	}
 
@@ -52,9 +54,20 @@ func (r *RollingTiming) getCurrentBucket() *TimingBucket {
 	return bucket
 }
 
+func (r *RollingTiming) removeOldBuckets() {
+	now := time.Now()
+
+	for timestamp, _ := range r.Buckets {
+		if timestamp <= now.Unix()-10 {
+			delete(r.Buckets, timestamp)
+		}
+	}
+}
+
 func (r *RollingTiming) Add(duration time.Duration) {
 	b := r.getCurrentBucket()
 	b.Durations = append(b.Durations, duration)
+	r.removeOldBuckets()
 }
 
 func (r *RollingTiming) Percentile(p float64) uint32 {
@@ -65,15 +78,14 @@ func (r *RollingTiming) Percentile(p float64) uint32 {
 	}
 
 	pos := r.ordinal(len(sortedDurations), p) - 1
-	log.Printf("len: %v perc: %v, pos: %v", len(sortedDurations), p, pos)
 	return uint32(sortedDurations[pos].Nanoseconds() / 1000000)
 }
 
 func (r *RollingTiming) ordinal(length int, percentile float64) int64 {
-	if length == 1 {
+	if percentile == 0 && length > 0 {
 		return 1
 	}
-	
+
 	return int64(math.Ceil((percentile / float64(100)) * float64(length)))
 }
 

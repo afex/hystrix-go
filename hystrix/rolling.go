@@ -20,6 +20,16 @@ func (r *RollingNumber) getCurrentBucket() *NumberBucket {
 	return bucket
 }
 
+func (r *RollingNumber) removeOldBuckets() {
+	now := time.Now()
+
+	for timestamp, _ := range r.Buckets {
+		if timestamp <= now.Unix()-10 {
+			delete(r.Buckets, timestamp)
+		}
+	}
+}
+
 func (r *RollingNumber) sumValues() uint64 {
 	sum := uint64(0)
 	now := time.Now()
@@ -43,6 +53,7 @@ func NewRollingNumber() *RollingNumber {
 func (r *RollingNumber) Increment() {
 	b := r.getCurrentBucket()
 	b.Value += 1
+	r.removeOldBuckets()
 }
 
 func (r *RollingNumber) Sum() uint64 {
