@@ -6,7 +6,7 @@ import (
 )
 
 func TestOpen(t *testing.T) {
-	c := NewCircuitBreaker()
+	c := NewCircuitBreaker("foo")
 
 	for i := 0; i < 10; i++ {
 		c.Health.Updates <- false
@@ -20,7 +20,7 @@ func TestOpen(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	c := NewCircuitBreaker()
+	c := NewCircuitBreaker("foo")
 	c.Open = true
 
 	for i := 0; i < 10; i++ {

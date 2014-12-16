@@ -3,50 +3,48 @@ package hystrix
 import "time"
 
 type RollingNumber struct {
-	value uint32
+	Buckets map[int64]*NumberBucket
 }
 
-func (r *RollingNumber) Increment() {
-	r.value += 1
+type NumberBucket struct {
+	Value uint64
 }
 
-func (r *RollingNumber) Sum() uint32 {
-	return r.value
+func (r *RollingNumber) getCurrentBucket() *NumberBucket {
+	now := time.Now()
+	bucket, exists := r.Buckets[now.Unix()]
+	if !exists {
+		r.Buckets[now.Unix()] = &NumberBucket{}
+		bucket = r.Buckets[now.Unix()]
+	}
+	return bucket
 }
 
-type RollingPercentile struct {
-	value time.Duration
-	Buckets map[int64]*Bucket
+func (r *RollingNumber) sumValues() uint64 {
+	sum := uint64(0)
+	now := time.Now()
+
+	for timestamp, bucket := range r.Buckets {
+		if timestamp >= now.Unix()-10 {
+			sum += bucket.Value
+		}
+	}
+
+	return sum
 }
 
-func NewRollingPercentile() *RollingPercentile {
-	r := &RollingPercentile{}
-	r.Buckets = make(map[int64]*Bucket)
+func NewRollingNumber() *RollingNumber {
+	r := &RollingNumber{
+		Buckets: make(map[int64]*NumberBucket),
+	}
 	return r
 }
 
-func (r *RollingPercentile) Add(duration time.Duration) {
-	
+func (r *RollingNumber) Increment() {
+	b := r.getCurrentBucket()
+	b.Value += 1
 }
 
-func (r *RollingPercentile) Percentile(p float32) uint32 {
-	return uint32(r.value.Nanoseconds() / 1000000)
-}
-
-func (r *RollingPercentile) Mean() time.Duration {
-	return r.value
-}
-
-func (r *RollingPercentile) Timings() streamCmdLatency {
-	return streamCmdLatency{
-		Timing0:   r.Percentile(0),
-		Timing25:  r.Percentile(25),
-		Timing50:  r.Percentile(50),
-		Timing75:  r.Percentile(75),
-		Timing90:  r.Percentile(90),
-		Timing95:  r.Percentile(95),
-		Timing99:  r.Percentile(99),
-		Timing995: r.Percentile(99.5),
-		Timing100: r.Percentile(100),
-	}
+func (r *RollingNumber) Sum() uint64 {
+	return r.sumValues()
 }

@@ -86,13 +86,13 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		Group:              cb.Name,
 		ReportingHosts:     1,
 		Time:               currentTime(),
-		RequestCount:       reqCount,
-		ErrorCount:         errCount,
+		RequestCount:       uint32(reqCount),
+		ErrorCount:         uint32(errCount),
 		ErrorPct:           errPct,
 		CircuitBreakerOpen: cb.IsOpen(),
 
 		LatencyTotal:   cb.Metrics.TotalDuration.Timings(),
-		LatencyExecute: cb.Metrics.RunDuration.Timings(),    
+		LatencyExecute: cb.Metrics.RunDuration.Timings(),
 	})
 	if err != nil {
 		return err

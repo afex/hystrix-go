@@ -6,10 +6,10 @@ import (
 )
 
 type ExecutionMetric struct {
-	Type     string
-	Time     time.Time
+	Type          string
+	Time          time.Time
 	TotalDuration time.Duration
-	RunDuration time.Duration
+	RunDuration   time.Duration
 }
 
 type Metrics struct {
@@ -18,8 +18,8 @@ type Metrics struct {
 	Count  *RollingNumber
 	Errors *RollingNumber
 
-	TotalDuration *RollingPercentile
-	RunDuration *RollingPercentile
+	TotalDuration *RollingTiming
+	RunDuration   *RollingTiming
 }
 
 func NewMetrics() *Metrics {
@@ -27,10 +27,10 @@ func NewMetrics() *Metrics {
 
 	m.Updates = make(chan *ExecutionMetric)
 
-	m.Count = &RollingNumber{}
-	m.Errors = &RollingNumber{}
-	m.TotalDuration = NewRollingPercentile()
-	m.RunDuration = NewRollingPercentile()
+	m.Count = NewRollingNumber()
+	m.Errors = NewRollingNumber()
+	m.TotalDuration = NewRollingTiming()
+	m.RunDuration = NewRollingTiming()
 
 	go m.Monitor()
 
@@ -51,10 +51,10 @@ func (m *Metrics) Monitor() {
 	}
 }
 
-func (m *Metrics) RequestCount() uint32 {
+func (m *Metrics) RequestCount() uint64 {
 	return m.Count.Sum()
 }
 
-func (m *Metrics) ErrorCount() uint32 {
+func (m *Metrics) ErrorCount() uint64 {
 	return m.Errors.Sum()
 }
