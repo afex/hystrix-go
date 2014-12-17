@@ -96,7 +96,12 @@ func (r *RollingTiming) Mean() uint32 {
 		sum += d
 	}
 
-	return uint32(sum.Nanoseconds()/int64(len(sortedDurations))) / 1000000
+	length := int64(len(sortedDurations))
+	if length == 0 {
+		return 0
+	}
+
+	return uint32(sum.Nanoseconds()/length) / 1000000
 }
 
 func (r *RollingTiming) Timings() streamCmdLatency {
