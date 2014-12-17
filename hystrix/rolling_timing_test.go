@@ -32,6 +32,13 @@ func TestOrdinal(t *testing.T) {
 	}
 }
 
+func TestNilMean(t *testing.T) {
+	r := NewRollingTiming()
+	if r.Mean() != 0 {
+		t.Fatalf("expected nil mean to == 0")
+	}
+}
+
 func TestMean(t *testing.T) {
 	r := NewRollingTiming()
 

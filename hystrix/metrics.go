@@ -97,12 +97,12 @@ func (m *Metrics) ErrorPercent(now time.Time) float64 {
 	errs := m.Errors.Sum(now)
 
 	if reqs > 0 {
-		errPct = (float64(errs) / float64(reqs) * 100)
+		errPct = float64(errs) / float64(reqs)
 	}
 
 	return errPct
 }
 
 func (m *Metrics) IsHealthy(now time.Time) bool {
-	return m.ErrorPercent(now) < 50
+	return m.ErrorPercent(now) < 0.50
 }
