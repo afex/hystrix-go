@@ -68,6 +68,16 @@ case err := <-errors:
 }
 ```
 
+### Enable dashboard metrics
+
+In your main.go, register the event stream HTTP handler on a port and launch it in a goroutine.  Once you configure turbine for your [Hystrix Dashboard](https://github.com/Netflix/Hystrix/tree/master/hystrix-dashboard) to start streaming events, your commands will automatically begin appearing.
+
+```go
+hystrixStreamHandler := hystrix.NewStreamHandler()
+hystrixStreamHandler.Start()
+go http.ListenAndServe(net.JoinHostPort("", "81"), hystrixStreamHandler)
+```
+
 Build and Test
 --------------
 
