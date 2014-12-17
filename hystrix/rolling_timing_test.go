@@ -1,9 +1,12 @@
 package hystrix
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestOrdinal(t *testing.T) {
-	r := &RollingTiming{}
+	r := NewRollingTiming()
 	var ordinalTests = []struct {
 		length   int
 		perc     float64
@@ -26,5 +29,18 @@ func TestOrdinal(t *testing.T) {
 		if o != s.expected {
 			t.Fatalf("expected ordinal for length=%v, percentile=%v to be %v, got %v", s.length, s.perc, s.expected, o)
 		}
+	}
+}
+
+func TestMean(t *testing.T) {
+	r := NewRollingTiming()
+
+	r.Add(100 * time.Millisecond)
+	time.Sleep(2 * time.Second)
+	r.Add(200 * time.Millisecond)
+
+	m := r.Mean()
+	if m != 150 {
+		t.Fatalf("expected 150 average, got %v", m)
 	}
 }

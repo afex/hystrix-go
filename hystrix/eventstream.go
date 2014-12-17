@@ -72,23 +72,34 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 
 	now := time.Now()
 
-	reqCount := cb.Metrics.Count.Sum(now)
+	reqCount := cb.Metrics.Requests.Sum(now)
 	errCount := cb.Metrics.Errors.Sum(now)
 	errPct := cb.Metrics.ErrorPercent(now)
 
 	eventBytes, err := json.Marshal(&streamCmdEvent{
-		Type:               "HystrixCommand",
-		Name:               cb.Name,
-		Group:              cb.Name,
-		ReportingHosts:     1,
-		Time:               currentTime(),
+		Type:           "HystrixCommand",
+		Name:           cb.Name,
+		Group:          cb.Name,
+		Time:           currentTime(),
+		ReportingHosts: 1,
+
 		RequestCount:       uint32(reqCount),
 		ErrorCount:         uint32(errCount),
 		ErrorPct:           errPct,
 		CircuitBreakerOpen: cb.IsOpen(),
 
-		LatencyTotal:   cb.Metrics.TotalDuration.Timings(),
-		LatencyExecute: cb.Metrics.RunDuration.Timings(),
+		RollingCountSuccess:            uint32(cb.Metrics.Successes.Sum(now)),
+		RollingCountFailure:            uint32(cb.Metrics.Failures.Sum(now)),
+		RollingCountThreadPoolRejected: uint32(cb.Metrics.Rejected.Sum(now)),
+		RollingCountShortCircuited:     uint32(cb.Metrics.ShortCircuits.Sum(now)),
+		RollingCountTimeout:            uint32(cb.Metrics.Timeouts.Sum(now)),
+		RollingCountFallbackSuccess:    uint32(cb.Metrics.FallbackSuccesses.Sum(now)),
+		RollingCountFallbackFailure:    uint32(cb.Metrics.FallbackFailures.Sum(now)),
+
+		LatencyTotal:       cb.Metrics.TotalDuration.Timings(),
+		LatencyTotalMean:   cb.Metrics.TotalDuration.Mean(),
+		LatencyExecute:     cb.Metrics.RunDuration.Timings(),
+		LatencyExecuteMean: cb.Metrics.RunDuration.Mean(),
 	})
 	if err != nil {
 		return err

@@ -48,10 +48,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if circuit.IsOpen() {
-			circuit.Metrics.Updates <- &ExecutionMetric{
-				Type: "short-circuit",
-			}
-			err := tryFallback(fallback, errors.New("circuit open"))
+			reportEvent(circuit, "short-circuit", start, 0)
+			err := tryFallback(circuit, start, 0, fallback, errors.New("circuit open"))
 			if err != nil {
 				errChan <- err
 			}
@@ -67,10 +65,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		case ticket := <-tickets:
 			defer func() { tickets <- ticket }()
 		default:
-			circuit.Metrics.Updates <- &ExecutionMetric{
-				Type: "rejected",
-			}
-			err := tryFallback(fallback, errors.New("max concurrency"))
+			reportEvent(circuit, "rejected", start, 0)
+			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
 			if err != nil {
 				errChan <- err
 				return
@@ -81,11 +77,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		runErr := run()
 		runDuration := time.Now().Sub(runStart)
 		if runErr != nil {
-			circuit.Metrics.Updates <- &ExecutionMetric{
-				Type: "failure",
-			}
+			reportEvent(circuit, "failure", start, runDuration)
 			if fallback != nil {
-				err := tryFallback(fallback, runErr)
+				err := tryFallback(circuit, start, runDuration, fallback, runErr)
 				if err != nil {
 					errChan <- err
 				}
@@ -94,24 +88,15 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			}
 		}
 
-		totalDuration := time.Now().Sub(start)
-
-		circuit.Metrics.Updates <- &ExecutionMetric{
-			Type:          "success",
-			Time:          time.Now(),
-			RunDuration:   runDuration,
-			TotalDuration: totalDuration,
-		}
+		reportEvent(circuit, "success", start, runDuration)
 	}()
 
 	go func() {
 		select {
 		case <-finished:
 		case <-time.After(GetTimeout(name)):
-			circuit.Metrics.Updates <- &ExecutionMetric{
-				Type: "timeout",
-			}
-			err := tryFallback(fallback, errors.New("timeout"))
+			reportEvent(circuit, "timeout", start, 0)
+			err := tryFallback(circuit, start, 0, fallback, errors.New("timeout"))
 			if err != nil {
 				errChan <- err
 			}
@@ -121,14 +106,30 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	return errChan
 }
 
-func tryFallback(fallback fallbackFunc, err error) error {
+func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
 	if fallback == nil {
 		return nil
 	}
 
 	fallbackErr := fallback(err)
 	if fallbackErr != nil {
+		reportEvent(circuit, "fallback-failure", start, runDuration)
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
+	}
+
+	reportEvent(circuit, "fallback-success", start, runDuration)
+
+	return nil
+}
+
+func reportEvent(circuit *CircuitBreaker, eventType string, start time.Time, runDuration time.Duration) error {
+	totalDuration := time.Now().Sub(start)
+
+	circuit.Metrics.Updates <- &ExecutionMetric{
+		Type:          eventType,
+		Time:          time.Now(),
+		RunDuration:   runDuration,
+		TotalDuration: totalDuration,
 	}
 
 	return nil

@@ -89,14 +89,14 @@ func (r *RollingTiming) ordinal(length int, percentile float64) int64 {
 	return int64(math.Ceil((percentile / float64(100)) * float64(length)))
 }
 
-func (r *RollingTiming) Mean() int64 {
+func (r *RollingTiming) Mean() uint32 {
 	sortedDurations := r.SortedDurations()
 	var sum time.Duration
 	for _, d := range sortedDurations {
 		sum += d
 	}
 
-	return sum.Nanoseconds() / int64(len(sortedDurations))
+	return uint32(sum.Nanoseconds()/int64(len(sortedDurations))) / 1000000
 }
 
 func (r *RollingTiming) Timings() streamCmdLatency {
