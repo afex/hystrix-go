@@ -21,6 +21,8 @@ type fallbackFunc func(error) error
 //
 // Define a fallback function if you want to define some code to execute during outages.
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
+	start := time.Now()
+
 	errChan := make(chan error, 1)
 	finished := make(chan bool, 1)
 
@@ -38,7 +40,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 		tickets, err := ConcurrentThrottle(name)
 		if err != nil {
-			circuit.Health.Updates <- false
 			errChan <- err
 			return
 		}
@@ -47,7 +48,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if circuit.IsOpen() {
-			err := tryFallback(fallback, errors.New("circuit open"))
+			reportEvent(circuit, "short-circuit", start, 0)
+			err := tryFallback(circuit, start, 0, fallback, errors.New("circuit open"))
 			if err != nil {
 				errChan <- err
 			}
@@ -63,19 +65,21 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		case ticket := <-tickets:
 			defer func() { tickets <- ticket }()
 		default:
-			circuit.Health.Updates <- false
-			err := tryFallback(fallback, errors.New("max concurrency"))
+			reportEvent(circuit, "rejected", start, 0)
+			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
 			if err != nil {
 				errChan <- err
 				return
 			}
 		}
 
+		runStart := time.Now()
 		runErr := run()
+		runDuration := time.Now().Sub(runStart)
 		if runErr != nil {
-			circuit.Health.Updates <- false
+			reportEvent(circuit, "failure", start, runDuration)
 			if fallback != nil {
-				err := tryFallback(fallback, runErr)
+				err := tryFallback(circuit, start, runDuration, fallback, runErr)
 				if err != nil {
 					errChan <- err
 				}
@@ -84,15 +88,15 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			}
 		}
 
-		circuit.Health.Updates <- true
+		reportEvent(circuit, "success", start, runDuration)
 	}()
 
 	go func() {
 		select {
 		case <-finished:
 		case <-time.After(GetTimeout(name)):
-			circuit.Health.Updates <- false
-			err := tryFallback(fallback, errors.New("timeout"))
+			reportEvent(circuit, "timeout", start, 0)
+			err := tryFallback(circuit, start, 0, fallback, errors.New("timeout"))
 			if err != nil {
 				errChan <- err
 			}
@@ -102,14 +106,30 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	return errChan
 }
 
-func tryFallback(fallback fallbackFunc, err error) error {
+func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
 	if fallback == nil {
 		return nil
 	}
 
 	fallbackErr := fallback(err)
 	if fallbackErr != nil {
+		reportEvent(circuit, "fallback-failure", start, runDuration)
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
+	}
+
+	reportEvent(circuit, "fallback-success", start, runDuration)
+
+	return nil
+}
+
+func reportEvent(circuit *CircuitBreaker, eventType string, start time.Time, runDuration time.Duration) error {
+	totalDuration := time.Now().Sub(start)
+
+	circuit.Metrics.Updates <- &ExecutionMetric{
+		Type:          eventType,
+		Time:          time.Now(),
+		RunDuration:   runDuration,
+		TotalDuration: totalDuration,
 	}
 
 	return nil
