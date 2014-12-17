@@ -100,6 +100,18 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		LatencyTotalMean:   cb.Metrics.TotalDuration.Mean(),
 		LatencyExecute:     cb.Metrics.RunDuration.Timings(),
 		LatencyExecuteMean: cb.Metrics.RunDuration.Mean(),
+
+		// TODO: all hard-coded values should become configurable settings, per circuit
+
+		RollingStatsWindow:         10000,
+		ExecutionIsolationStrategy: "THREAD",
+
+		CircuitBreakerEnabled:                true,
+		CircuitBreakerForceClosed:            false,
+		CircuitBreakerForceOpen:              cb.ForceOpen,
+		CircuitBreakerErrorThresholdPercent:  50,
+		CircuitBreakerSleepWindow:            5000,
+		CircuitBreakerRequestVolumeThreshold: 10,
 	})
 	if err != nil {
 		return err
