@@ -86,6 +86,27 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 	}
 }
 
+func TestTimeoutFallback(t *testing.T) {
+	SetTimeout("timeout", time.Millisecond*100)
+
+	resultChan := make(chan int)
+	errChan := Go("timeout", func() error {
+		time.Sleep(1 * time.Second)
+		resultChan <- 1
+		return nil
+	}, func(err error) error {
+		time.Sleep(1 * time.Second)
+		resultChan <- 1
+		return nil
+	})
+
+	select {
+	case _ = <-resultChan:
+		t.Errorf("Should not get an response from resultChan")
+	case _ = <-errChan:
+	}
+}
+
 // TODO: how can we be sure the fallback is triggered from full pool.  error type?
 func TestMaxConcurrent(t *testing.T) {
 	SetConcurrency("max_concurrent", 2)
