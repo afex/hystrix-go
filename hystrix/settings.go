@@ -1,9 +1,13 @@
 package hystrix
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // Config stores run-time command configuration
 type Config struct {
+	RWMutex     *sync.RWMutex
 	Timeouts    map[string]time.Duration
 	Concurrency map[string]chan *Ticket
 }
@@ -17,11 +21,15 @@ func init() {
 	config = &Config{
 		Timeouts:    make(map[string]time.Duration),
 		Concurrency: make(map[string]chan *Ticket),
+		RWMutex:     &sync.RWMutex{},
 	}
 }
 
 // GetTimeout returns the timeout setting for the given command.
 func GetTimeout(name string) time.Duration {
+	config.RWMutex.RLock()
+	defer config.RWMutex.RUnlock()
+
 	if val, ok := config.Timeouts[name]; ok {
 		return val
 	}
@@ -32,6 +40,9 @@ func GetTimeout(name string) time.Duration {
 // SetTimeout changes the timeout setting for the given command, affecting
 // all future runs
 func SetTimeout(name string, duration time.Duration) error {
+	config.RWMutex.Lock()
+	defer config.RWMutex.Unlock()
+
 	config.Timeouts[name] = duration
 	return nil
 }
@@ -39,6 +50,9 @@ func SetTimeout(name string, duration time.Duration) error {
 // SetConcurrency changes how many of a given command are allowed to run
 // at the same time before tripping the fallback logic
 func SetConcurrency(name string, max int) error {
+	config.RWMutex.Lock()
+	defer config.RWMutex.Unlock()
+
 	config.Concurrency[name] = make(chan *Ticket, max)
 	return nil
 }
@@ -47,6 +61,9 @@ func SetConcurrency(name string, max int) error {
 // each command can run at a time.  If a command can't pull from the channel on the first attempt
 // it triggers the fallback.
 func ConcurrentThrottle(name string) (chan *Ticket, error) {
+	config.RWMutex.RLock()
+	defer config.RWMutex.RUnlock()
+
 	if val, ok := config.Concurrency[name]; ok {
 		return val, nil
 	}
