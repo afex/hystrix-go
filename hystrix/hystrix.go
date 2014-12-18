@@ -97,10 +97,18 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	}()
 
 	go func() {
+		timer := time.NewTimer(GetTimeout(name))
+		defer timer.Stop()
+
 		select {
 		case <-finished:
-		case <-time.After(GetTimeout(name)):
+		case <-timer.C:
 			reportEvent(circuit, "timeout", start, 0)
+
+			if fallback == nil {
+				errChan <- fmt.Errorf("Hystrix timeout for %q; no fallback", name)
+			}
+
 			err := tryFallback(circuit, start, 0, fallback, errors.New("timeout"))
 			if err != nil {
 				errChan <- err

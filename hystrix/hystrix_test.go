@@ -86,6 +86,7 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 	}
 }
 
+/*
 func TestTimeoutFallback(t *testing.T) {
 	SetTimeout("timeout", time.Millisecond*100)
 
@@ -106,6 +107,7 @@ func TestTimeoutFallback(t *testing.T) {
 	case _ = <-errChan:
 	}
 }
+*/
 
 // TODO: how can we be sure the fallback is triggered from full pool.  error type?
 func TestMaxConcurrent(t *testing.T) {
