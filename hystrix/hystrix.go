@@ -35,6 +35,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	circuit, err := GetCircuit(name)
 	if err != nil {
 		errChan <- err
+		return
 	}
 
 	go func() {
