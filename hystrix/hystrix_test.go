@@ -74,7 +74,7 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 
 	resultChan := make(chan int)
 	errChan := Go("timeout", func() error {
-		time.Sleep(1 * time.Second)
+		time.Sleep(30 * time.Second)
 		resultChan <- 1
 		return nil
 	}, nil)
