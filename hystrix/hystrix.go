@@ -33,6 +33,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	circuit, err := GetCircuit(name)
 	if err != nil {
 		errChan <- err
+		return errChan
 	}
 
 	go func() {
@@ -92,10 +93,14 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	}()
 
 	go func() {
+		timer := time.NewTimer(GetTimeout(name))
+		defer timer.Stop()
+
 		select {
 		case <-finished:
-		case <-time.After(GetTimeout(name)):
+		case <-timer.C:
 			reportEvent(circuit, "timeout", start, 0)
+
 			err := tryFallback(circuit, start, 0, fallback, errors.New("timeout"))
 			if err != nil {
 				errChan <- err
@@ -108,7 +113,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
 	if fallback == nil {
-		return nil
+		// If we don't have a fallback return the original error.
+		return err
 	}
 
 	fallbackErr := fallback(err)
