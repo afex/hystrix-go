@@ -101,11 +101,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		case <-timer.C:
 			reportEvent(circuit, "timeout", start, 0)
 
-			// If there isn't a fallback api we need to abort.
-			if fallback == nil {
-				errChan <- fmt.Errorf("Hystrix timeout for %q; no fallback", name)
-			}
-
 			err := tryFallback(circuit, start, 0, fallback, errors.New("timeout"))
 			if err != nil {
 				errChan <- err
@@ -118,7 +113,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
 	if fallback == nil {
-		return nil
+		// If we don't have a fallback return the original error.
+		return err
 	}
 
 	fallbackErr := fallback(err)
