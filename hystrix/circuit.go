@@ -1,6 +1,9 @@
 package hystrix
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // CircuitBreaker is created for each ExecutorPool to track whether requests
 // should be attempted, or rejected if the Health of the circuit is too low.
@@ -9,6 +12,7 @@ type CircuitBreaker struct {
 	Metrics   *Metrics
 	Open      bool
 	ForceOpen bool
+	Mutex     *sync.RWMutex
 }
 
 var circuitBreakers map[string]*CircuitBreaker
@@ -44,6 +48,7 @@ func NewCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
 	c.Metrics = NewMetrics()
+	c.Mutex = &sync.RWMutex{}
 
 	go c.watchHealth()
 
@@ -62,6 +67,9 @@ func (circuit *CircuitBreaker) watchHealth() {
 // toggleOpenFromHealth updates the Open state based on a query to Health over
 // the previous time window
 func (circuit *CircuitBreaker) toggleOpenFromMetrics(now time.Time) {
+	circuit.Mutex.Lock()
+	defer circuit.Mutex.Unlock()
+
 	healthy := circuit.Metrics.IsHealthy(now)
 	if healthy && circuit.Open {
 		circuit.Open = false
@@ -73,6 +81,9 @@ func (circuit *CircuitBreaker) toggleOpenFromMetrics(now time.Time) {
 // IsOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
+	circuit.Mutex.RLock()
+	defer circuit.Mutex.RUnlock()
+	
 	return circuit.ForceOpen || circuit.Open
 }
 

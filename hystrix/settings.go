@@ -61,16 +61,23 @@ func SetConcurrency(name string, max int) error {
 // each command can run at a time.  If a command can't pull from the channel on the first attempt
 // it triggers the fallback.
 func ConcurrentThrottle(name string) (chan *Ticket, error) {
-	config.RWMutex.RLock()
-	defer config.RWMutex.RUnlock()
-
-	if val, ok := config.Concurrency[name]; ok {
+	if val, ok := GetConcurrency(name); ok {
 		return val, nil
 	}
+
+	config.RWMutex.Lock()
+	defer config.RWMutex.Unlock()
 
 	config.Concurrency[name] = make(chan *Ticket, 10)
 	for i := 0; i < 10; i++ {
 		config.Concurrency[name] <- &Ticket{}
 	}
 	return config.Concurrency[name], nil
+}
+
+func GetConcurrency(name string) (chan *Ticket, bool) {
+	config.RWMutex.RLock()
+	defer config.RWMutex.RUnlock()
+	val, ok := config.Concurrency[name]
+	return val, ok
 }
