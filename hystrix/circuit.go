@@ -15,17 +15,27 @@ type CircuitBreaker struct {
 	Mutex     *sync.RWMutex
 }
 
-var circuitBreakers map[string]*CircuitBreaker
+var (
+	circuitBreakersMutex *sync.RWMutex
+	circuitBreakers      map[string]*CircuitBreaker
+)
 
 func init() {
+	circuitBreakersMutex = &sync.RWMutex{}
 	circuitBreakers = make(map[string]*CircuitBreaker)
 }
 
 // GetCircuit returns the circuit for the given command
 func GetCircuit(name string) (*CircuitBreaker, error) {
+	circuitBreakersMutex.RLock()
 	_, ok := circuitBreakers[name]
 	if !ok {
+		circuitBreakersMutex.RUnlock()
+		circuitBreakersMutex.Lock()
+		defer circuitBreakersMutex.Unlock()
 		circuitBreakers[name] = NewCircuitBreaker(name)
+	} else {
+		defer circuitBreakersMutex.RUnlock()
 	}
 
 	return circuitBreakers[name], nil
@@ -83,7 +93,6 @@ func (circuit *CircuitBreaker) toggleOpenFromMetrics(now time.Time) {
 func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.Mutex.RLock()
 	defer circuit.Mutex.RUnlock()
-	
 	return circuit.ForceOpen || circuit.Open
 }
 

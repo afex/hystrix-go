@@ -54,9 +54,11 @@ func (sh *StreamHandler) loop() {
 	for {
 		select {
 		case <-tick:
+			circuitBreakersMutex.RLock()
 			for _, cb := range circuitBreakers {
 				sh.publishMetrics(cb)
 			}
+			circuitBreakersMutex.RUnlock()
 		case <-sh.done:
 			return
 		}
@@ -126,6 +128,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	}
 	dataBytes := b.Bytes()
 	sh.mu.RLock()
+
 	for _, requestEvents := range sh.requests {
 		select {
 		case requestEvents <- dataBytes:

@@ -3,11 +3,13 @@ package hystrix
 import (
 	"math"
 	"sort"
+	"sync"
 	"time"
 )
 
 type RollingTiming struct {
 	Buckets map[int64]*TimingBucket
+	Mutex   *sync.RWMutex
 }
 
 type TimingBucket struct {
@@ -17,6 +19,7 @@ type TimingBucket struct {
 func NewRollingTiming() *RollingTiming {
 	r := &RollingTiming{
 		Buckets: make(map[int64]*TimingBucket),
+		Mutex:   &sync.RWMutex{},
 	}
 	return r
 }
@@ -30,6 +33,9 @@ func (c ByDuration) Less(i, j int) bool { return c[i] < c[j] }
 func (r *RollingTiming) SortedDurations() ByDuration {
 	var durations ByDuration
 	now := time.Now()
+
+	r.Mutex.RLock()
+	defer r.Mutex.RUnlock()
 
 	for timestamp, b := range r.Buckets {
 		if timestamp >= now.Unix()-10 {
@@ -45,12 +51,19 @@ func (r *RollingTiming) SortedDurations() ByDuration {
 }
 
 func (r *RollingTiming) getCurrentBucket() *TimingBucket {
+	r.Mutex.RLock()
 	now := time.Now()
 	bucket, exists := r.Buckets[now.Unix()]
+	r.Mutex.RUnlock()
+
 	if !exists {
+		r.Mutex.Lock()
+		defer r.Mutex.Unlock()
+
 		r.Buckets[now.Unix()] = &TimingBucket{}
 		bucket = r.Buckets[now.Unix()]
 	}
+
 	return bucket
 }
 
@@ -66,6 +79,10 @@ func (r *RollingTiming) removeOldBuckets() {
 
 func (r *RollingTiming) Add(duration time.Duration) {
 	b := r.getCurrentBucket()
+
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+
 	b.Durations = append(b.Durations, duration)
 	r.removeOldBuckets()
 }
