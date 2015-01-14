@@ -165,3 +165,34 @@ func TestFailedFallback(t *testing.T) {
 		t.Errorf("did not get expected error: %v", err)
 	}
 }
+
+func TestCloseCircuitAfterSuccess(t *testing.T) {
+	cb, err := GetCircuit("close_after_success")
+	if err != nil {
+		t.Fatalf("cant get circuit")
+	}
+
+	cb.SetOpen()
+	if !cb.IsOpen() {
+		t.Fatalf("circuit should be open")
+	}
+
+	time.Sleep(11 * time.Second)
+
+	done := make(chan bool)
+	errChan := Go("close_after_success", func() error {
+		done <- true
+		return nil
+	}, nil)
+
+	select {
+	case _ = <-done:
+		// do nothing
+	case err := <-errChan:
+		t.Fatal(err)
+	}
+
+	if cb.IsOpen() {
+		t.Fatalf("circuit should be closed")
+	}
+}

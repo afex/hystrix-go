@@ -2,17 +2,19 @@ package hystrix
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // CircuitBreaker is created for each ExecutorPool to track whether requests
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
-	Name      string
-	Metrics   *Metrics
-	Open      bool
-	ForceOpen bool
-	Mutex     *sync.RWMutex
+	Name                   string
+	Metrics                *Metrics
+	Open                   bool
+	ForceOpen              bool
+	Mutex                  *sync.RWMutex
+	OpenedOrLastTestedTime int64
 }
 
 var (
@@ -60,40 +62,27 @@ func NewCircuitBreaker(name string) *CircuitBreaker {
 	c.Metrics = NewMetrics()
 	c.Mutex = &sync.RWMutex{}
 
-	go c.watchHealth()
-
 	return c
-}
-
-// watchHealth checks every second to see if it should toggle the
-// open/closed state of the circuit
-func (circuit *CircuitBreaker) watchHealth() {
-	for {
-		time.Sleep(1 * time.Second)
-		circuit.toggleOpenFromMetrics(time.Now())
-	}
-}
-
-// toggleOpenFromHealth updates the Open state based on a query to Health over
-// the previous time window
-func (circuit *CircuitBreaker) toggleOpenFromMetrics(now time.Time) {
-	circuit.Mutex.Lock()
-	defer circuit.Mutex.Unlock()
-
-	healthy := circuit.Metrics.IsHealthy(now)
-	if healthy && circuit.Open {
-		circuit.Open = false
-	} else if !healthy && !circuit.Open {
-		circuit.Open = true
-	}
 }
 
 // IsOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.Mutex.RLock()
-	defer circuit.Mutex.RUnlock()
-	return circuit.ForceOpen || circuit.Open
+	o := circuit.ForceOpen || circuit.Open
+	circuit.Mutex.RUnlock()
+
+	if o {
+		return true
+	}
+
+	if !circuit.Metrics.IsHealthy(time.Now()) {
+		// too many failures, open the circuit
+		circuit.SetOpen()
+		return true
+	}
+
+	return false
 }
 
 func (circuit *CircuitBreaker) AllowRequest() bool {
@@ -101,5 +90,29 @@ func (circuit *CircuitBreaker) AllowRequest() bool {
 }
 
 func (circuit *CircuitBreaker) allowSingleTest() bool {
+	circuit.Mutex.RLock()
+	defer circuit.Mutex.RUnlock()
+
+	now := time.Now().UnixNano()
+	if circuit.Open && now > circuit.OpenedOrLastTestedTime+time.Duration(10*time.Second).Nanoseconds() {
+		return atomic.CompareAndSwapInt64(&circuit.OpenedOrLastTestedTime, circuit.OpenedOrLastTestedTime, now)
+	}
+
 	return false
+}
+
+func (circuit *CircuitBreaker) SetOpen() {
+	circuit.Mutex.Lock()
+	defer circuit.Mutex.Unlock()
+
+	circuit.OpenedOrLastTestedTime = time.Now().UnixNano()
+	circuit.Open = true
+}
+
+func (circuit *CircuitBreaker) SetClose() {
+	circuit.Mutex.Lock()
+	defer circuit.Mutex.Unlock()
+
+	circuit.Open = false
+	circuit.Metrics.Reset()
 }
