@@ -93,6 +93,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	}()
 
 	go func() {
+		defer close(errChan)
+
 		timer := time.NewTimer(GetTimeout(name))
 		defer timer.Stop()
 

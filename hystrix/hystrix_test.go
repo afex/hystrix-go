@@ -196,3 +196,19 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 		t.Fatalf("circuit should be closed")
 	}
 }
+
+func TestCloseErrorChannel(t *testing.T) {
+	errChan := Go("close_channel", func() error {
+		return nil
+	}, nil)
+
+	select {
+	case _ = <-time.After(1 * time.Second):
+		t.Fatal("timer fired before error channel was closed")
+	case err := <-errChan:
+		// errChan should be closed when command finishes
+		if err != nil {
+			t.Fatal("expected nil error")
+		}	
+	}	
+}
