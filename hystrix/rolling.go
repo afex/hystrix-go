@@ -36,6 +36,7 @@ func (r *RollingNumber) removeOldBuckets() {
 	now := time.Now()
 
 	for timestamp, _ := range r.Buckets {
+		// TODO: configurable rolling window
 		if timestamp <= now.Unix()-10 {
 			delete(r.Buckets, timestamp)
 		}
@@ -67,6 +68,7 @@ func (r *RollingNumber) Sum(now time.Time) uint64 {
 	defer r.Mutex.RUnlock()
 
 	for timestamp, bucket := range r.Buckets {
+		// TODO: configurable rolling window
 		if timestamp >= now.Unix()-10 {
 			sum += bucket.Value
 		}

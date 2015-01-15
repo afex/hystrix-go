@@ -38,7 +38,8 @@ func (r *RollingTiming) SortedDurations() ByDuration {
 	defer r.Mutex.RUnlock()
 
 	for timestamp, b := range r.Buckets {
-		if timestamp >= now.Unix()-10 {
+		// TODO: configurable rolling window
+		if timestamp >= now.Unix()-60 {
 			for _, d := range b.Durations {
 				durations = append(durations, d)
 			}
@@ -71,7 +72,8 @@ func (r *RollingTiming) removeOldBuckets() {
 	now := time.Now()
 
 	for timestamp, _ := range r.Buckets {
-		if timestamp <= now.Unix()-10 {
+		// TODO: configurable rolling window
+		if timestamp <= now.Unix()-60 {
 			delete(r.Buckets, timestamp)
 		}
 	}

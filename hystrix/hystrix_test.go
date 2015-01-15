@@ -177,7 +177,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 		t.Fatalf("circuit should be open")
 	}
 
-	time.Sleep(11 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	done := make(chan bool)
 	errChan := Go("close_after_success", func() error {

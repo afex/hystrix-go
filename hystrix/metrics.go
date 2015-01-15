@@ -125,5 +125,6 @@ func (m *Metrics) ErrorPercent(now time.Time) float64 {
 }
 
 func (m *Metrics) IsHealthy(now time.Time) bool {
+	// TODO: configurable error percent threshold
 	return m.ErrorPercent(now) < 0.50
 }
