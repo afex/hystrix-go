@@ -48,7 +48,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Circuits get opened when recent executions have shown to have a high error rate.
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
-		if circuit.IsOpen() {
+		if !circuit.AllowRequest() {
 			reportEvent(circuit, "short-circuit", start, 0)
 			err := tryFallback(circuit, start, 0, fallback, errors.New("circuit open"))
 			if err != nil {
@@ -129,6 +129,10 @@ func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Dura
 }
 
 func reportEvent(circuit *CircuitBreaker, eventType string, start time.Time, runDuration time.Duration) error {
+	if eventType == "success" && circuit.IsOpen() {
+		circuit.SetClose()
+	}
+
 	totalDuration := time.Now().Sub(start)
 
 	circuit.Metrics.Updates <- &ExecutionMetric{
