@@ -209,6 +209,6 @@ func TestCloseErrorChannel(t *testing.T) {
 		// errChan should be closed when command finishes
 		if err != nil {
 			t.Fatal("expected nil error")
-		}	
-	}	
+		}
+	}
 }
