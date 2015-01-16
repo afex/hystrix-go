@@ -54,6 +54,9 @@ func SetConcurrency(name string, max int) error {
 	defer config.RWMutex.Unlock()
 
 	config.Concurrency[name] = make(chan *Ticket, max)
+	for i := 0; i < max; i++ {
+		config.Concurrency[name] <- &Ticket{}
+	}
 	return nil
 }
 
