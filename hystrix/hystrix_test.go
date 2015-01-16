@@ -126,6 +126,12 @@ func TestMaxConcurrent(t *testing.T) {
 	case err := <-errChan3:
 		t.Errorf(err.Error())
 	}
+	for i := 0; i < 2; i++ {
+		result := <-resultChan
+		if result != 1 {
+			t.Errorf("Concurrency level failed out the wrong call")
+		}
+	}
 }
 
 func TestOpenCircuit(t *testing.T) {
@@ -209,6 +215,6 @@ func TestCloseErrorChannel(t *testing.T) {
 		// errChan should be closed when command finishes
 		if err != nil {
 			t.Fatal("expected nil error")
-		}	
-	}	
+		}
+	}
 }
