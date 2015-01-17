@@ -86,7 +86,6 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 	}
 }
 
-// TODO: how can we be sure the fallback is triggered from full pool.  error type?
 func TestMaxConcurrent(t *testing.T) {
 	ConfigureCommand("max_concurrent", CommandConfig{MaxConcurrentRequests: 2})
 	resultChan := make(chan int)

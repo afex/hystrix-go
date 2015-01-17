@@ -13,6 +13,7 @@ type ExecutionMetric struct {
 }
 
 type Metrics struct {
+	Name    string
 	Updates chan *ExecutionMetric
 	Mutex   *sync.RWMutex
 
@@ -32,8 +33,9 @@ type Metrics struct {
 	RunDuration   *RollingTiming
 }
 
-func NewMetrics() *Metrics {
+func NewMetrics(name string) *Metrics {
 	m := &Metrics{}
+	m.Name = name
 
 	m.Updates = make(chan *ExecutionMetric)
 	m.Mutex = &sync.RWMutex{}
@@ -118,13 +120,12 @@ func (m *Metrics) ErrorPercent(now time.Time) float64 {
 	errs := m.Errors.Sum(now)
 
 	if reqs > 0 {
-		errPct = float64(errs) / float64(reqs)
+		errPct = (float64(errs) / float64(reqs)) * 100
 	}
 
 	return errPct
 }
 
 func (m *Metrics) IsHealthy(now time.Time) bool {
-	// TODO: configurable error percent threshold
-	return m.ErrorPercent(now) < 0.50
+	return m.ErrorPercent(now) < float64(GetErrorPercentThreshold(m.Name))
 }

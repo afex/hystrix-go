@@ -59,7 +59,7 @@ func ForceCircuitOpen(name string, toggle bool) error {
 func NewCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
-	c.Metrics = NewMetrics()
+	c.Metrics = NewMetrics(name)
 	c.Mutex = &sync.RWMutex{}
 
 	return c

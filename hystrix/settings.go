@@ -6,10 +6,11 @@ import (
 )
 
 const (
-	DefaultTimeout         = 1000
-	DefaultMaxConcurrent   = 10
-	DefaultVolumeThreshold = 20
-	DefaultSleepWindow     = 5000
+	DefaultTimeout               = 1000
+	DefaultMaxConcurrent         = 10
+	DefaultVolumeThreshold       = 20
+	DefaultSleepWindow           = 5000
+	DefaultErrorPercentThreshold = 50
 )
 
 type Settings struct {
@@ -17,6 +18,7 @@ type Settings struct {
 	Concurrency            chan *Ticket
 	RequestVolumeThreshold uint64
 	SleepWindow            time.Duration
+	ErrorPercentThreshold  int
 }
 
 type CommandConfig struct {
@@ -24,6 +26,7 @@ type CommandConfig struct {
 	MaxConcurrentRequests  int `json:"max_concurrent_requests"`
 	RequestVolumeThreshold int `json:"request_volume_threshold"`
 	SleepWindow            int `json:"sleep_window"`
+	ErrorPercentThreshold  int `json:"error_percent_threshold"`
 }
 
 // Ticket is grabbed by each command before execution can start
@@ -67,11 +70,17 @@ func ConfigureCommand(name string, config CommandConfig) *Settings {
 		sleep = config.SleepWindow
 	}
 
+	errorPercent := DefaultErrorPercentThreshold
+	if config.ErrorPercentThreshold != 0 {
+		errorPercent = config.ErrorPercentThreshold
+	}
+
 	settings[name] = &Settings{
 		Timeout:                time.Duration(timeout) * time.Millisecond,
 		Concurrency:            make(chan *Ticket, max),
 		RequestVolumeThreshold: uint64(volume),
 		SleepWindow:            time.Duration(sleep) * time.Millisecond,
+		ErrorPercentThreshold:  errorPercent,
 	}
 
 	for i := 0; i < max; i++ {
@@ -111,4 +120,8 @@ func GetRequestVolumeThreshold(name string) uint64 {
 
 func GetSleepWindow(name string) time.Duration {
 	return getSettings(name).SleepWindow
+}
+
+func GetErrorPercentThreshold(name string) int {
+	return getSettings(name).ErrorPercentThreshold
 }
