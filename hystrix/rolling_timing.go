@@ -10,6 +10,9 @@ import (
 type RollingTiming struct {
 	Buckets map[int64]*TimingBucket
 	Mutex   *sync.RWMutex
+
+	CachedSortedDurations ByDuration
+	LastCachedTime int64
 }
 
 type TimingBucket struct {
@@ -31,11 +34,20 @@ func (c ByDuration) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c ByDuration) Less(i, j int) bool { return c[i] < c[j] }
 
 func (r *RollingTiming) SortedDurations() ByDuration {
+	r.Mutex.RLock()
+	t := r.LastCachedTime
+	r.Mutex.RUnlock()
+
+	if t + time.Duration(1 * time.Second).Nanoseconds() > time.Now().UnixNano() {
+		// don't recalculate if current cache is still fresh
+		return r.CachedSortedDurations
+	}
+
 	var durations ByDuration
 	now := time.Now()
 
-	r.Mutex.RLock()
-	defer r.Mutex.RUnlock()
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 
 	for timestamp, b := range r.Buckets {
 		// TODO: configurable rolling window
@@ -48,7 +60,10 @@ func (r *RollingTiming) SortedDurations() ByDuration {
 
 	sort.Sort(durations)
 
-	return durations
+	r.CachedSortedDurations = durations
+	r.LastCachedTime = time.Now().UnixNano()
+
+	return r.CachedSortedDurations
 }
 
 func (r *RollingTiming) getCurrentBucket() *TimingBucket {
