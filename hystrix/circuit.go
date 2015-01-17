@@ -43,6 +43,16 @@ func GetCircuit(name string) (*CircuitBreaker, error) {
 	return circuitBreakers[name], nil
 }
 
+func FlushMetrics() {
+	circuitBreakersMutex.Lock()
+	defer circuitBreakersMutex.Unlock()
+
+	for name, cb := range circuitBreakers {
+		cb.Metrics.Reset()
+		delete(circuitBreakers, name)
+	}
+}
+
 // ForceCircuitOpen allows manually causing the fallback logic for all instances
 // of a given command.
 func ForceCircuitOpen(name string, toggle bool) error {
@@ -76,7 +86,7 @@ func (circuit *CircuitBreaker) IsOpen() bool {
 		return true
 	}
 
-	if circuit.Metrics.Requests.Sum(time.Now()) < GetRequestVolumeThreshold(circuit.Name) {
+	if circuit.Metrics.Requests().Sum(time.Now()) < GetRequestVolumeThreshold(circuit.Name) {
 		return false
 	}
 

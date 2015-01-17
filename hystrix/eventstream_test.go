@@ -2,6 +2,7 @@ package hystrix
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,6 +26,21 @@ func sleepingCommand(t *testing.T, name string, duration time.Duration) {
 	}
 }
 
+func failingCommand(t *testing.T, name string, duration time.Duration) {
+	done := make(chan bool)
+	errChan := Go(name, func() error {
+		time.Sleep(duration)
+		return fmt.Errorf("fail")
+	}, nil)
+
+	select {
+	case _ = <-done:
+		t.Fatal("should not have succeeded")
+	case _ = <-errChan:
+		// do nothing
+	}
+}
+
 type EventStreamTestServer struct {
 	*httptest.Server
 	EventStreamer
@@ -37,6 +53,7 @@ type EventStreamer interface {
 func (s *EventStreamTestServer) stopTestServer() error {
 	s.Close()
 	s.Stop()
+	FlushMetrics()
 
 	return nil
 }
@@ -89,12 +106,31 @@ func TestEventStream(t *testing.T) {
 	defer server.stopTestServer()
 
 	sleepingCommand(t, "eventstream", 100*time.Millisecond)
+	sleepingCommand(t, "eventstream", 100*time.Millisecond)
 	event := grabFirstFromStream(t, server.URL)
 
 	if event.Name != "eventstream" {
-		t.Fatal("metrics did not match command name")
+		t.Errorf("expected name to be %v, but was %v", "eventstream", event.Name)
 	}
-	if event.RequestCount != 1 {
-		t.Fatal("metrics did not match request count")
+	expected := 2
+	if int(event.RequestCount) != expected {
+		t.Errorf("expected to RequestCount to be %v, but was %v", expected, event.RequestCount)
+	}
+}
+
+func TestEventStreamErrorPercent(t *testing.T) {
+	server := startTestServer()
+	defer server.stopTestServer()
+
+	sleepingCommand(t, "errorpercent", 1*time.Millisecond)
+	failingCommand(t, "errorpercent", 1*time.Millisecond)
+	failingCommand(t, "errorpercent", 1*time.Millisecond)
+	failingCommand(t, "errorpercent", 1*time.Millisecond)
+
+	time.Sleep(1 * time.Second)
+
+	event := grabFirstFromStream(t, server.URL)
+	if event.ErrorPct != 75 {
+		t.Errorf("expected error percent to be %v, found %v", 75, event.ErrorPct)
 	}
 }

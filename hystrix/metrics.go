@@ -17,8 +17,8 @@ type Metrics struct {
 	Updates chan *ExecutionMetric
 	Mutex   *sync.RWMutex
 
-	Requests *RollingNumber
-	Errors   *RollingNumber
+	numRequests *RollingNumber
+	Errors      *RollingNumber
 
 	Successes     *RollingNumber
 	Failures      *RollingNumber
@@ -54,7 +54,7 @@ func (m *Metrics) Monitor() {
 		m.Mutex.RLock()
 
 		// combined metrics
-		m.Requests.Increment()
+		m.numRequests.Increment()
 		if update.Type != "success" {
 			m.Errors.Increment()
 		}
@@ -95,7 +95,7 @@ func (m *Metrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	m.Requests = NewRollingNumber()
+	m.numRequests = NewRollingNumber()
 	m.Errors = NewRollingNumber()
 
 	m.Successes = NewRollingNumber()
@@ -111,12 +111,19 @@ func (m *Metrics) Reset() {
 	m.RunDuration = NewRollingTiming()
 }
 
+func (m *Metrics) Requests() *RollingNumber {
+	m.Mutex.RLock()
+	defer m.Mutex.RUnlock()
+
+	return m.numRequests
+}
+
 func (m *Metrics) ErrorPercent(now time.Time) float64 {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 
 	var errPct float64
-	reqs := m.Requests.Sum(now)
+	reqs := m.Requests().Sum(now)
 	errs := m.Errors.Sum(now)
 
 	if reqs > 0 {

@@ -7,6 +7,8 @@ import (
 )
 
 func TestSuccess(t *testing.T) {
+	defer FlushMetrics()
+
 	resultChan := make(chan int)
 	errChan := Go("good", func() error {
 		resultChan <- 1
@@ -24,6 +26,8 @@ func TestSuccess(t *testing.T) {
 }
 
 func TestFallback(t *testing.T) {
+	defer FlushMetrics()
+
 	resultChan := make(chan int)
 	errChan := Go("bad", func() error {
 		return fmt.Errorf("error")
@@ -45,6 +49,7 @@ func TestFallback(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
+	defer FlushMetrics()
 	ConfigureCommand("timeout", CommandConfig{Timeout: 100})
 
 	resultChan := make(chan int)
@@ -70,6 +75,7 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestTimeoutEmptyFallback(t *testing.T) {
+	defer FlushMetrics()
 	ConfigureCommand("timeout", CommandConfig{Timeout: 100})
 
 	resultChan := make(chan int)
@@ -87,6 +93,7 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 }
 
 func TestMaxConcurrent(t *testing.T) {
+	defer FlushMetrics()
 	ConfigureCommand("max_concurrent", CommandConfig{MaxConcurrentRequests: 2})
 	resultChan := make(chan int)
 
@@ -128,6 +135,7 @@ func TestMaxConcurrent(t *testing.T) {
 }
 
 func TestOpenCircuit(t *testing.T) {
+	defer FlushMetrics()
 	ForceCircuitOpen("open_circuit", true)
 
 	resultChan := make(chan int)
@@ -152,6 +160,7 @@ func TestOpenCircuit(t *testing.T) {
 }
 
 func TestFailedFallback(t *testing.T) {
+	defer FlushMetrics()
 	errChan := Go("fallback_error", func() error {
 		return fmt.Errorf("run_error")
 	}, func(err error) error {
@@ -166,6 +175,8 @@ func TestFailedFallback(t *testing.T) {
 }
 
 func TestCloseCircuitAfterSuccess(t *testing.T) {
+	defer FlushMetrics()
+
 	cb, err := GetCircuit("close_after_success")
 	if err != nil {
 		t.Fatalf("cant get circuit")
@@ -197,6 +208,8 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 }
 
 func TestCloseErrorChannel(t *testing.T) {
+	defer FlushMetrics()
+
 	errChan := Go("close_channel", func() error {
 		return nil
 	}, nil)

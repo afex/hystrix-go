@@ -74,7 +74,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 
 	now := time.Now()
 
-	reqCount := cb.Metrics.Requests.Sum(now)
+	reqCount := cb.Metrics.Requests().Sum(now)
 	errCount := cb.Metrics.Errors.Sum(now)
 	errPct := cb.Metrics.ErrorPercent(now)
 

@@ -6,6 +6,8 @@ import (
 )
 
 func TestOrdinal(t *testing.T) {
+	defer FlushMetrics()
+
 	r := NewRollingTiming()
 	var ordinalTests = []struct {
 		length   int
@@ -33,6 +35,8 @@ func TestOrdinal(t *testing.T) {
 }
 
 func TestNilMean(t *testing.T) {
+	defer FlushMetrics()
+
 	r := NewRollingTiming()
 	if r.Mean() != 0 {
 		t.Fatalf("expected nil mean to == 0")
@@ -40,6 +44,8 @@ func TestNilMean(t *testing.T) {
 }
 
 func TestMean(t *testing.T) {
+	defer FlushMetrics()
+
 	r := NewRollingTiming()
 
 	r.Add(100 * time.Millisecond)
