@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+const (
+	DefaultTimeout         = 1000
+	DefaultMaxConcurrent   = 10
+	DefaultVolumeThreshold = 20
+	DefaultSleepWindow     = 5000
+)
+
 type Settings struct {
 	Timeout                time.Duration
 	Concurrency            chan *Ticket
@@ -40,22 +47,22 @@ func ConfigureCommand(name string, config CommandConfig) *Settings {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
 
-	timeout := 1000
+	timeout := DefaultTimeout
 	if config.Timeout != 0 {
 		timeout = config.Timeout
 	}
 
-	max := 10
+	max := DefaultMaxConcurrent
 	if config.MaxConcurrentRequests != 0 {
 		max = config.MaxConcurrentRequests
 	}
 
-	volume := 20
+	volume := DefaultVolumeThreshold
 	if config.RequestVolumeThreshold != 0 {
 		volume = config.RequestVolumeThreshold
 	}
 
-	sleep := 5000
+	sleep := DefaultSleepWindow
 	if config.SleepWindow != 0 {
 		sleep = config.SleepWindow
 	}
