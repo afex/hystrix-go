@@ -1,17 +1,39 @@
 package hystrix
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestSetConcurrency(t *testing.T) {
-	SetConcurrency("conc", 100)
-	
-	tickets, err := ConcurrentThrottle("conc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ConfigureCommand("conc", CommandConfig{MaxConcurrentRequests: 100})
+
+	tickets := ConcurrentThrottle("conc")
 
 	expected := 100
 	if len(tickets) != expected {
 		t.Fatalf("expected %v tickets, found %v", expected, len(tickets))
+	}
+}
+
+func TestSetTimeout(t *testing.T) {
+	ConfigureCommand("time", CommandConfig{Timeout: 10000})
+
+	d := GetTimeout("time")
+
+	expected := time.Duration(10 * time.Second)
+	if d != expected {
+		t.Fatalf("expected %v timeout, found %v", expected, d)
+	}
+}
+
+func TestRVT(t *testing.T) {
+	ConfigureCommand("rvt", CommandConfig{RequestVolumeThreshold: 30})
+
+	rvt := GetRequestVolumeThreshold("rvt")
+
+	expected := uint64(30)
+	if rvt != expected {
+		t.Fatalf("expected threshold of %v, found %v", expected, rvt)
 	}
 }

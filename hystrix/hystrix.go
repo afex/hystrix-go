@@ -39,11 +39,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	go func() {
 		defer func() { finished <- true }()
 
-		tickets, err := ConcurrentThrottle(name)
-		if err != nil {
-			errChan <- err
-			return
-		}
+		tickets := ConcurrentThrottle(name)
 
 		// Circuits get opened when recent executions have shown to have a high error rate.
 		// Rejecting new executions allows backends to recover, and the circuit will allow

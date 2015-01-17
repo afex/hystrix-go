@@ -76,8 +76,7 @@ func (circuit *CircuitBreaker) IsOpen() bool {
 		return true
 	}
 
-	// TODO: configurable request volume threshold
-	if circuit.Metrics.Requests.Sum(time.Now()) < 20 {
+	if circuit.Metrics.Requests.Sum(time.Now()) < GetRequestVolumeThreshold(circuit.Name) {
 		return false
 	}
 
@@ -99,8 +98,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 	defer circuit.Mutex.RUnlock()
 
 	now := time.Now().UnixNano()
-	// TODO: configurable sleep window
-	if circuit.Open && now > circuit.OpenedOrLastTestedTime+time.Duration(5*time.Second).Nanoseconds() {
+	if circuit.Open && now > circuit.OpenedOrLastTestedTime+GetSleepWindow(circuit.Name).Nanoseconds() {
 		return atomic.CompareAndSwapInt64(&circuit.OpenedOrLastTestedTime, circuit.OpenedOrLastTestedTime, now)
 	}
 

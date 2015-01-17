@@ -45,7 +45,7 @@ func TestFallback(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	SetTimeout("timeout", time.Millisecond*100)
+	ConfigureCommand("timeout", CommandConfig{Timeout: 100})
 
 	resultChan := make(chan int)
 	errChan := Go("timeout", func() error {
@@ -70,7 +70,7 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestTimeoutEmptyFallback(t *testing.T) {
-	SetTimeout("timeout", time.Millisecond*100)
+	ConfigureCommand("timeout", CommandConfig{Timeout: 100})
 
 	resultChan := make(chan int)
 	errChan := Go("timeout", func() error {
@@ -88,7 +88,7 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 
 // TODO: how can we be sure the fallback is triggered from full pool.  error type?
 func TestMaxConcurrent(t *testing.T) {
-	SetConcurrency("max_concurrent", 2)
+	ConfigureCommand("max_concurrent", CommandConfig{MaxConcurrentRequests: 2})
 	resultChan := make(chan int)
 
 	fallback := func(err error) error {
