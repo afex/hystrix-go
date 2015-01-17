@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func sleepingCommand(t *testing.T, name string, duration time.Duration) {
@@ -102,35 +104,33 @@ func grabFirstFromStream(t *testing.T, url string) streamCmdEvent {
 }
 
 func TestEventStream(t *testing.T) {
-	server := startTestServer()
-	defer server.stopTestServer()
+	Convey("given a running event stream", t, func() {
+		server := startTestServer()
+		defer server.stopTestServer()
 
-	sleepingCommand(t, "eventstream", 100*time.Millisecond)
-	sleepingCommand(t, "eventstream", 100*time.Millisecond)
-	event := grabFirstFromStream(t, server.URL)
+		Convey("after 2 successful commands", func() {
+			sleepingCommand(t, "eventstream", 1*time.Millisecond)
+			sleepingCommand(t, "eventstream", 1*time.Millisecond)		
 
-	if event.Name != "eventstream" {
-		t.Errorf("expected name to be %v, but was %v", "eventstream", event.Name)
-	}
-	expected := 2
-	if int(event.RequestCount) != expected {
-		t.Errorf("expected to RequestCount to be %v, but was %v", expected, event.RequestCount)
-	}
-}
+			Convey("the metrics should match", func() {
+				event := grabFirstFromStream(t, server.URL)
 
-func TestEventStreamErrorPercent(t *testing.T) {
-	server := startTestServer()
-	defer server.stopTestServer()
+				So(event.Name, ShouldEqual, "eventstream")
+				So(int(event.RequestCount), ShouldEqual, 2)
+			})
+		})
 
-	sleepingCommand(t, "errorpercent", 1*time.Millisecond)
-	failingCommand(t, "errorpercent", 1*time.Millisecond)
-	failingCommand(t, "errorpercent", 1*time.Millisecond)
-	failingCommand(t, "errorpercent", 1*time.Millisecond)
+		Convey("after 1 successful command and 3 unsuccessful commands", func() {
+			sleepingCommand(t, "errorpercent", 1*time.Millisecond)
+			failingCommand(t, "errorpercent", 1*time.Millisecond)
+			failingCommand(t, "errorpercent", 1*time.Millisecond)
+			failingCommand(t, "errorpercent", 1*time.Millisecond)
 
-	time.Sleep(1 * time.Second)
+			Convey("the error precentage should be 75", func() {
+				event := grabFirstFromStream(t, server.URL)
 
-	event := grabFirstFromStream(t, server.URL)
-	if event.ErrorPct != 75 {
-		t.Errorf("expected error percent to be %v, found %v", 75, event.ErrorPct)
-	}
+				So(event.ErrorPct, ShouldEqual, 75)
+			})
+		})
+	})
 }
