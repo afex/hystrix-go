@@ -68,6 +68,20 @@ case err := <-errors:
 }
 ```
 
+### Configure settings
+
+During application boot, you can call ```hystrix.ConfigureCommand()``` to tweak the settings for each command.
+
+```
+hystrix.ConfigureCommand("my_command", hystrix.CommandConfig{
+	Timeout:               1000,
+	MaxConcurrentRequests: 100,
+	ErrorPercentThreshold: 25,
+})
+```
+
+You can also use ```hystrix.Configure()``` which accepts a ```map[string]CommandConfig```.
+
 ### Enable dashboard metrics
 
 In your main.go, register the event stream HTTP handler on a port and launch it in a goroutine.  Once you configure turbine for your [Hystrix Dashboard](https://github.com/Netflix/Hystrix/tree/master/hystrix-dashboard) to start streaming events, your commands will automatically begin appearing.

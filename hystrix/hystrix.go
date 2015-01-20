@@ -9,6 +9,7 @@ package hystrix
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,9 @@ type fallbackFunc func(error) error
 //
 // Define a fallback function if you want to define some code to execute during outages.
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
+	stop := false
+	stopMutex := &sync.Mutex{}
+
 	start := time.Now()
 
 	errChan := make(chan error, 1)
@@ -39,11 +43,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	go func() {
 		defer func() { finished <- true }()
 
-		tickets, err := ConcurrentThrottle(name)
-		if err != nil {
-			errChan <- err
-			return
-		}
+		tickets := ConcurrentThrottle(name)
 
 		// Circuits get opened when recent executions have shown to have a high error rate.
 		// Rejecting new executions allows backends to recover, and the circuit will allow
@@ -83,13 +83,19 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 				err := tryFallback(circuit, start, runDuration, fallback, runErr)
 				if err != nil {
 					errChan <- err
+					return
 				}
 			} else {
 				errChan <- runErr
+				return
 			}
 		}
 
-		reportEvent(circuit, "success", start, runDuration)
+		stopMutex.Lock()
+		defer stopMutex.Unlock()
+		if !stop {
+			reportEvent(circuit, "success", start, runDuration)
+		}
 	}()
 
 	go func() {
@@ -100,6 +106,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 		select {
 		case <-finished:
+			stopMutex.Lock()
+			stop = true
+			stopMutex.Unlock()
 		case <-timer.C:
 			reportEvent(circuit, "timeout", start, 0)
 
