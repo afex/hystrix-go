@@ -72,7 +72,7 @@ case err := <-errors:
 
 During application boot, you can call ```hystrix.ConfigureCommand()``` to tweak the settings for each command.
 
-```
+```go
 hystrix.ConfigureCommand("my_command", hystrix.CommandConfig{
 	Timeout:               1000,
 	MaxConcurrentRequests: 100,
