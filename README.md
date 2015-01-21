@@ -92,6 +92,15 @@ hystrixStreamHandler.Start()
 go http.ListenAndServe(net.JoinHostPort("", "81"), hystrixStreamHandler)
 ```
 
+### Setting Timeouts and Concurrency Levels
+
+By default hystric-go will error out your request if the request takes more than 10 seconds or there are more than 10 outstanding requests for a given command. To change this set the timeout and concurrency level for your command.
+
+```
+hystrix.SetConcurrency("my_command", 50)
+hystrix.SetTimeout("my_command", 100 * time.Millisecond)
+```
+
 Build and Test
 --------------
 
