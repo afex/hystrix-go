@@ -27,8 +27,8 @@ func init() {
 	circuitBreakers = make(map[string]*CircuitBreaker)
 }
 
-// GetCircuit returns the circuit for the given command
-func GetCircuit(name string) (*CircuitBreaker, error) {
+// GetCircuit returns the circuit for the given command and whether this call created it.
+func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 	circuitBreakersMutex.RLock()
 	_, ok := circuitBreakers[name]
 	if !ok {
@@ -40,7 +40,7 @@ func GetCircuit(name string) (*CircuitBreaker, error) {
 		defer circuitBreakersMutex.RUnlock()
 	}
 
-	return circuitBreakers[name], nil
+	return circuitBreakers[name], !ok, nil
 }
 
 func FlushMetrics() {
@@ -56,7 +56,7 @@ func FlushMetrics() {
 // ForceCircuitOpen allows manually causing the fallback logic for all instances
 // of a given command.
 func ForceCircuitOpen(name string, toggle bool) error {
-	circuit, err := GetCircuit(name)
+	circuit, _, err := GetCircuit(name)
 	if err != nil {
 		return err
 	}

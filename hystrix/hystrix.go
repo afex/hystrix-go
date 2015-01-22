@@ -34,7 +34,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	// let data come in and out naturally, like with any closure
 	// explicit error return to give place for us to kill switch the operation (fallback)
 
-	circuit, err := GetCircuit(name)
+	circuit, _, err := GetCircuit(name)
 	if err != nil {
 		errChan <- err
 		return errChan

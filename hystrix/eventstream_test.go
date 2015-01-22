@@ -110,7 +110,7 @@ func TestEventStream(t *testing.T) {
 
 		Convey("after 2 successful commands", func() {
 			sleepingCommand(t, "eventstream", 1*time.Millisecond)
-			sleepingCommand(t, "eventstream", 1*time.Millisecond)		
+			sleepingCommand(t, "eventstream", 1*time.Millisecond)
 
 			Convey("the metrics should match", func() {
 				event := grabFirstFromStream(t, server.URL)

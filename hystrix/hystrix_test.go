@@ -177,7 +177,7 @@ func TestFailedFallback(t *testing.T) {
 func TestCloseCircuitAfterSuccess(t *testing.T) {
 	defer FlushMetrics()
 
-	cb, err := GetCircuit("close_after_success")
+	cb, _, err := GetCircuit("close_after_success")
 	if err != nil {
 		t.Fatalf("cant get circuit")
 	}
