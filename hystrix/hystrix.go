@@ -82,12 +82,16 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			if fallback != nil {
 				err := tryFallback(circuit, start, runDuration, fallback, runErr)
 				if err != nil {
+					stopMutex.Lock()
+					defer stopMutex.Unlock()
 					if !stop {
 						errChan <- err	
 					}
 					return
 				}
 			} else {
+				stopMutex.Lock()
+				defer stopMutex.Unlock()
 				if !stop {
 					errChan <- runErr	
 				}
