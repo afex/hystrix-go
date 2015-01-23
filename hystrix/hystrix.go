@@ -49,7 +49,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if !circuit.AllowRequest() {
-			reportEvent(circuit, "short-circuit", start, 0)
+			circuit.ReportEvent("short-circuit", start, 0)
 			err := tryFallback(circuit, start, 0, fallback, errors.New("circuit open"))
 			if err != nil {
 				errChan <- err
@@ -66,7 +66,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		case ticket := <-tickets:
 			defer func() { tickets <- ticket }()
 		default:
-			reportEvent(circuit, "rejected", start, 0)
+			circuit.ReportEvent("rejected", start, 0)
 			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
 			if err != nil {
 				errChan <- err
@@ -78,14 +78,14 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		runErr := run()
 		runDuration := time.Now().Sub(runStart)
 		if runErr != nil {
-			reportEvent(circuit, "failure", start, runDuration)
+			circuit.ReportEvent("failure", start, runDuration)
 			if fallback != nil {
 				err := tryFallback(circuit, start, runDuration, fallback, runErr)
 				if err != nil {
 					stopMutex.Lock()
 					defer stopMutex.Unlock()
 					if !stop {
-						errChan <- err	
+						errChan <- err
 					}
 					return
 				}
@@ -93,7 +93,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 				stopMutex.Lock()
 				defer stopMutex.Unlock()
 				if !stop {
-					errChan <- runErr	
+					errChan <- runErr
 				}
 				return
 			}
@@ -102,7 +102,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		stopMutex.Lock()
 		defer stopMutex.Unlock()
 		if !stop {
-			reportEvent(circuit, "success", start, runDuration)
+			circuit.ReportEvent("success", start, runDuration)
 		}
 	}()
 
@@ -120,7 +120,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		select {
 		case <-finished:
 		case <-timer.C:
-			reportEvent(circuit, "timeout", start, 0)
+			circuit.ReportEvent("timeout", start, 0)
 
 			err := tryFallback(circuit, start, 0, fallback, errors.New("timeout"))
 			if err != nil {
@@ -140,28 +140,11 @@ func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Dura
 
 	fallbackErr := fallback(err)
 	if fallbackErr != nil {
-		reportEvent(circuit, "fallback-failure", start, runDuration)
+		circuit.ReportEvent("fallback-failure", start, runDuration)
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
 	}
 
-	reportEvent(circuit, "fallback-success", start, runDuration)
-
-	return nil
-}
-
-func reportEvent(circuit *CircuitBreaker, eventType string, start time.Time, runDuration time.Duration) error {
-	if eventType == "success" && circuit.IsOpen() {
-		circuit.SetClose()
-	}
-
-	totalDuration := time.Now().Sub(start)
-
-	circuit.Metrics.Updates <- &ExecutionMetric{
-		Type:          eventType,
-		Time:          time.Now(),
-		RunDuration:   runDuration,
-		TotalDuration: totalDuration,
-	}
+	circuit.ReportEvent("fallback-success", start, runDuration)
 
 	return nil
 }
