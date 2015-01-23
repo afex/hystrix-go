@@ -37,3 +37,14 @@ func TestRVT(t *testing.T) {
 		t.Fatalf("expected threshold of %v, found %v", expected, rvt)
 	}
 }
+
+func TestSleepWindowDefault(t *testing.T) {
+	ConfigureCommand("sleep", CommandConfig{})
+
+	sleep := GetSleepWindow("sleep")
+	expected := time.Duration(5 * time.Second)
+
+	if sleep != expected {
+		t.Fatalf("expected window of %v, found %v", expected, sleep)
+	}
+}
