@@ -1,6 +1,7 @@
 package hystrix
 
 import (
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -109,7 +110,11 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 
 	now := time.Now().UnixNano()
 	if circuit.Open && now > circuit.OpenedOrLastTestedTime+GetSleepWindow(circuit.Name).Nanoseconds() {
-		return atomic.CompareAndSwapInt64(&circuit.OpenedOrLastTestedTime, circuit.OpenedOrLastTestedTime, now)
+		swapped := atomic.CompareAndSwapInt64(&circuit.OpenedOrLastTestedTime, circuit.OpenedOrLastTestedTime, now)
+		if swapped {
+			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
+		}
+		return swapped
 	}
 
 	return false
@@ -119,6 +124,8 @@ func (circuit *CircuitBreaker) SetOpen() {
 	circuit.Mutex.Lock()
 	defer circuit.Mutex.Unlock()
 
+	log.Printf("hystrix-go: opening circuit %v", circuit.Name)
+
 	circuit.OpenedOrLastTestedTime = time.Now().UnixNano()
 	circuit.Open = true
 }
@@ -126,6 +133,8 @@ func (circuit *CircuitBreaker) SetOpen() {
 func (circuit *CircuitBreaker) SetClose() {
 	circuit.Mutex.Lock()
 	defer circuit.Mutex.Unlock()
+
+	log.Printf("hystrix-go: closing circuit %v", circuit.Name)
 
 	circuit.Open = false
 	circuit.Metrics.Reset()

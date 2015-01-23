@@ -8,7 +8,7 @@ import (
 
 func TestGetCircuit(t *testing.T) {
 	defer FlushMetrics()
-	
+
 	Convey("when calling GetCircuit", t, func() {
 		var created bool
 		var err error
