@@ -82,11 +82,15 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			if fallback != nil {
 				err := tryFallback(circuit, start, runDuration, fallback, runErr)
 				if err != nil {
-					errChan <- err
+					if !stop {
+						errChan <- err	
+					}
 					return
 				}
 			} else {
-				errChan <- runErr
+				if !stop {
+					errChan <- runErr	
+				}
 				return
 			}
 		}
@@ -99,16 +103,18 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	}()
 
 	go func() {
-		defer close(errChan)
+		defer func() {
+			stopMutex.Lock()
+			stop = true
+			stopMutex.Unlock()
+			close(errChan)
+		}()
 
 		timer := time.NewTimer(GetTimeout(name))
 		defer timer.Stop()
 
 		select {
 		case <-finished:
-			stopMutex.Lock()
-			stop = true
-			stopMutex.Unlock()
 		case <-timer.C:
 			reportEvent(circuit, "timeout", start, 0)
 

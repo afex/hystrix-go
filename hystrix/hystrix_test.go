@@ -224,3 +224,23 @@ func TestCloseErrorChannel(t *testing.T) {
 		}
 	}
 }
+
+func TestFailAfterTimeout(t *testing.T) {
+	defer FlushMetrics()
+	ConfigureCommand("fail_after_timeout", CommandConfig{Timeout: 10})	
+
+	errChan := Go("fail_after_timeout", func() error {
+		time.Sleep(50 * time.Millisecond)
+		return fmt.Errorf("foo")
+	}, nil)
+
+	select {
+	case err := <-errChan:
+		if err.Error() != "timeout" {
+			t.Fatal("did not timeout as expected")
+		}
+	}
+
+	// wait for command to fail, should not panic
+	time.Sleep(100 * time.Millisecond)	
+}
