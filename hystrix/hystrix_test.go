@@ -290,3 +290,30 @@ func TestFallbackAfterRejected(t *testing.T) {
 		})
 	})
 }
+
+func TestReturnTicket(t *testing.T) {
+	Convey("with a run command that doesn't return", t, func() {
+		defer FlushMetrics()
+
+		ConfigureCommand("", CommandConfig{Timeout: 10})
+
+		errChan := Go("", func() error {
+			c := make(chan struct{})
+			<-c // should block
+			return nil
+		}, nil)
+
+		Convey("the ticket returns to the pool after the timeout", func() {
+			err := <-errChan
+
+			So(err.Error(), ShouldEqual, "timeout")
+
+			cb, _, err := GetCircuit("")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			So(cb.ExecutorPool.ActiveCount(), ShouldEqual, 0)
+		})
+	})
+}
