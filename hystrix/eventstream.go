@@ -121,9 +121,12 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 }
 
 func (sh *StreamHandler) publishThreadPools(pool *ExecutorPool) error {
+	now := time.Now()
+
 	eventBytes, err := json.Marshal(&streamThreadPoolEvent{
 		Type: "HystrixThreadPool",
 		Name: pool.Name,
+		RollingCountThreadsExecuted: uint32(pool.Metrics.Executed.Sum(now)),
 	})
 	if err != nil {
 		return err
