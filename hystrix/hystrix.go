@@ -24,6 +24,7 @@ type fallbackFunc func(error) error
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	stop := false
 	stopMutex := &sync.Mutex{}
+	var ticket *Ticket
 
 	start := time.Now()
 
@@ -61,8 +62,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
 		select {
-		case ticket := <-circuit.ExecutorPool.Tickets:
-			defer func() { circuit.ExecutorPool.Return(ticket) }()
+		case ticket = <-circuit.ExecutorPool.Tickets:
 		default:
 			circuit.ReportEvent("rejected", start, 0)
 			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
@@ -109,6 +109,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			stopMutex.Lock()
 			stop = true
 			stopMutex.Unlock()
+
+			circuit.ExecutorPool.Return(ticket)
+
 			close(errChan)
 		}()
 
