@@ -43,8 +43,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	go func() {
 		defer func() { finished <- true }()
 
-		tickets := ConcurrentThrottle(name)
-
 		// Circuits get opened when recent executions have shown to have a high error rate.
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
@@ -63,8 +61,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
 		select {
-		case ticket := <-tickets:
-			defer func() { tickets <- ticket }()
+		case ticket := <-circuit.ExecutorPool.Tickets:
+			defer func() { circuit.ExecutorPool.Tickets <- ticket }()
 		default:
 			circuit.ReportEvent("rejected", start, 0)
 			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
