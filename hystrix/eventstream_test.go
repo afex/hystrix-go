@@ -189,11 +189,14 @@ func TestThreadPoolStream(t *testing.T) {
 
 		Convey("after a successful command", func() {
 			sleepingCommand(t, "threadpool", 1*time.Millisecond)
+			metric := grabFirstThreadPoolFromStream(t, server.URL)
 
 			Convey("the rolling count of executions should increment", func() {
-				metric := grabFirstThreadPoolFromStream(t, server.URL)
-
 				So(metric.RollingCountThreadsExecuted, ShouldEqual, 1)
+			})
+
+			Convey("the pool size should be accurate", func() {
+				So(metric.CurrentPoolSize, ShouldEqual, 10)
 			})
 		})
 	})

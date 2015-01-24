@@ -131,17 +131,18 @@ func (sh *StreamHandler) publishThreadPools(pool *ExecutorPool) error {
 		RollingCountThreadsExecuted: uint32(pool.Metrics.Executed.Sum(now)),
 		RollingMaxActiveThreads:     0,
 
-		CurrentPoolSize:           0,
 		CurrentActiveCount:        uint32(pool.ActiveCount()),
-		CurrentQueueSize:          0,
-		CurrentCompletedTaskCount: 0,
-		CurrentLargestPoolSize:    0,
-		CurrentCorePoolSize:       0,
 		CurrentTaskCount:          0,
-		CurrentMaximumPoolSize:    0,
+		CurrentCompletedTaskCount: 0,
+
+		CurrentPoolSize:        uint32(pool.Max),
+		CurrentCorePoolSize:    uint32(pool.Max),
+		CurrentLargestPoolSize: uint32(pool.Max),
+		CurrentMaximumPoolSize: uint32(pool.Max),
 
 		RollingStatsWindow:          10000,
 		QueueSizeRejectionThreshold: 0,
+		CurrentQueueSize:            0,
 	})
 	if err != nil {
 		return err
