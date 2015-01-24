@@ -6,9 +6,9 @@ type PoolMetrics struct {
 	Mutex   *sync.RWMutex
 	Updates chan struct{}
 
-	Name           string
-	ActiveRequests *RollingNumber
-	Executed       *RollingNumber
+	Name              string
+	MaxActiveRequests *RollingNumber
+	Executed          *RollingNumber
 }
 
 func NewPoolMetrics(name string) *PoolMetrics {
@@ -28,7 +28,7 @@ func (m *PoolMetrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	m.ActiveRequests = NewRollingNumber()
+	m.MaxActiveRequests = NewRollingNumber()
 	m.Executed = NewRollingNumber()
 }
 

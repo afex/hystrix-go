@@ -23,6 +23,7 @@ func NewExecutorPool(name string) *ExecutorPool {
 
 func (p *ExecutorPool) Return(ticket *Ticket) {
 	p.Metrics.Updates <- struct{}{}
+	p.Metrics.MaxActiveRequests.UpdateMax(p.ActiveCount())
 	p.Tickets <- ticket
 }
 

@@ -23,13 +23,22 @@ func TestReturn(t *testing.T) {
 func TestActiveCount(t *testing.T) {
 	defer FlushMetrics()
 
-	Convey("when 2 tickets are pulled", t, func() {
+	Convey("when 3 tickets are pulled", t, func() {
 		pool := NewExecutorPool("pool")
 		<-pool.Tickets
 		<-pool.Tickets
+		ticket := <-pool.Tickets
 
-		Convey("ActiveCount() should be 2", func() {
-			So(pool.ActiveCount(), ShouldEqual, 2)
+		Convey("ActiveCount() should be 3", func() {
+			So(pool.ActiveCount(), ShouldEqual, 3)
+		})
+
+		Convey("and one is returned", func() {
+			pool.Return(ticket)
+
+			Convey("max active requests should be 3", func() {
+				So(pool.Metrics.MaxActiveRequests.Max(time.Now()), ShouldEqual, 3)
+			})
 		})
 	})
 }

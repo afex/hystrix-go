@@ -128,12 +128,12 @@ func (sh *StreamHandler) publishThreadPools(pool *ExecutorPool) error {
 		Name:           pool.Name,
 		ReportingHosts: 1,
 
-		RollingCountThreadsExecuted: uint32(pool.Metrics.Executed.Sum(now)),
-		RollingMaxActiveThreads:     0,
-
 		CurrentActiveCount:        uint32(pool.ActiveCount()),
 		CurrentTaskCount:          0,
 		CurrentCompletedTaskCount: 0,
+
+		RollingCountThreadsExecuted: uint32(pool.Metrics.Executed.Sum(now)),
+		RollingMaxActiveThreads:     uint32(pool.Metrics.MaxActiveRequests.Max(now)),
 
 		CurrentPoolSize:        uint32(pool.Max),
 		CurrentCorePoolSize:    uint32(pool.Max),
