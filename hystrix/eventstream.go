@@ -124,9 +124,24 @@ func (sh *StreamHandler) publishThreadPools(pool *ExecutorPool) error {
 	now := time.Now()
 
 	eventBytes, err := json.Marshal(&streamThreadPoolEvent{
-		Type: "HystrixThreadPool",
-		Name: pool.Name,
+		Type:           "HystrixThreadPool",
+		Name:           pool.Name,
+		ReportingHosts: 1,
+
 		RollingCountThreadsExecuted: uint32(pool.Metrics.Executed.Sum(now)),
+		RollingMaxActiveThreads:     0,
+
+		CurrentPoolSize:           0,
+		CurrentActiveCount:        0,
+		CurrentQueueSize:          0,
+		CurrentCompletedTaskCount: 0,
+		CurrentLargestPoolSize:    0,
+		CurrentCorePoolSize:       0,
+		CurrentTaskCount:          0,
+		CurrentMaximumPoolSize:    0,
+
+		RollingStatsWindow:          10000,
+		QueueSizeRejectionThreshold: 0,
 	})
 	if err != nil {
 		return err
@@ -250,8 +265,9 @@ type streamCmdLatency struct {
 }
 
 type streamThreadPoolEvent struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
+	Type           string `json:"type"`
+	Name           string `json:"name"`
+	ReportingHosts uint32 `json:"reportingHosts"`
 
 	CurrentActiveCount        uint32 `json:"currentActiveCount"`
 	CurrentCompletedTaskCount uint32 `json:"currentCompletedTaskCount"`
@@ -264,6 +280,9 @@ type streamThreadPoolEvent struct {
 
 	RollingMaxActiveThreads     uint32 `json:"rollingMaxActiveThreads"`
 	RollingCountThreadsExecuted uint32 `json:"rollingCountThreadsExecuted"`
+
+	RollingStatsWindow          uint32 `json:"propertyValue_metricsRollingStatisticalWindowInMilliseconds"`
+	QueueSizeRejectionThreshold uint32 `json:"propertyValue_queueSizeRejectionThreshold"`
 }
 
 func currentTime() int64 {
