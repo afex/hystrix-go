@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestSuccess(t *testing.T) {
@@ -243,4 +245,48 @@ func TestFailAfterTimeout(t *testing.T) {
 
 	// wait for command to fail, should not panic
 	time.Sleep(100 * time.Millisecond)
+}
+
+func TestFallbackAfterRejected(t *testing.T) {
+	Convey("with a circuit whose pool is full", t, func() {
+		defer FlushMetrics()
+		ConfigureCommand("fallback_after_rejected", CommandConfig{MaxConcurrentRequests: 1})
+		cb, _, err := GetCircuit("fallback_after_rejected")
+		if err != nil {
+			t.Fatal(err)
+		}
+		<-cb.ExecutorPool.Tickets
+
+		Convey("executing a successful fallback function due to rejection", func() {
+			runChan := make(chan bool, 1)
+			fallbackChan := make(chan bool, 1)
+			errChan := Go("fallback_after_rejected", func() error {
+				// if run executes after fallback, this will panic due to sending to a closed channel
+				runChan <- true
+				close(fallbackChan)
+				return nil
+			}, func(err error) error {
+				fallbackChan <- true
+				close(runChan)
+				return nil
+			})
+
+			Convey("should not execute the run function", func() {
+				err := <-errChan
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				b := <-fallbackChan
+				if b == false {
+					t.Fatal("run function executed when it shouldn't have")
+				}
+
+				b = <-runChan
+				if b == true {
+					t.Fatal("run function executed when it shouldn't have")
+				}
+			})
+		})
+	})
 }

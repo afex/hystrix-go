@@ -68,8 +68,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
 			if err != nil {
 				errChan <- err
-				return
 			}
+			return
 		}
 
 		runStart := time.Now()
