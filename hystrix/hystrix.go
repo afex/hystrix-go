@@ -62,7 +62,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
 		select {
 		case ticket := <-circuit.ExecutorPool.Tickets:
-			defer func() { circuit.ExecutorPool.Tickets <- ticket }()
+			defer func() { circuit.ExecutorPool.Return(ticket) }()
 		default:
 			circuit.ReportEvent("rejected", start, 0)
 			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))

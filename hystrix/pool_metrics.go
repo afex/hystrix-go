@@ -3,19 +3,23 @@ package hystrix
 import "sync"
 
 type PoolMetrics struct {
-	Mutex *sync.RWMutex
+	Mutex   *sync.RWMutex
+	Updates chan struct{}
 
 	Name           string
 	ActiveRequests *RollingNumber
-	NumExecuted    *RollingNumber
+	Executed       *RollingNumber
 }
 
 func NewPoolMetrics(name string) *PoolMetrics {
 	m := &PoolMetrics{}
 	m.Name = name
+	m.Updates = make(chan struct{})
 	m.Mutex = &sync.RWMutex{}
 
 	m.Reset()
+
+	go m.Monitor()
 
 	return m
 }
@@ -25,5 +29,11 @@ func (m *PoolMetrics) Reset() {
 	defer m.Mutex.Unlock()
 
 	m.ActiveRequests = NewRollingNumber()
-	m.NumExecuted = NewRollingNumber()
+	m.Executed = NewRollingNumber()
+}
+
+func (m *PoolMetrics) Monitor() {
+	for _ = range m.Updates {
+		m.Executed.Increment()
+	}
 }

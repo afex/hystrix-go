@@ -1,7 +1,7 @@
 package hystrix
 
 type ExecutorPool struct {
-	Name string
+	Name    string
 	Metrics *PoolMetrics
 	Tickets chan *Ticket
 }
@@ -18,4 +18,9 @@ func NewExecutorPool(name string) *ExecutorPool {
 	}
 
 	return p
+}
+
+func (p *ExecutorPool) Return(ticket *Ticket) {
+	p.Metrics.Updates <- struct{}{}
+	p.Tickets <- ticket
 }
