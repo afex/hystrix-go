@@ -227,7 +227,7 @@ func TestCloseErrorChannel(t *testing.T) {
 
 func TestFailAfterTimeout(t *testing.T) {
 	defer FlushMetrics()
-	ConfigureCommand("fail_after_timeout", CommandConfig{Timeout: 10})	
+	ConfigureCommand("fail_after_timeout", CommandConfig{Timeout: 10})
 
 	errChan := Go("fail_after_timeout", func() error {
 		time.Sleep(50 * time.Millisecond)
@@ -242,5 +242,5 @@ func TestFailAfterTimeout(t *testing.T) {
 	}
 
 	// wait for command to fail, should not panic
-	time.Sleep(100 * time.Millisecond)	
+	time.Sleep(100 * time.Millisecond)
 }

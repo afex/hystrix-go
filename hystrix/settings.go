@@ -15,7 +15,7 @@ const (
 
 type Settings struct {
 	Timeout                time.Duration
-	Concurrency            chan *Ticket
+	MaxConcurrentRequests  int
 	RequestVolumeThreshold uint64
 	SleepWindow            time.Duration
 	ErrorPercentThreshold  int
@@ -77,14 +77,10 @@ func ConfigureCommand(name string, config CommandConfig) *Settings {
 
 	settings[name] = &Settings{
 		Timeout:                time.Duration(timeout) * time.Millisecond,
-		Concurrency:            make(chan *Ticket, max),
+		MaxConcurrentRequests:  max,
 		RequestVolumeThreshold: uint64(volume),
 		SleepWindow:            time.Duration(sleep) * time.Millisecond,
 		ErrorPercentThreshold:  errorPercent,
-	}
-
-	for i := 0; i < max; i++ {
-		settings[name].Concurrency <- &Ticket{}
 	}
 
 	return settings[name]
@@ -107,11 +103,8 @@ func GetTimeout(name string) time.Duration {
 	return getSettings(name).Timeout
 }
 
-// ConcurrentThrottle hands out a channel which commands use to throttle how many of
-// each command can run at a time.  If a command can't pull from the channel on the first attempt
-// it triggers the fallback.
-func ConcurrentThrottle(name string) chan *Ticket {
-	return getSettings(name).Concurrency
+func GetConcurrency(name string) int {
+	return getSettings(name).MaxConcurrentRequests
 }
 
 func GetRequestVolumeThreshold(name string) uint64 {

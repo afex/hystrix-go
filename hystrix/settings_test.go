@@ -8,11 +8,11 @@ import (
 func TestSetConcurrency(t *testing.T) {
 	ConfigureCommand("conc", CommandConfig{MaxConcurrentRequests: 100})
 
-	tickets := ConcurrentThrottle("conc")
+	max := GetConcurrency("conc")
 
 	expected := 100
-	if len(tickets) != expected {
-		t.Fatalf("expected %v tickets, found %v", expected, len(tickets))
+	if max != expected {
+		t.Fatalf("expected %v max, found %v", expected, max)
 	}
 }
 

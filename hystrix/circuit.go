@@ -11,11 +11,13 @@ import (
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
 	Name                   string
-	Metrics                *Metrics
 	Open                   bool
 	ForceOpen              bool
 	Mutex                  *sync.RWMutex
 	OpenedOrLastTestedTime int64
+
+	ExecutorPool *ExecutorPool
+	Metrics      *Metrics
 }
 
 var (
@@ -71,6 +73,7 @@ func NewCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
 	c.Metrics = NewMetrics(name)
+	c.ExecutorPool = NewExecutorPool(name)
 	c.Mutex = &sync.RWMutex{}
 
 	return c
@@ -138,4 +141,21 @@ func (circuit *CircuitBreaker) SetClose() {
 
 	circuit.Open = false
 	circuit.Metrics.Reset()
+}
+
+func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, runDuration time.Duration) error {
+	if eventType == "success" && circuit.IsOpen() {
+		circuit.SetClose()
+	}
+
+	totalDuration := time.Now().Sub(start)
+
+	circuit.Metrics.Updates <- &ExecutionMetric{
+		Type:          eventType,
+		Time:          time.Now(),
+		RunDuration:   runDuration,
+		TotalDuration: totalDuration,
+	}
+
+	return nil
 }

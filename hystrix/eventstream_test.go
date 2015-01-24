@@ -71,36 +71,83 @@ func startTestServer() *EventStreamTestServer {
 
 // grabFirstFromStream reads on the http request until we see the first
 // full result printed
-func grabFirstFromStream(t *testing.T, url string) streamCmdEvent {
-	res, err := http.Get(url)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Body.Close()
+func grabFirstCommandFromStream(t *testing.T, url string) streamCmdEvent {
+	var event streamCmdEvent
 
-	// since the event stream connection doesn't ever close,
-	// we only read until we have the message we want and
-	// disconnect.
-	buf := []byte{0}
-	data := ""
-	for {
-		_, err := res.Body.Read(buf)
-		if err != nil {
-			t.Fatal(err)
-		}
+	metrics, done := streamMetrics(t, url)
+	for m := range metrics {
+		if strings.Contains(m, "HystrixCommand") {
+			done <- true
+			close(done)
 
-		data += string(buf)
-		if strings.Contains(data, "\n\n") {
+			err := json.Unmarshal([]byte(m), &event)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			break
 		}
 	}
 
-	data = strings.Replace(data, "data:{", "{", 1)
+	return event
+}
 
-	var event streamCmdEvent
-	json.Unmarshal([]byte(data), &event)
+func grabFirstThreadPoolFromStream(t *testing.T, url string) streamThreadPoolEvent {
+	var event streamThreadPoolEvent
+
+	metrics, done := streamMetrics(t, url)
+	for m := range metrics {
+		if strings.Contains(m, "HystrixThreadPool") {
+			done <- true
+			close(done)
+
+			err := json.Unmarshal([]byte(m), &event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
 
 	return event
+}
+
+func streamMetrics(t *testing.T, url string) (chan string, chan bool) {
+	metrics := make(chan string, 1)
+	done := make(chan bool, 1)
+
+	go func() {
+		res, err := http.Get(url)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+
+		buf := []byte{0}
+		data := ""
+		for {
+			_, err := res.Body.Read(buf)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			data += string(buf)
+			if strings.Contains(data, "\n\n") {
+				data = strings.Replace(data, "data:{", "{", 1)
+				metrics <- data
+				data = ""
+			}
+
+			select {
+			case _ = <-done:
+				close(metrics)
+				return
+			default:
+			}
+		}
+	}()
+
+	return metrics, done
 }
 
 func TestEventStream(t *testing.T) {
@@ -113,7 +160,7 @@ func TestEventStream(t *testing.T) {
 			sleepingCommand(t, "eventstream", 1*time.Millisecond)
 
 			Convey("the metrics should match", func() {
-				event := grabFirstFromStream(t, server.URL)
+				event := grabFirstCommandFromStream(t, server.URL)
 
 				So(event.Name, ShouldEqual, "eventstream")
 				So(int(event.RequestCount), ShouldEqual, 2)
@@ -127,9 +174,29 @@ func TestEventStream(t *testing.T) {
 			failingCommand(t, "errorpercent", 1*time.Millisecond)
 
 			Convey("the error precentage should be 75", func() {
-				event := grabFirstFromStream(t, server.URL)
+				metric := grabFirstCommandFromStream(t, server.URL)
 
-				So(event.ErrorPct, ShouldEqual, 75)
+				So(metric.ErrorPct, ShouldEqual, 75)
+			})
+		})
+	})
+}
+
+func TestThreadPoolStream(t *testing.T) {
+	Convey("given a running event stream", t, func() {
+		server := startTestServer()
+		defer server.stopTestServer()
+
+		Convey("after a successful command", func() {
+			sleepingCommand(t, "threadpool", 1*time.Millisecond)
+			metric := grabFirstThreadPoolFromStream(t, server.URL)
+
+			Convey("the rolling count of executions should increment", func() {
+				So(metric.RollingCountThreadsExecuted, ShouldEqual, 1)
+			})
+
+			Convey("the pool size should be accurate", func() {
+				So(metric.CurrentPoolSize, ShouldEqual, 10)
 			})
 		})
 	})

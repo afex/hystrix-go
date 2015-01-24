@@ -61,6 +61,18 @@ func (r *RollingNumber) Increment() {
 	r.removeOldBuckets()
 }
 
+func (r *RollingNumber) UpdateMax(n int) {
+	b := r.getCurrentBucket()
+
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+
+	if uint64(n) > b.Value {
+		b.Value = uint64(n)
+	}
+	r.removeOldBuckets()
+}
+
 func (r *RollingNumber) Sum(now time.Time) uint64 {
 	sum := uint64(0)
 
@@ -75,4 +87,22 @@ func (r *RollingNumber) Sum(now time.Time) uint64 {
 	}
 
 	return sum
+}
+
+func (r *RollingNumber) Max(now time.Time) uint64 {
+	var max uint64
+
+	r.Mutex.RLock()
+	defer r.Mutex.RUnlock()
+
+	for timestamp, bucket := range r.Buckets {
+		// TODO: configurable rolling window
+		if timestamp >= now.Unix()-10 {
+			if bucket.Value > max {
+				max = bucket.Value
+			}
+		}
+	}
+
+	return max
 }
