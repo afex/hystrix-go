@@ -25,6 +25,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	stop := false
 	stopMutex := &sync.Mutex{}
 	var ticket *Ticket
+	ticketMutex := &sync.Mutex{}
 
 	start := time.Now()
 
@@ -61,9 +62,12 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// When requests slow down but the incoming rate of requests stays the same, you have to
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
+		ticketMutex.Lock()
 		select {
 		case ticket = <-circuit.ExecutorPool.Tickets:
+			ticketMutex.Unlock()
 		default:
+			ticketMutex.Unlock()
 			circuit.ReportEvent("rejected", start, 0)
 			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
 			if err != nil {
@@ -110,7 +114,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			stop = true
 			stopMutex.Unlock()
 
+			ticketMutex.Lock()
 			circuit.ExecutorPool.Return(ticket)
+			ticketMutex.Unlock()
 
 			close(errChan)
 		}()
