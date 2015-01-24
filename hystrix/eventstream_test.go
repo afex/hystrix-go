@@ -167,16 +167,15 @@ func TestEventStream(t *testing.T) {
 			})
 		})
 
-		Convey("after 1 successful command and 3 unsuccessful commands", func() {
+		Convey("after 1 successful command and 2 unsuccessful commands", func() {
 			sleepingCommand(t, "errorpercent", 1*time.Millisecond)
 			failingCommand(t, "errorpercent", 1*time.Millisecond)
 			failingCommand(t, "errorpercent", 1*time.Millisecond)
-			failingCommand(t, "errorpercent", 1*time.Millisecond)
 
-			Convey("the error precentage should be 75", func() {
+			Convey("the error precentage should be 67", func() {
 				metric := grabFirstCommandFromStream(t, server.URL)
 
-				So(metric.ErrorPct, ShouldEqual, 75)
+				So(metric.ErrorPct, ShouldEqual, 67)
 			})
 		})
 	})

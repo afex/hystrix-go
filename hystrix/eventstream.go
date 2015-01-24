@@ -81,7 +81,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 
 		RequestCount:       uint32(reqCount),
 		ErrorCount:         uint32(errCount),
-		ErrorPct:           errPct,
+		ErrorPct:           uint32(errPct),
 		CircuitBreakerOpen: cb.IsOpen(),
 
 		RollingCountSuccess:            uint32(cb.Metrics.Successes.Sum(now)),
@@ -210,10 +210,10 @@ type streamCmdEvent struct {
 	ReportingHosts uint32 `json:"reportingHosts"`
 
 	// Health
-	RequestCount       uint32  `json:"requestCount"`
-	ErrorCount         uint32  `json:"errorCount"`
-	ErrorPct           float64 `json:"errorPercentage"`
-	CircuitBreakerOpen bool    `json:"isCircuitBreakerOpen"`
+	RequestCount       uint32 `json:"requestCount"`
+	ErrorCount         uint32 `json:"errorCount"`
+	ErrorPct           uint32 `json:"errorPercentage"`
+	CircuitBreakerOpen bool   `json:"isCircuitBreakerOpen"`
 
 	RollingCountCollapsedRequests  uint32 `json:"rollingCountCollapsedRequests"`
 	RollingCountExceptionsThrown   uint32 `json:"rollingCountExceptionsThrown"`
