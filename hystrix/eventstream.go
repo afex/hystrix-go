@@ -72,7 +72,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	errCount := cb.Metrics.Errors.Sum(now)
 	errPct := cb.Metrics.ErrorPercent(now)
 
-	eventBytes, err := json.Marshal(&streamCmdEvent{
+	eventBytes, err := json.Marshal(&StreamCmdEvent{
 		Type:           "HystrixCommand",
 		Name:           cb.Name,
 		Group:          cb.Name,
@@ -123,7 +123,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 func (sh *StreamHandler) publishThreadPools(pool *ExecutorPool) error {
 	now := time.Now()
 
-	eventBytes, err := json.Marshal(&streamThreadPoolEvent{
+	eventBytes, err := json.Marshal(&StreamThreadPoolEvent{
 		Type:           "HystrixThreadPool",
 		Name:           pool.Name,
 		ReportingHosts: 1,
@@ -202,7 +202,7 @@ func (sh *StreamHandler) unregister(req *http.Request) {
 	sh.mu.Unlock()
 }
 
-type streamCmdEvent struct {
+type StreamCmdEvent struct {
 	Type           string `json:"type"`
 	Name           string `json:"name"`
 	Group          string `json:"group"`
@@ -265,7 +265,7 @@ type streamCmdLatency struct {
 	Timing100 uint32 `json:"100"`
 }
 
-type streamThreadPoolEvent struct {
+type StreamThreadPoolEvent struct {
 	Type           string `json:"type"`
 	Name           string `json:"name"`
 	ReportingHosts uint32 `json:"reportingHosts"`

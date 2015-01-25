@@ -71,8 +71,8 @@ func startTestServer() *EventStreamTestServer {
 
 // grabFirstFromStream reads on the http request until we see the first
 // full result printed
-func grabFirstCommandFromStream(t *testing.T, url string) streamCmdEvent {
-	var event streamCmdEvent
+func grabFirstCommandFromStream(t *testing.T, url string) StreamCmdEvent {
+	var event StreamCmdEvent
 
 	metrics, done := streamMetrics(t, url)
 	for m := range metrics {
@@ -92,8 +92,8 @@ func grabFirstCommandFromStream(t *testing.T, url string) streamCmdEvent {
 	return event
 }
 
-func grabFirstThreadPoolFromStream(t *testing.T, url string) streamThreadPoolEvent {
-	var event streamThreadPoolEvent
+func grabFirstThreadPoolFromStream(t *testing.T, url string) StreamThreadPoolEvent {
+	var event StreamThreadPoolEvent
 
 	metrics, done := streamMetrics(t, url)
 	for m := range metrics {
