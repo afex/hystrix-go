@@ -161,19 +161,36 @@ func TestOpenCircuit(t *testing.T) {
 	}
 }
 
-func TestFailedFallback(t *testing.T) {
-	defer FlushMetrics()
-	errChan := Go("fallback_error", func() error {
-		return fmt.Errorf("run_error")
-	}, func(err error) error {
-		return fmt.Errorf("fallback_error")
+func TestNilFallbackRunError(t *testing.T) {
+	Convey("when your run function returns an error and you have no fallback", t, func() {
+		defer FlushMetrics()
+		errChan := Go("fallback_error", func() error {
+			return fmt.Errorf("run_error")
+		}, nil)
+
+		Convey("the returned error should be the run error", func() {
+			err := <-errChan
+
+			So(err.Error(), ShouldEqual, "run_error")
+		})
 	})
+}
 
-	err := <-errChan
+func TestFailedFallback(t *testing.T) {
+	Convey("when your run and fallback functions return an error", t, func() {
+		defer FlushMetrics()
+		errChan := Go("fallback_error", func() error {
+			return fmt.Errorf("run_error")
+		}, func(err error) error {
+			return fmt.Errorf("fallback_error")
+		})
 
-	if err.Error() != "fallback failed with 'fallback_error'. run error was 'run_error'" {
-		t.Errorf("did not get expected error: %v", err)
-	}
+		Convey("the returned error should contain both", func() {
+			err := <-errChan
+
+			So(err.Error(), ShouldEqual, "fallback failed with 'fallback_error'. run error was 'run_error'")
+		})
+	})
 }
 
 func TestCloseCircuitAfterSuccess(t *testing.T) {

@@ -81,21 +81,12 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		runDuration := time.Now().Sub(runStart)
 		if runErr != nil {
 			circuit.ReportEvent("failure", start, runDuration)
-			if fallback != nil {
-				err := tryFallback(circuit, start, runDuration, fallback, runErr)
-				if err != nil {
-					stopMutex.Lock()
-					defer stopMutex.Unlock()
-					if !stop {
-						errChan <- err
-					}
-					return
-				}
-			} else {
+			err := tryFallback(circuit, start, runDuration, fallback, runErr)
+			if err != nil {
 				stopMutex.Lock()
 				defer stopMutex.Unlock()
 				if !stop {
-					errChan <- runErr
+					errChan <- err
 				}
 				return
 			}
