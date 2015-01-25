@@ -71,8 +71,8 @@ func startTestServer() *EventStreamTestServer {
 
 // grabFirstFromStream reads on the http request until we see the first
 // full result printed
-func grabFirstCommandFromStream(t *testing.T, url string) streamCmdEvent {
-	var event streamCmdEvent
+func grabFirstCommandFromStream(t *testing.T, url string) StreamCmdEvent {
+	var event StreamCmdEvent
 
 	metrics, done := streamMetrics(t, url)
 	for m := range metrics {
@@ -92,8 +92,8 @@ func grabFirstCommandFromStream(t *testing.T, url string) streamCmdEvent {
 	return event
 }
 
-func grabFirstThreadPoolFromStream(t *testing.T, url string) streamThreadPoolEvent {
-	var event streamThreadPoolEvent
+func grabFirstThreadPoolFromStream(t *testing.T, url string) StreamThreadPoolEvent {
+	var event StreamThreadPoolEvent
 
 	metrics, done := streamMetrics(t, url)
 	for m := range metrics {
@@ -167,16 +167,15 @@ func TestEventStream(t *testing.T) {
 			})
 		})
 
-		Convey("after 1 successful command and 3 unsuccessful commands", func() {
+		Convey("after 1 successful command and 2 unsuccessful commands", func() {
 			sleepingCommand(t, "errorpercent", 1*time.Millisecond)
 			failingCommand(t, "errorpercent", 1*time.Millisecond)
 			failingCommand(t, "errorpercent", 1*time.Millisecond)
-			failingCommand(t, "errorpercent", 1*time.Millisecond)
 
-			Convey("the error precentage should be 75", func() {
+			Convey("the error precentage should be 67", func() {
 				metric := grabFirstCommandFromStream(t, server.URL)
 
-				So(metric.ErrorPct, ShouldEqual, 75)
+				So(metric.ErrorPct, ShouldEqual, 67)
 			})
 		})
 	})

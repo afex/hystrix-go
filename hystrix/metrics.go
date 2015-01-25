@@ -118,7 +118,7 @@ func (m *Metrics) Requests() *RollingNumber {
 	return m.numRequests
 }
 
-func (m *Metrics) ErrorPercent(now time.Time) float64 {
+func (m *Metrics) ErrorPercent(now time.Time) int {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 
@@ -130,9 +130,9 @@ func (m *Metrics) ErrorPercent(now time.Time) float64 {
 		errPct = (float64(errs) / float64(reqs)) * 100
 	}
 
-	return errPct
+	return int(errPct + 0.5)
 }
 
 func (m *Metrics) IsHealthy(now time.Time) bool {
-	return m.ErrorPercent(now) < float64(GetErrorPercentThreshold(m.Name))
+	return m.ErrorPercent(now) < GetErrorPercentThreshold(m.Name)
 }

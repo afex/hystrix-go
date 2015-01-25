@@ -72,7 +72,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	errCount := cb.Metrics.Errors.Sum(now)
 	errPct := cb.Metrics.ErrorPercent(now)
 
-	eventBytes, err := json.Marshal(&streamCmdEvent{
+	eventBytes, err := json.Marshal(&StreamCmdEvent{
 		Type:           "HystrixCommand",
 		Name:           cb.Name,
 		Group:          cb.Name,
@@ -81,7 +81,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 
 		RequestCount:       uint32(reqCount),
 		ErrorCount:         uint32(errCount),
-		ErrorPct:           errPct,
+		ErrorPct:           uint32(errPct),
 		CircuitBreakerOpen: cb.IsOpen(),
 
 		RollingCountSuccess:            uint32(cb.Metrics.Successes.Sum(now)),
@@ -123,7 +123,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 func (sh *StreamHandler) publishThreadPools(pool *ExecutorPool) error {
 	now := time.Now()
 
-	eventBytes, err := json.Marshal(&streamThreadPoolEvent{
+	eventBytes, err := json.Marshal(&StreamThreadPoolEvent{
 		Type:           "HystrixThreadPool",
 		Name:           pool.Name,
 		ReportingHosts: 1,
@@ -202,7 +202,7 @@ func (sh *StreamHandler) unregister(req *http.Request) {
 	sh.mu.Unlock()
 }
 
-type streamCmdEvent struct {
+type StreamCmdEvent struct {
 	Type           string `json:"type"`
 	Name           string `json:"name"`
 	Group          string `json:"group"`
@@ -210,10 +210,10 @@ type streamCmdEvent struct {
 	ReportingHosts uint32 `json:"reportingHosts"`
 
 	// Health
-	RequestCount       uint32  `json:"requestCount"`
-	ErrorCount         uint32  `json:"errorCount"`
-	ErrorPct           float64 `json:"errorPercentage"`
-	CircuitBreakerOpen bool    `json:"isCircuitBreakerOpen"`
+	RequestCount       uint32 `json:"requestCount"`
+	ErrorCount         uint32 `json:"errorCount"`
+	ErrorPct           uint32 `json:"errorPercentage"`
+	CircuitBreakerOpen bool   `json:"isCircuitBreakerOpen"`
 
 	RollingCountCollapsedRequests  uint32 `json:"rollingCountCollapsedRequests"`
 	RollingCountExceptionsThrown   uint32 `json:"rollingCountExceptionsThrown"`
@@ -265,7 +265,7 @@ type streamCmdLatency struct {
 	Timing100 uint32 `json:"100"`
 }
 
-type streamThreadPoolEvent struct {
+type StreamThreadPoolEvent struct {
 	Type           string `json:"type"`
 	Name           string `json:"name"`
 	ReportingHosts uint32 `json:"reportingHosts"`
