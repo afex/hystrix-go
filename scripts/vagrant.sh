@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-wget https://go.googlecode.com/files/go1.2.1.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.2.1.linux-amd64.tar.gz
+wget -q https://storage.googleapis.com/golang/go1.4.1.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.4.1.linux-amd64.tar.gz
 
 apt-get -y install git mercurial
 
