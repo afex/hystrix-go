@@ -3,48 +3,46 @@ package hystrix
 import (
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestSetConcurrency(t *testing.T) {
-	ConfigureCommand("conc", CommandConfig{MaxConcurrentRequests: 100})
+func TestConfigureConcurrency(t *testing.T) {
+	Convey("given a command configured for 100 concurrent requests", t, func() {
+		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 100})
 
-	max := GetConcurrency("conc")
-
-	expected := 100
-	if max != expected {
-		t.Fatalf("expected %v max, found %v", expected, max)
-	}
+		Convey("reading the concurrency should be the same", func() {
+			So(GetConcurrency(""), ShouldEqual, 100)
+		})
+	})
 }
 
-func TestSetTimeout(t *testing.T) {
-	ConfigureCommand("time", CommandConfig{Timeout: 10000})
+func TestConfigureTimeout(t *testing.T) {
+	Convey("given a command configured for a 10000 milliseconds", t, func() {
+		ConfigureCommand("", CommandConfig{Timeout: 10000})
 
-	d := GetTimeout("time")
-
-	expected := time.Duration(10 * time.Second)
-	if d != expected {
-		t.Fatalf("expected %v timeout, found %v", expected, d)
-	}
+		Convey("reading the timeout should be the same", func() {
+			So(GetTimeout(""), ShouldEqual, time.Duration(10 * time.Second))
+		})
+	})
 }
 
-func TestRVT(t *testing.T) {
-	ConfigureCommand("rvt", CommandConfig{RequestVolumeThreshold: 30})
+func TestConfigureRVT(t *testing.T) {
+	Convey("given a command configured to need 30 requests before tripping the circuit", t, func() {
+		ConfigureCommand("", CommandConfig{RequestVolumeThreshold: 30})
 
-	rvt := GetRequestVolumeThreshold("rvt")
-
-	expected := uint64(30)
-	if rvt != expected {
-		t.Fatalf("expected threshold of %v, found %v", expected, rvt)
-	}
+		Convey("reading the threshold should be the same", func() {
+			So(GetRequestVolumeThreshold(""), ShouldEqual, uint64(30))
+		})
+	})
 }
 
 func TestSleepWindowDefault(t *testing.T) {
-	ConfigureCommand("sleep", CommandConfig{})
+	Convey("given default settings", t, func() {
+		ConfigureCommand("", CommandConfig{})
 
-	sleep := GetSleepWindow("sleep")
-	expected := time.Duration(5 * time.Second)
-
-	if sleep != expected {
-		t.Fatalf("expected window of %v, found %v", expected, sleep)
-	}
+		Convey("the sleep window should be 5 seconds", func() {
+			So(GetSleepWindow(""), ShouldEqual, time.Duration(5 * time.Second))
+		})
+	})
 }

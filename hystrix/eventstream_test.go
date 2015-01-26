@@ -12,6 +12,32 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+type EventStreamTestServer struct {
+	*httptest.Server
+	EventStreamer
+}
+
+type EventStreamer interface {
+	Stop()
+}
+
+func (s *EventStreamTestServer) stopTestServer() error {
+	s.Close()
+	s.Stop()
+	FlushMetrics()
+
+	return nil
+}
+
+func startTestServer() *EventStreamTestServer {
+	hystrixStreamHandler := NewStreamHandler()
+	hystrixStreamHandler.Start()
+	return &EventStreamTestServer{
+		httptest.NewServer(hystrixStreamHandler),
+		hystrixStreamHandler,
+	}
+}
+
 func sleepingCommand(t *testing.T, name string, duration time.Duration) {
 	done := make(chan bool)
 	errChan := Go(name, func() error {
@@ -40,32 +66,6 @@ func failingCommand(t *testing.T, name string, duration time.Duration) {
 		t.Fatal("should not have succeeded")
 	case _ = <-errChan:
 		// do nothing
-	}
-}
-
-type EventStreamTestServer struct {
-	*httptest.Server
-	EventStreamer
-}
-
-type EventStreamer interface {
-	Stop()
-}
-
-func (s *EventStreamTestServer) stopTestServer() error {
-	s.Close()
-	s.Stop()
-	FlushMetrics()
-
-	return nil
-}
-
-func startTestServer() *EventStreamTestServer {
-	hystrixStreamHandler := NewStreamHandler()
-	hystrixStreamHandler.Start()
-	return &EventStreamTestServer{
-		httptest.NewServer(hystrixStreamHandler),
-		hystrixStreamHandler,
 	}
 }
 
@@ -159,7 +159,7 @@ func TestEventStream(t *testing.T) {
 			sleepingCommand(t, "eventstream", 1*time.Millisecond)
 			sleepingCommand(t, "eventstream", 1*time.Millisecond)
 
-			Convey("the metrics should match", func() {
+			Convey("request count should be 2", func() {
 				event := grabFirstCommandFromStream(t, server.URL)
 
 				So(event.Name, ShouldEqual, "eventstream")
@@ -194,7 +194,7 @@ func TestThreadPoolStream(t *testing.T) {
 				So(metric.RollingCountThreadsExecuted, ShouldEqual, 1)
 			})
 
-			Convey("the pool size should be accurate", func() {
+			Convey("the pool size should be 10", func() {
 				So(metric.CurrentPoolSize, ShouldEqual, 10)
 			})
 		})

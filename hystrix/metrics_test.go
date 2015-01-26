@@ -3,10 +3,12 @@ package hystrix
 import (
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func metricFailingPercent(name string, p int) *Metrics {
-	m := NewMetrics(name)
+func metricFailingPercent(p int) *Metrics {
+	m := NewMetrics("")
 	for i := 0; i < 100; i++ {
 		t := "success"
 		if i < p {
@@ -22,20 +24,22 @@ func metricFailingPercent(name string, p int) *Metrics {
 }
 
 func TestErrorPercent(t *testing.T) {
-	m := metricFailingPercent("error_percent", 40)
+	Convey("with a metric failing 40 percent of the time", t, func() {
+		m := metricFailingPercent(40)
+		now := time.Now()
 
-	p := m.ErrorPercent(time.Now())
-	if p != 40 {
-		t.Fatalf("expected 0.40 percent errors, but got %v", p)
-	}
-}
+		Convey("ErrorPercent() should return 40", func() {
+			p := m.ErrorPercent(now)
+			So(p, ShouldEqual, 40)
+		})
 
-func TestIsHealthy(t *testing.T) {
-	ConfigureCommand("healthy", CommandConfig{ErrorPercentThreshold: 39})
+		Convey("and a error threshold set to 39", func() {
+			ConfigureCommand("", CommandConfig{ErrorPercentThreshold: 39})
 
-	m := metricFailingPercent("healthy", 40)
-	now := time.Now()
-	if m.IsHealthy(now) {
-		t.Fatalf("expected metrics to be unhealthy, but wasn't at %v percent", m.ErrorPercent(now))
-	}
+			Convey("the metrics should be unhealthy", func() {
+				So(m.IsHealthy(now), ShouldBeFalse)
+			})			
+
+		})
+	})
 }

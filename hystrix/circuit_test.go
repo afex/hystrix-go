@@ -13,19 +13,15 @@ func TestGetCircuit(t *testing.T) {
 		var created bool
 		var err error
 		_, created, err = GetCircuit("foo")
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		Convey("once, the circuit should be created", func() {
+			So(err, ShouldBeNil)
 			So(created, ShouldEqual, true)
 		})
 
 		Convey("twice, the circuit should be reused", func() {
 			_, created, err = GetCircuit("foo")
-			if err != nil {
-				t.Fatal(err)
-			}
+			So(err, ShouldBeNil)
 			So(created, ShouldEqual, false)
 		})
 	})

@@ -9,162 +9,147 @@ import (
 )
 
 func TestSuccess(t *testing.T) {
-	defer FlushMetrics()
+	Convey("with a command which sends to a channel", t, func() {
+		defer FlushMetrics()
 
-	resultChan := make(chan int)
-	errChan := Go("good", func() error {
-		resultChan <- 1
-		return nil
-	}, nil)
+		resultChan := make(chan int)
+		errChan := Go("", func() error {
+			resultChan <- 1
+			return nil
+		}, nil)
 
-	select {
-	case result := <-resultChan:
-		if result != 1 {
-			t.Errorf("result wasn't 1: %v", result)
-		}
-	case err := <-errChan:
-		t.Errorf(err.Error())
-	}
+		Convey("reading from that channel should provide the expected value", func() {
+			So(<-resultChan, ShouldEqual, 1)
+		})
+		Convey("no errors should be returned", func() {
+			So(len(errChan), ShouldEqual, 0)
+		})
+	})
 }
 
 func TestFallback(t *testing.T) {
-	defer FlushMetrics()
+	Convey("with a command which fails, and whose fallback sends to a channel", t, func() {
+		defer FlushMetrics()
 
-	resultChan := make(chan int)
-	errChan := Go("bad", func() error {
-		return fmt.Errorf("error")
-	}, func(err error) error {
-		if err.Error() == "error" {
-			resultChan <- 1
-		}
-		return nil
+		resultChan := make(chan int)
+		errChan := Go("", func() error {
+			return fmt.Errorf("error")
+		}, func(err error) error {
+			if err.Error() == "error" {
+				resultChan <- 1
+			}
+			return nil
+		})
+
+		Convey("reading from that channel should provide the expected value", func() {
+			So(<-resultChan, ShouldEqual, 1)
+		})
+		Convey("no errors should be returned", func() {
+			So(len(errChan), ShouldEqual, 0)
+		})
 	})
-
-	select {
-	case result := <-resultChan:
-		if result != 1 {
-			t.Errorf("result wasn't 1: %v", result)
-		}
-	case err := <-errChan:
-		t.Errorf(err.Error())
-	}
 }
 
 func TestTimeout(t *testing.T) {
-	defer FlushMetrics()
-	ConfigureCommand("timeout", CommandConfig{Timeout: 100})
+	Convey("with a command which times out, and whose fallback sends to a channel", t, func() {
+		defer FlushMetrics()
+		ConfigureCommand("", CommandConfig{Timeout: 100})
 
-	resultChan := make(chan int)
-	errChan := Go("timeout", func() error {
-		time.Sleep(1 * time.Second)
-		resultChan <- 1
-		return nil
-	}, func(err error) error {
-		if err.Error() == "timeout" {
-			resultChan <- 2
-		}
-		return nil
+		resultChan := make(chan int)
+		errChan := Go("", func() error {
+			time.Sleep(1 * time.Second)
+			resultChan <- 1
+			return nil
+		}, func(err error) error {
+			if err.Error() == "timeout" {
+				resultChan <- 2
+			}
+			return nil
+		})
+
+		Convey("reading from that channel should provide the expected value", func() {
+			So(<-resultChan, ShouldEqual, 2)
+		})
+		Convey("no errors should be returned", func() {
+			So(len(errChan), ShouldEqual, 0)
+		})
 	})
-
-	select {
-	case result := <-resultChan:
-		if result != 2 {
-			t.Errorf("didn't get fallback value 2: %v", result)
-		}
-	case err := <-errChan:
-		t.Errorf(err.Error())
-	}
 }
 
 func TestTimeoutEmptyFallback(t *testing.T) {
-	defer FlushMetrics()
-	ConfigureCommand("timeout", CommandConfig{Timeout: 100})
+	Convey("with a command which times out, and has no fallback", t, func() {
+		defer FlushMetrics()
+		ConfigureCommand("", CommandConfig{Timeout: 100})
 
-	resultChan := make(chan int)
-	errChan := Go("timeout", func() error {
-		time.Sleep(30 * time.Second)
-		resultChan <- 1
-		return nil
-	}, nil)
+		resultChan := make(chan int)
+		errChan := Go("", func() error {
+			time.Sleep(1 * time.Second)
+			resultChan <- 1
+			return nil
+		}, nil)
 
-	select {
-	case _ = <-resultChan:
-		t.Errorf("Should not get an response from resultChan")
-	case _ = <-errChan:
-	}
+		Convey("a timeout error should be returned", func() {
+			So((<-errChan).Error(), ShouldEqual, "timeout")
+		})
+	})
 }
 
 func TestMaxConcurrent(t *testing.T) {
-	defer FlushMetrics()
-	ConfigureCommand("max_concurrent", CommandConfig{MaxConcurrentRequests: 2})
-	resultChan := make(chan int)
+	Convey("if a command has max concurrency set to 2", t, func() {
+		defer FlushMetrics()
+		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 2})
+		resultChan := make(chan int)
 
-	fallback := func(err error) error {
-		if err.Error() == "max concurrency" {
-			resultChan <- 2
+		run := func() error {
+			time.Sleep(1 * time.Second)
+			resultChan <- 1
+			return nil
 		}
-		return nil
-	}
 
-	errChan1 := Go("max_concurrent", func() error {
-		time.Sleep(1 * time.Second)
-		return nil
-	}, fallback)
+		Convey("and 3 of those commands try to execute at the same time", func() {
+			var good, bad int
 
-	errChan2 := Go("max_concurrent", func() error {
-		time.Sleep(1 * time.Second)
-		resultChan <- 1
-		return nil
-	}, fallback)
+			for i := 0; i < 3; i++ {
+				errChan := Go("", run, nil)
+				time.Sleep(10 * time.Millisecond)
 
-	errChan3 := Go("max_concurrent", func() error {
-		resultChan <- 1
-		return nil
-	}, fallback)
+				select {
+				case err := <-errChan:
+					if err.Error() == "max concurrency" {
+						bad += 1
+					}
+				default:
+					good += 1
+				}
+			}
 
-	select {
-	case result := <-resultChan:
-		if result != 2 {
-			t.Errorf("didn't get fallback value 2: %v", result)
-		}
-	case err := <-errChan1:
-		t.Errorf(err.Error())
-	case err := <-errChan2:
-		t.Errorf(err.Error())
-	case err := <-errChan3:
-		t.Errorf(err.Error())
-	}
+			Convey("one will return a 'max concurrency' error", func() {
+				So(bad, ShouldEqual, 1)
+				So(good, ShouldEqual, 2)
+			})
+		})
+	})
 }
 
 func TestOpenCircuit(t *testing.T) {
-	defer FlushMetrics()
-	ForceCircuitOpen("open_circuit", true)
+	Convey("when a command with an open circuit is run", t, func() {
+		defer FlushMetrics()
+		ForceCircuitOpen("", true)
 
-	resultChan := make(chan int)
-	errChan := Go("open_circuit", func() error {
-		resultChan <- 2
-		return nil
-	}, func(err error) error {
-		if err.Error() == "circuit open" {
-			resultChan <- 1
-		}
-		return nil
+		errChan := Go("", func() error {
+			return nil
+		}, nil)
+
+		Convey("a 'circuit open' error is returned", func() {
+			So((<-errChan).Error(), ShouldEqual, "circuit open")
+		})
 	})
-
-	select {
-	case result := <-resultChan:
-		if result != 1 {
-			t.Errorf("didn't get fallback 1: %v", result)
-		}
-	case err := <-errChan:
-		t.Errorf(err.Error())
-	}
 }
 
 func TestNilFallbackRunError(t *testing.T) {
 	Convey("when your run function returns an error and you have no fallback", t, func() {
 		defer FlushMetrics()
-		errChan := Go("fallback_error", func() error {
+		errChan := Go("", func() error {
 			return fmt.Errorf("run_error")
 		}, nil)
 
@@ -179,7 +164,7 @@ func TestNilFallbackRunError(t *testing.T) {
 func TestFailedFallback(t *testing.T) {
 	Convey("when your run and fallback functions return an error", t, func() {
 		defer FlushMetrics()
-		errChan := Go("fallback_error", func() error {
+		errChan := Go("", func() error {
 			return fmt.Errorf("run_error")
 		}, func(err error) error {
 			return fmt.Errorf("fallback_error")
@@ -194,81 +179,75 @@ func TestFailedFallback(t *testing.T) {
 }
 
 func TestCloseCircuitAfterSuccess(t *testing.T) {
-	defer FlushMetrics()
+	Convey("when a circuit is open", t, func() {
+		defer FlushMetrics()
+		cb, _, err := GetCircuit("")
+		So(err, ShouldEqual, nil)
 
-	cb, _, err := GetCircuit("close_after_success")
-	if err != nil {
-		t.Fatalf("cant get circuit")
-	}
+		cb.SetOpen()
+		So(cb.IsOpen(), ShouldEqual, true)
 
-	cb.SetOpen()
-	if !cb.IsOpen() {
-		t.Fatalf("circuit should be open")
-	}
+		time.Sleep(6 * time.Second)
 
-	time.Sleep(6 * time.Second)
+		Convey("and a successful command is run", func() {
 
-	done := make(chan bool)
-	errChan := Go("close_after_success", func() error {
-		done <- true
-		return nil
-	}, nil)
+			var done bool
+			errChan := Go("", func() error {
+				done = true
+				return nil
+			}, nil)
 
-	select {
-	case _ = <-done:
-		// do nothing
-	case err := <-errChan:
-		t.Fatal(err)
-	}
-
-	if cb.IsOpen() {
-		t.Fatalf("circuit should be closed")
-	}
+			Convey("the circuit should be closed", func() {
+				So(<-errChan, ShouldEqual, nil)
+				So(done, ShouldEqual, true)
+				So(cb.IsOpen(), ShouldEqual, false)
+			})
+		})
+	})
 }
 
 func TestCloseErrorChannel(t *testing.T) {
-	defer FlushMetrics()
+	Convey("when a command completes", t, func() {
+		defer FlushMetrics()
 
-	errChan := Go("close_channel", func() error {
-		return nil
-	}, nil)
+		errChan := Go("", func() error {
+			return nil
+		}, nil)
 
-	select {
-	case _ = <-time.After(1 * time.Second):
-		t.Fatal("timer fired before error channel was closed")
-	case err := <-errChan:
-		// errChan should be closed when command finishes
-		if err != nil {
-			t.Fatal("expected nil error")
-		}
-	}
+		Convey("its error channel should be closed", func() {
+			select {
+			case _ = <-time.After(1 * time.Second):
+				t.Fatal("timer fired before error channel was closed")
+			case err := <-errChan:
+				So(err, ShouldEqual, nil)
+			}
+		})
+	})
 }
 
 func TestFailAfterTimeout(t *testing.T) {
-	defer FlushMetrics()
-	ConfigureCommand("fail_after_timeout", CommandConfig{Timeout: 10})
+	Convey("when a slow command fails after the timeout fires", t, func() {
+		defer FlushMetrics()
+		ConfigureCommand("", CommandConfig{Timeout: 10})
 
-	errChan := Go("fail_after_timeout", func() error {
-		time.Sleep(50 * time.Millisecond)
-		return fmt.Errorf("foo")
-	}, nil)
+		errChan := Go("", func() error {
+			time.Sleep(50 * time.Millisecond)
+			return fmt.Errorf("foo")
+		}, nil)
 
-	select {
-	case err := <-errChan:
-		if err.Error() != "timeout" {
-			t.Fatal("did not timeout as expected")
-		}
-	}
-
-	// wait for command to fail, should not panic
-	time.Sleep(100 * time.Millisecond)
+		Convey("we do not panic", func() {
+			So((<-errChan).Error(), ShouldEqual, "timeout")
+			// wait for command to fail, should not panic
+			time.Sleep(100 * time.Millisecond)
+		})
+	})	
 }
 
 func TestFallbackAfterRejected(t *testing.T) {
 	Convey("with a circuit whose pool is full", t, func() {
 		defer FlushMetrics()
-		ConfigureCommand("fallback_after_rejected", CommandConfig{MaxConcurrentRequests: 1})
-		cb, _, err := GetCircuit("fallback_after_rejected")
+		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 1})
+		cb, _, err := GetCircuit("")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -277,7 +256,7 @@ func TestFallbackAfterRejected(t *testing.T) {
 		Convey("executing a successful fallback function due to rejection", func() {
 			runChan := make(chan bool, 1)
 			fallbackChan := make(chan bool, 1)
-			errChan := Go("fallback_after_rejected", func() error {
+			errChan := Go("", func() error {
 				// if run executes after fallback, this will panic due to sending to a closed channel
 				runChan <- true
 				close(fallbackChan)
@@ -289,20 +268,9 @@ func TestFallbackAfterRejected(t *testing.T) {
 			})
 
 			Convey("should not execute the run function", func() {
-				err := <-errChan
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				b := <-fallbackChan
-				if b == false {
-					t.Fatal("run function executed when it shouldn't have")
-				}
-
-				b = <-runChan
-				if b == true {
-					t.Fatal("run function executed when it shouldn't have")
-				}
+				So(<-errChan, ShouldBeNil)
+				So(<-fallbackChan, ShouldBeTrue)
+				So(<-runChan, ShouldBeFalse)
 			})
 		})
 	})
@@ -322,14 +290,10 @@ func TestReturnTicket(t *testing.T) {
 
 		Convey("the ticket returns to the pool after the timeout", func() {
 			err := <-errChan
-
 			So(err.Error(), ShouldEqual, "timeout")
 
 			cb, _, err := GetCircuit("")
-			if err != nil {
-				t.Fatal(err)
-			}
-
+			So(err, ShouldBeNil)
 			So(cb.ExecutorPool.ActiveCount(), ShouldEqual, 0)
 		})
 	})
