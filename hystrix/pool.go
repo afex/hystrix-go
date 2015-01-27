@@ -4,7 +4,7 @@ type ExecutorPool struct {
 	Name    string
 	Metrics *PoolMetrics
 	Max     int
-	Tickets chan *Ticket
+	Tickets chan *struct{}
 }
 
 func NewExecutorPool(name string) *ExecutorPool {
@@ -13,15 +13,15 @@ func NewExecutorPool(name string) *ExecutorPool {
 	p.Metrics = NewPoolMetrics(name)
 	p.Max = GetConcurrency(name)
 
-	p.Tickets = make(chan *Ticket, p.Max)
+	p.Tickets = make(chan *struct{}, p.Max)
 	for i := 0; i < p.Max; i++ {
-		p.Tickets <- &Ticket{}
+		p.Tickets <- &struct{}{}
 	}
 
 	return p
 }
 
-func (p *ExecutorPool) Return(ticket *Ticket) {
+func (p *ExecutorPool) Return(ticket *struct{}) {
 	if ticket == nil {
 		return
 	}

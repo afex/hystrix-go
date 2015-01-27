@@ -29,9 +29,6 @@ type CommandConfig struct {
 	ErrorPercentThreshold  int `json:"error_percent_threshold"`
 }
 
-// Ticket is grabbed by each command before execution can start
-type Ticket struct{}
-
 var settings map[string]*Settings
 var settingsMutex *sync.RWMutex
 

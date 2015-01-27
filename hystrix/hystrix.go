@@ -24,7 +24,7 @@ type fallbackFunc func(error) error
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	stop := false
 	stopMutex := &sync.Mutex{}
-	var ticket *Ticket
+	var ticket *struct{}
 	ticketMutex := &sync.Mutex{}
 
 	start := time.Now()
