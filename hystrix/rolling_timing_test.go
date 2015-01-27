@@ -53,5 +53,19 @@ func TestOrdinal(t *testing.T) {
 				So(r.Mean(), ShouldEqual, 150)
 			})
 		})
+
+		Convey("after adding many timings", func() {
+			durations := []int{1, 1004, 1004, 1004, 1004, 1004, 1004, 1004, 1004, 1004, 1005, 1005, 1005, 1005, 1005, 1005, 1005, 1005, 1005, 1005, 1005, 1005, 1005, 1005, 1006, 1006, 1006, 1006, 1007, 1007, 1007, 1008, 1015}
+			for _, d := range durations {
+				r.Add(time.Duration(d) * time.Millisecond)
+			}
+
+			Convey("calculates correct percentiles", func() {
+				So(r.Percentile(0), ShouldEqual, 1)
+				So(r.Percentile(75), ShouldEqual, 1006)
+				So(r.Percentile(99), ShouldEqual, 1015)
+				So(r.Percentile(100), ShouldEqual, 1015)
+			})
+		})
 	})	
 }
