@@ -5,16 +5,15 @@ import (
 	"time"
 )
 
-type ExecutionMetric struct {
-	Type          string
-	Time          time.Time
-	TotalDuration time.Duration
-	RunDuration   time.Duration
+type CommandExecution struct {
+	Type        string        `json:"type"`
+	Start       time.Time     `json:"start_time"`
+	RunDuration time.Duration `json:"run_duration"`
 }
 
 type Metrics struct {
 	Name    string
-	Updates chan *ExecutionMetric
+	Updates chan *CommandExecution
 	Mutex   *sync.RWMutex
 
 	numRequests *rollingNumber
@@ -37,7 +36,7 @@ func NewMetrics(name string) *Metrics {
 	m := &Metrics{}
 	m.Name = name
 
-	m.Updates = make(chan *ExecutionMetric)
+	m.Updates = make(chan *CommandExecution)
 	m.Mutex = &sync.RWMutex{}
 
 	m.Reset()
@@ -84,7 +83,8 @@ func (m *Metrics) Monitor() {
 			m.FallbackFailures.Increment()
 		}
 
-		m.TotalDuration.Add(update.TotalDuration)
+		totalDuration := time.Now().Sub(update.Start)
+		m.TotalDuration.Add(totalDuration)
 		m.RunDuration.Add(update.RunDuration)
 
 		m.Mutex.RUnlock()

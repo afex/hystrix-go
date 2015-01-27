@@ -240,7 +240,7 @@ func TestFailAfterTimeout(t *testing.T) {
 			// wait for command to fail, should not panic
 			time.Sleep(100 * time.Millisecond)
 		})
-	})	
+	})
 }
 
 func TestFallbackAfterRejected(t *testing.T) {

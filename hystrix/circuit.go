@@ -148,13 +148,10 @@ func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, ru
 		circuit.SetClose()
 	}
 
-	totalDuration := time.Now().Sub(start)
-
-	circuit.Metrics.Updates <- &ExecutionMetric{
-		Type:          eventType,
-		Time:          time.Now(),
-		RunDuration:   runDuration,
-		TotalDuration: totalDuration,
+	circuit.Metrics.Updates <- &CommandExecution{
+		Type:        eventType,
+		Start:       start,
+		RunDuration: runDuration,
 	}
 
 	return nil

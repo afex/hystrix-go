@@ -14,7 +14,7 @@ func metricFailingPercent(p int) *Metrics {
 		if i < p {
 			t = "failure"
 		}
-		m.Updates <- &ExecutionMetric{Type: t}
+		m.Updates <- &CommandExecution{Type: t}
 	}
 
 	// Updates needs to be flushed
@@ -38,7 +38,7 @@ func TestErrorPercent(t *testing.T) {
 
 			Convey("the metrics should be unhealthy", func() {
 				So(m.IsHealthy(now), ShouldBeFalse)
-			})			
+			})
 
 		})
 	})

@@ -37,18 +37,18 @@ func TestOrdinal(t *testing.T) {
 			}
 
 			Convey("each should generate the expected ordinal", func() {
-				
+
 				for _, s := range ordinalTests {
 					So(r.ordinal(s.length, s.perc), ShouldEqual, s.expected)
-				}		
+				}
 			})
-		})	
+		})
 
 		Convey("after adding 2 timings", func() {
 			r.Add(100 * time.Millisecond)
 			time.Sleep(2 * time.Second)
 			r.Add(200 * time.Millisecond)
-			
+
 			Convey("the mean should be the average of the timings", func() {
 				So(r.Mean(), ShouldEqual, 150)
 			})
@@ -67,5 +67,5 @@ func TestOrdinal(t *testing.T) {
 				So(r.Percentile(100), ShouldEqual, 1015)
 			})
 		})
-	})	
+	})
 }
