@@ -14,7 +14,7 @@ type numberBucket struct {
 	Value uint64
 }
 
-func NewRollingNumber() *rollingNumber {
+func newRollingNumber() *rollingNumber {
 	r := &rollingNumber{
 		Buckets: make(map[int64]*numberBucket),
 		Mutex:   &sync.RWMutex{},

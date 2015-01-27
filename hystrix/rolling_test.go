@@ -11,7 +11,7 @@ func TestMax(t *testing.T) {
 	defer FlushMetrics()
 
 	Convey("when adding values to a rolling number", t, func() {
-		n := NewRollingNumber()
+		n := newRollingNumber()
 		for _, x := range []int{10, 11, 9} {
 			n.UpdateMax(x)
 			time.Sleep(1 * time.Second)

@@ -28,8 +28,8 @@ func (m *PoolMetrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	m.MaxActiveRequests = NewRollingNumber()
-	m.Executed = NewRollingNumber()
+	m.MaxActiveRequests = newRollingNumber()
+	m.Executed = newRollingNumber()
 }
 
 func (m *PoolMetrics) Monitor() {

@@ -19,7 +19,7 @@ type timingBucket struct {
 	Durations []time.Duration
 }
 
-func NewRollingTiming() *rollingTiming {
+func newRollingTiming() *rollingTiming {
 	r := &rollingTiming{
 		Buckets: make(map[int64]*timingBucket),
 		Mutex:   &sync.RWMutex{},

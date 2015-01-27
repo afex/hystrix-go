@@ -95,20 +95,20 @@ func (m *Metrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	m.numRequests = NewRollingNumber()
-	m.Errors = NewRollingNumber()
+	m.numRequests = newRollingNumber()
+	m.Errors = newRollingNumber()
 
-	m.Successes = NewRollingNumber()
-	m.Rejected = NewRollingNumber()
-	m.ShortCircuits = NewRollingNumber()
-	m.Failures = NewRollingNumber()
-	m.Timeouts = NewRollingNumber()
+	m.Successes = newRollingNumber()
+	m.Rejected = newRollingNumber()
+	m.ShortCircuits = newRollingNumber()
+	m.Failures = newRollingNumber()
+	m.Timeouts = newRollingNumber()
 
-	m.FallbackSuccesses = NewRollingNumber()
-	m.FallbackFailures = NewRollingNumber()
+	m.FallbackSuccesses = newRollingNumber()
+	m.FallbackFailures = newRollingNumber()
 
-	m.TotalDuration = NewRollingTiming()
-	m.RunDuration = NewRollingTiming()
+	m.TotalDuration = newRollingTiming()
+	m.RunDuration = newRollingTiming()
 }
 
 func (m *Metrics) Requests() *rollingNumber {
