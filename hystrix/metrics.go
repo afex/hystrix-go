@@ -17,20 +17,20 @@ type Metrics struct {
 	Updates chan *ExecutionMetric
 	Mutex   *sync.RWMutex
 
-	numRequests *RollingNumber
-	Errors      *RollingNumber
+	numRequests *rollingNumber
+	Errors      *rollingNumber
 
-	Successes     *RollingNumber
-	Failures      *RollingNumber
-	Rejected      *RollingNumber
-	ShortCircuits *RollingNumber
-	Timeouts      *RollingNumber
+	Successes     *rollingNumber
+	Failures      *rollingNumber
+	Rejected      *rollingNumber
+	ShortCircuits *rollingNumber
+	Timeouts      *rollingNumber
 
-	FallbackSuccesses *RollingNumber
-	FallbackFailures  *RollingNumber
+	FallbackSuccesses *rollingNumber
+	FallbackFailures  *rollingNumber
 
-	TotalDuration *RollingTiming
-	RunDuration   *RollingTiming
+	TotalDuration *rollingTiming
+	RunDuration   *rollingTiming
 }
 
 func NewMetrics(name string) *Metrics {
@@ -111,7 +111,7 @@ func (m *Metrics) Reset() {
 	m.RunDuration = NewRollingTiming()
 }
 
-func (m *Metrics) Requests() *RollingNumber {
+func (m *Metrics) Requests() *rollingNumber {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 

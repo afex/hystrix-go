@@ -7,8 +7,8 @@ type PoolMetrics struct {
 	Updates chan struct{}
 
 	Name              string
-	MaxActiveRequests *RollingNumber
-	Executed          *RollingNumber
+	MaxActiveRequests *rollingNumber
+	Executed          *rollingNumber
 }
 
 func NewPoolMetrics(name string) *PoolMetrics {

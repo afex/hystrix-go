@@ -7,33 +7,33 @@ import (
 	"time"
 )
 
-type RollingTiming struct {
-	Buckets map[int64]*TimingBucket
+type rollingTiming struct {
+	Buckets map[int64]*timingBucket
 	Mutex   *sync.RWMutex
 
-	CachedSortedDurations ByDuration
+	CachedSortedDurations byDuration
 	LastCachedTime        int64
 }
 
-type TimingBucket struct {
+type timingBucket struct {
 	Durations []time.Duration
 }
 
-func NewRollingTiming() *RollingTiming {
-	r := &RollingTiming{
-		Buckets: make(map[int64]*TimingBucket),
+func NewRollingTiming() *rollingTiming {
+	r := &rollingTiming{
+		Buckets: make(map[int64]*timingBucket),
 		Mutex:   &sync.RWMutex{},
 	}
 	return r
 }
 
-type ByDuration []time.Duration
+type byDuration []time.Duration
 
-func (c ByDuration) Len() int           { return len(c) }
-func (c ByDuration) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
-func (c ByDuration) Less(i, j int) bool { return c[i] < c[j] }
+func (c byDuration) Len() int           { return len(c) }
+func (c byDuration) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c byDuration) Less(i, j int) bool { return c[i] < c[j] }
 
-func (r *RollingTiming) SortedDurations() ByDuration {
+func (r *rollingTiming) SortedDurations() byDuration {
 	r.Mutex.RLock()
 	t := r.LastCachedTime
 	r.Mutex.RUnlock()
@@ -43,7 +43,7 @@ func (r *RollingTiming) SortedDurations() ByDuration {
 		return r.CachedSortedDurations
 	}
 
-	var durations ByDuration
+	var durations byDuration
 	now := time.Now()
 
 	r.Mutex.Lock()
@@ -66,7 +66,7 @@ func (r *RollingTiming) SortedDurations() ByDuration {
 	return r.CachedSortedDurations
 }
 
-func (r *RollingTiming) getCurrentBucket() *TimingBucket {
+func (r *rollingTiming) getCurrentBucket() *timingBucket {
 	r.Mutex.RLock()
 	now := time.Now()
 	bucket, exists := r.Buckets[now.Unix()]
@@ -76,14 +76,14 @@ func (r *RollingTiming) getCurrentBucket() *TimingBucket {
 		r.Mutex.Lock()
 		defer r.Mutex.Unlock()
 
-		r.Buckets[now.Unix()] = &TimingBucket{}
+		r.Buckets[now.Unix()] = &timingBucket{}
 		bucket = r.Buckets[now.Unix()]
 	}
 
 	return bucket
 }
 
-func (r *RollingTiming) removeOldBuckets() {
+func (r *rollingTiming) removeOldBuckets() {
 	now := time.Now()
 
 	for timestamp, _ := range r.Buckets {
@@ -94,7 +94,7 @@ func (r *RollingTiming) removeOldBuckets() {
 	}
 }
 
-func (r *RollingTiming) Add(duration time.Duration) {
+func (r *rollingTiming) Add(duration time.Duration) {
 	b := r.getCurrentBucket()
 
 	r.Mutex.Lock()
@@ -104,7 +104,7 @@ func (r *RollingTiming) Add(duration time.Duration) {
 	r.removeOldBuckets()
 }
 
-func (r *RollingTiming) Percentile(p float64) uint32 {
+func (r *rollingTiming) Percentile(p float64) uint32 {
 	sortedDurations := r.SortedDurations()
 	length := len(sortedDurations)
 	if length <= 0 {
@@ -115,7 +115,7 @@ func (r *RollingTiming) Percentile(p float64) uint32 {
 	return uint32(sortedDurations[pos].Nanoseconds() / 1000000)
 }
 
-func (r *RollingTiming) ordinal(length int, percentile float64) int64 {
+func (r *rollingTiming) ordinal(length int, percentile float64) int64 {
 	if percentile == 0 && length > 0 {
 		return 1
 	}
@@ -123,7 +123,7 @@ func (r *RollingTiming) ordinal(length int, percentile float64) int64 {
 	return int64(math.Ceil((percentile / float64(100)) * float64(length)))
 }
 
-func (r *RollingTiming) Mean() uint32 {
+func (r *rollingTiming) Mean() uint32 {
 	sortedDurations := r.SortedDurations()
 	var sum time.Duration
 	for _, d := range sortedDurations {
@@ -138,7 +138,7 @@ func (r *RollingTiming) Mean() uint32 {
 	return uint32(sum.Nanoseconds()/length) / 1000000
 }
 
-func (r *RollingTiming) Timings() streamCmdLatency {
+func (r *rollingTiming) Timings() streamCmdLatency {
 	return streamCmdLatency{
 		Timing0:   r.Percentile(0),
 		Timing25:  r.Percentile(25),
