@@ -57,18 +57,6 @@ func Flush() {
 	}
 }
 
-// ForceCircuitOpen allows manually causing the fallback logic for all instances
-// of a given command.
-func ForceCircuitOpen(name string, toggle bool) error {
-	circuit, _, err := GetCircuit(name)
-	if err != nil {
-		return err
-	}
-
-	circuit.forceOpen = toggle
-	return nil
-}
-
 // NewCircuitBreaker creates a CircuitBreaker with associated Health
 func NewCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
@@ -78,6 +66,18 @@ func NewCircuitBreaker(name string) *CircuitBreaker {
 	c.mutex = &sync.RWMutex{}
 
 	return c
+}
+
+// ForceOpen allows manually causing the fallback logic for all instances
+// of a given command.
+func (circuit *CircuitBreaker) ForceOpen(toggle bool) error {
+	circuit, _, err := GetCircuit(circuit.Name)
+	if err != nil {
+		return err
+	}
+
+	circuit.forceOpen = toggle
+	return nil
 }
 
 // IsOpen is called before any Command execution to check whether or

@@ -134,7 +134,11 @@ func TestMaxConcurrent(t *testing.T) {
 func TestForceOpenCircuit(t *testing.T) {
 	Convey("when a command with a forced open circuit is run", t, func() {
 		defer Flush()
-		ForceCircuitOpen("", true)
+
+		cb, _, err := GetCircuit("")
+		So(err, ShouldEqual, nil)
+
+		cb.ForceOpen(true)
 
 		errChan := Go("", func() error {
 			return nil
