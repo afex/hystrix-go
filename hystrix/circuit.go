@@ -148,7 +148,7 @@ func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, ru
 		circuit.SetClose()
 	}
 
-	circuit.Metrics.Updates <- &CommandExecution{
+	circuit.Metrics.Updates <- &commandExecution{
 		Type:        eventType,
 		Start:       start,
 		RunDuration: runDuration,

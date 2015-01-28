@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type CommandExecution struct {
+type commandExecution struct {
 	Type        string        `json:"type"`
 	Start       time.Time     `json:"start_time"`
 	RunDuration time.Duration `json:"run_duration"`
@@ -13,7 +13,7 @@ type CommandExecution struct {
 
 type Metrics struct {
 	Name    string
-	Updates chan *CommandExecution
+	Updates chan *commandExecution
 	Mutex   *sync.RWMutex
 
 	numRequests *rollingNumber
@@ -36,7 +36,7 @@ func NewMetrics(name string) *Metrics {
 	m := &Metrics{}
 	m.Name = name
 
-	m.Updates = make(chan *CommandExecution)
+	m.Updates = make(chan *commandExecution)
 	m.Mutex = &sync.RWMutex{}
 
 	m.Reset()

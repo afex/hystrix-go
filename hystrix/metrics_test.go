@@ -14,7 +14,7 @@ func metricFailingPercent(p int) *Metrics {
 		if i < p {
 			t = "failure"
 		}
-		m.Updates <- &CommandExecution{Type: t}
+		m.Updates <- &commandExecution{Type: t}
 	}
 
 	// Updates needs to be flushed
