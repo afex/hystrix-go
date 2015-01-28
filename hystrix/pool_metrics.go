@@ -4,17 +4,21 @@ import "sync"
 
 type PoolMetrics struct {
 	Mutex   *sync.RWMutex
-	Updates chan struct{}
+	Updates chan poolMetricsUpdate
 
 	Name              string
 	MaxActiveRequests *rollingNumber
 	Executed          *rollingNumber
 }
 
+type poolMetricsUpdate struct {
+	activeCount int
+}
+
 func NewPoolMetrics(name string) *PoolMetrics {
 	m := &PoolMetrics{}
 	m.Name = name
-	m.Updates = make(chan struct{})
+	m.Updates = make(chan poolMetricsUpdate)
 	m.Mutex = &sync.RWMutex{}
 
 	m.Reset()
@@ -33,7 +37,12 @@ func (m *PoolMetrics) Reset() {
 }
 
 func (m *PoolMetrics) Monitor() {
-	for _ = range m.Updates {
+	for u := range m.Updates {
+		m.Mutex.RLock()
+
 		m.Executed.Increment()
+		m.MaxActiveRequests.UpdateMax(u.activeCount)
+
+		m.Mutex.RUnlock()
 	}
 }

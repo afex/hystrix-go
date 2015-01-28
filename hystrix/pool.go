@@ -26,8 +26,9 @@ func (p *ExecutorPool) Return(ticket *struct{}) {
 		return
 	}
 
-	p.Metrics.Updates <- struct{}{}
-	p.Metrics.MaxActiveRequests.UpdateMax(p.ActiveCount())
+	p.Metrics.Updates <- poolMetricsUpdate{
+		activeCount: p.ActiveCount(),
+	}
 	p.Tickets <- ticket
 }
 
