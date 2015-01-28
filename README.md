@@ -13,6 +13,7 @@ hystrix-go aims to allow Go programmers to easily build applications with simila
 
 For more about how Hystrix works, refer to the [Java Hystrix wiki](https://github.com/Netflix/Hystrix/wiki)
 
+For API documentation, refer to [GoDoc](https://godoc.org/github.com/afex/hystrix-go/hystrix)
 
 How to use
 ----------
