@@ -120,7 +120,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	return nil
 }
 
-func (sh *StreamHandler) publishThreadPools(pool *ExecutorPool) error {
+func (sh *StreamHandler) publishThreadPools(pool *executorPool) error {
 	now := time.Now()
 
 	eventBytes, err := json.Marshal(&StreamThreadPoolEvent{

@@ -11,7 +11,7 @@ func TestReturn(t *testing.T) {
 	defer Flush()
 
 	Convey("when returning a ticket to the pool", t, func() {
-		pool := NewExecutorPool("pool")
+		pool := newExecutorPool("pool")
 		ticket := <-pool.Tickets
 		pool.Return(ticket)
 		Convey("total executed requests should increment", func() {
@@ -24,7 +24,7 @@ func TestActiveCount(t *testing.T) {
 	defer Flush()
 
 	Convey("when 3 tickets are pulled", t, func() {
-		pool := NewExecutorPool("pool")
+		pool := newExecutorPool("pool")
 		<-pool.Tickets
 		<-pool.Tickets
 		ticket := <-pool.Tickets

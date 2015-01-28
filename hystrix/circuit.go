@@ -16,8 +16,8 @@ type CircuitBreaker struct {
 	mutex                  *sync.RWMutex
 	openedOrLastTestedTime int64
 
-	executorPool *ExecutorPool
-	metrics      *Metrics
+	executorPool *executorPool
+	metrics      *metrics
 }
 
 var (
@@ -61,8 +61,8 @@ func Flush() {
 func newCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
-	c.metrics = NewMetrics(name)
-	c.executorPool = NewExecutorPool(name)
+	c.metrics = newMetrics(name)
+	c.executorPool = newExecutorPool(name)
 	c.mutex = &sync.RWMutex{}
 
 	return c

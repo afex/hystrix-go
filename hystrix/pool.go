@@ -1,16 +1,16 @@
 package hystrix
 
-type ExecutorPool struct {
+type executorPool struct {
 	Name    string
-	Metrics *PoolMetrics
+	Metrics *poolMetrics
 	Max     int
 	Tickets chan *struct{}
 }
 
-func NewExecutorPool(name string) *ExecutorPool {
-	p := &ExecutorPool{}
+func newExecutorPool(name string) *executorPool {
+	p := &executorPool{}
 	p.Name = name
-	p.Metrics = NewPoolMetrics(name)
+	p.Metrics = newPoolMetrics(name)
 	p.Max = GetConcurrency(name)
 
 	p.Tickets = make(chan *struct{}, p.Max)
@@ -21,7 +21,7 @@ func NewExecutorPool(name string) *ExecutorPool {
 	return p
 }
 
-func (p *ExecutorPool) Return(ticket *struct{}) {
+func (p *executorPool) Return(ticket *struct{}) {
 	if ticket == nil {
 		return
 	}
@@ -32,6 +32,6 @@ func (p *ExecutorPool) Return(ticket *struct{}) {
 	p.Tickets <- ticket
 }
 
-func (p *ExecutorPool) ActiveCount() int {
+func (p *executorPool) ActiveCount() int {
 	return p.Max - len(p.Tickets)
 }

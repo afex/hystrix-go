@@ -2,7 +2,7 @@ package hystrix
 
 import "sync"
 
-type PoolMetrics struct {
+type poolMetrics struct {
 	Mutex   *sync.RWMutex
 	Updates chan poolMetricsUpdate
 
@@ -15,8 +15,8 @@ type poolMetricsUpdate struct {
 	activeCount int
 }
 
-func NewPoolMetrics(name string) *PoolMetrics {
-	m := &PoolMetrics{}
+func newPoolMetrics(name string) *poolMetrics {
+	m := &poolMetrics{}
 	m.Name = name
 	m.Updates = make(chan poolMetricsUpdate)
 	m.Mutex = &sync.RWMutex{}
@@ -28,7 +28,7 @@ func NewPoolMetrics(name string) *PoolMetrics {
 	return m
 }
 
-func (m *PoolMetrics) Reset() {
+func (m *poolMetrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
@@ -36,7 +36,7 @@ func (m *PoolMetrics) Reset() {
 	m.Executed = newRollingNumber()
 }
 
-func (m *PoolMetrics) Monitor() {
+func (m *poolMetrics) Monitor() {
 	for u := range m.Updates {
 		m.Mutex.RLock()
 

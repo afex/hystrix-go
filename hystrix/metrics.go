@@ -11,7 +11,7 @@ type commandExecution struct {
 	RunDuration time.Duration `json:"run_duration"`
 }
 
-type Metrics struct {
+type metrics struct {
 	Name    string
 	Updates chan *commandExecution
 	Mutex   *sync.RWMutex
@@ -32,8 +32,8 @@ type Metrics struct {
 	RunDuration   *rollingTiming
 }
 
-func NewMetrics(name string) *Metrics {
-	m := &Metrics{}
+func newMetrics(name string) *metrics {
+	m := &metrics{}
 	m.Name = name
 
 	m.Updates = make(chan *commandExecution)
@@ -46,7 +46,7 @@ func NewMetrics(name string) *Metrics {
 	return m
 }
 
-func (m *Metrics) Monitor() {
+func (m *metrics) Monitor() {
 	for update := range m.Updates {
 		// we only grab a read lock to make sure Reset() isn't changing the numbers
 		// Increment() and Add() implement their own internal locking
@@ -91,7 +91,7 @@ func (m *Metrics) Monitor() {
 	}
 }
 
-func (m *Metrics) Reset() {
+func (m *metrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
@@ -111,14 +111,14 @@ func (m *Metrics) Reset() {
 	m.RunDuration = newRollingTiming()
 }
 
-func (m *Metrics) Requests() *rollingNumber {
+func (m *metrics) Requests() *rollingNumber {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 
 	return m.numRequests
 }
 
-func (m *Metrics) ErrorPercent(now time.Time) int {
+func (m *metrics) ErrorPercent(now time.Time) int {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 
@@ -133,6 +133,6 @@ func (m *Metrics) ErrorPercent(now time.Time) int {
 	return int(errPct + 0.5)
 }
 
-func (m *Metrics) IsHealthy(now time.Time) bool {
+func (m *metrics) IsHealthy(now time.Time) bool {
 	return m.ErrorPercent(now) < GetErrorPercentThreshold(m.Name)
 }
