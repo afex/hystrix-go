@@ -210,7 +210,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 			Convey("the circuit should be closed", func() {
 				So(<-errChan, ShouldEqual, nil)
 				So(done, ShouldEqual, true)
-				So(cb.IsOpen(), ShouldEqual, false)
+				So(cb.isOpen(), ShouldEqual, false)
 			})
 		})
 	})

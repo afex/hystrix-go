@@ -82,7 +82,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		RequestCount:       uint32(reqCount),
 		ErrorCount:         uint32(errCount),
 		ErrorPct:           uint32(errPct),
-		CircuitBreakerOpen: cb.IsOpen(),
+		CircuitBreakerOpen: cb.isOpen(),
 
 		RollingCountSuccess:            uint32(cb.metrics.Successes.Sum(now)),
 		RollingCountFailure:            uint32(cb.metrics.Failures.Sum(now)),
