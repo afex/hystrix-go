@@ -12,22 +12,26 @@ const (
 	streamEventBufferSize = 10
 )
 
+// NewStreamHandler returns a server capable of exposing dashboard metrics via HTTP.
 func NewStreamHandler() *StreamHandler {
 	return &StreamHandler{}
 }
 
+// StreamHandler publishes metrics for each command and each pool once a second to all connected HTTP client.
 type StreamHandler struct {
 	requests map[*http.Request]chan []byte
 	mu       sync.RWMutex
 	done     chan struct{}
 }
 
+// Start begins watching the in-memory circuit breakers for metrics
 func (sh *StreamHandler) Start() {
 	sh.requests = make(map[*http.Request]chan []byte)
 	sh.done = make(chan struct{})
 	go sh.loop()
 }
 
+// Stop shuts down the metric collection routine
 func (sh *StreamHandler) Stop() {
 	close(sh.done)
 }

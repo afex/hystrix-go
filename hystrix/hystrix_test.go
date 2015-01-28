@@ -116,10 +116,10 @@ func TestMaxConcurrent(t *testing.T) {
 				select {
 				case err := <-errChan:
 					if err.Error() == "max concurrency" {
-						bad += 1
+						bad++
 					}
 				default:
-					good += 1
+					good++
 				}
 			}
 

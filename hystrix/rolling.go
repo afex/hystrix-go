@@ -43,7 +43,7 @@ func (r *rollingNumber) getCurrentBucket() *numberBucket {
 func (r *rollingNumber) removeOldBuckets() {
 	now := time.Now()
 
-	for timestamp, _ := range r.Buckets {
+	for timestamp := range r.Buckets {
 		// TODO: configurable rolling window
 		if timestamp <= now.Unix()-10 {
 			delete(r.Buckets, timestamp)
@@ -57,7 +57,7 @@ func (r *rollingNumber) Increment() {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
-	b.Value += 1
+	b.Value++
 	r.removeOldBuckets()
 }
 

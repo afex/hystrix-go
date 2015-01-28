@@ -86,7 +86,7 @@ func (r *rollingTiming) getCurrentBucket() *timingBucket {
 func (r *rollingTiming) removeOldBuckets() {
 	now := time.Now()
 
-	for timestamp, _ := range r.Buckets {
+	for timestamp := range r.Buckets {
 		// TODO: configurable rolling window
 		if timestamp <= now.Unix()-60 {
 			delete(r.Buckets, timestamp)

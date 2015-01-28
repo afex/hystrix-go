@@ -46,6 +46,7 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 	return circuitBreakers[name], !ok, nil
 }
 
+// Flush purges all circuit and metric information from memory.
 func Flush() {
 	circuitBreakersMutex.Lock()
 	defer circuitBreakersMutex.Unlock()
@@ -104,6 +105,9 @@ func (circuit *CircuitBreaker) isOpen() bool {
 	return false
 }
 
+// AllowRequest is checked before a command executes, ensuring that circuit state and metric health allow it.
+// When the circuit is open, this call will occasionally return true to measure whether the external service
+// has recovered.
 func (circuit *CircuitBreaker) AllowRequest() bool {
 	return !circuit.isOpen() || circuit.allowSingleTest()
 }
@@ -144,6 +148,7 @@ func (circuit *CircuitBreaker) setClose() {
 	circuit.metrics.Reset()
 }
 
+// ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
 func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, runDuration time.Duration) error {
 	if eventType == "success" && circuit.isOpen() {
 		circuit.setClose()
