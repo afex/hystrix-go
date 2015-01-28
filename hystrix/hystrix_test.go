@@ -131,8 +131,8 @@ func TestMaxConcurrent(t *testing.T) {
 	})
 }
 
-func TestOpenCircuit(t *testing.T) {
-	Convey("when a command with an open circuit is run", t, func() {
+func TestForceOpenCircuit(t *testing.T) {
+	Convey("when a command with a forced open circuit is run", t, func() {
 		defer FlushMetrics()
 		ForceCircuitOpen("", true)
 
@@ -185,11 +185,17 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 		So(err, ShouldEqual, nil)
 
 		cb.SetOpen()
-		So(cb.IsOpen(), ShouldEqual, true)
 
-		time.Sleep(6 * time.Second)
+		Convey("commands immediately following should short-circuit", func() {
+			errChan := Go("", func() error {
+				return nil
+			}, nil)
 
-		Convey("and a successful command is run", func() {
+			So((<-errChan).Error(), ShouldEqual, "circuit open")
+		})
+
+		Convey("and a successful command is run after the sleep window", func() {
+			time.Sleep(6 * time.Second)
 
 			var done bool
 			errChan := Go("", func() error {
