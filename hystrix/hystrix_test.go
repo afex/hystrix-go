@@ -138,7 +138,7 @@ func TestForceOpenCircuit(t *testing.T) {
 		cb, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
 
-		cb.ForceOpen(true)
+		cb.toggleForceOpen(true)
 
 		errChan := Go("", func() error {
 			return nil
@@ -188,7 +188,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 		cb, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
 
-		cb.SetOpen()
+		cb.setOpen()
 
 		Convey("commands immediately following should short-circuit", func() {
 			errChan := Go("", func() error {

@@ -68,9 +68,9 @@ func newCircuitBreaker(name string) *CircuitBreaker {
 	return c
 }
 
-// ForceOpen allows manually causing the fallback logic for all instances
+// toggleForceOpen allows manually causing the fallback logic for all instances
 // of a given command.
-func (circuit *CircuitBreaker) ForceOpen(toggle bool) error {
+func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
 	circuit, _, err := GetCircuit(circuit.Name)
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func (circuit *CircuitBreaker) isOpen() bool {
 
 	if !circuit.metrics.IsHealthy(time.Now()) {
 		// too many failures, open the circuit
-		circuit.SetOpen()
+		circuit.setOpen()
 		return true
 	}
 
@@ -124,7 +124,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 	return false
 }
 
-func (circuit *CircuitBreaker) SetOpen() {
+func (circuit *CircuitBreaker) setOpen() {
 	circuit.mutex.Lock()
 	defer circuit.mutex.Unlock()
 
@@ -134,7 +134,7 @@ func (circuit *CircuitBreaker) SetOpen() {
 	circuit.open = true
 }
 
-func (circuit *CircuitBreaker) SetClose() {
+func (circuit *CircuitBreaker) setClose() {
 	circuit.mutex.Lock()
 	defer circuit.mutex.Unlock()
 
@@ -146,7 +146,7 @@ func (circuit *CircuitBreaker) SetClose() {
 
 func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, runDuration time.Duration) error {
 	if eventType == "success" && circuit.isOpen() {
-		circuit.SetClose()
+		circuit.setClose()
 	}
 
 	circuit.metrics.Updates <- &commandExecution{
