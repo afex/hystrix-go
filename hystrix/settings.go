@@ -86,31 +86,10 @@ func getSettings(name string) *Settings {
 	s, exists := settings[name]
 	settingsMutex.RUnlock()
 
-	if !exists {	
+	if !exists {
 		ConfigureCommand(name, CommandConfig{})
 		s = getSettings(name)
 	}
 
 	return s
-}
-
-// GetTimeout returns the timeout setting for the given command.
-func GetTimeout(name string) time.Duration {
-	return getSettings(name).Timeout
-}
-
-func GetConcurrency(name string) int {
-	return getSettings(name).MaxConcurrentRequests
-}
-
-func GetRequestVolumeThreshold(name string) uint64 {
-	return getSettings(name).RequestVolumeThreshold
-}
-
-func GetSleepWindow(name string) time.Duration {
-	return getSettings(name).SleepWindow
-}
-
-func GetErrorPercentThreshold(name string) int {
-	return getSettings(name).ErrorPercentThreshold
 }

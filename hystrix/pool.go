@@ -11,7 +11,7 @@ func newExecutorPool(name string) *executorPool {
 	p := &executorPool{}
 	p.Name = name
 	p.Metrics = newPoolMetrics(name)
-	p.Max = GetConcurrency(name)
+	p.Max = getSettings(name).MaxConcurrentRequests
 
 	p.Tickets = make(chan *struct{}, p.Max)
 	for i := 0; i < p.Max; i++ {

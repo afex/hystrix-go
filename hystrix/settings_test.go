@@ -12,7 +12,7 @@ func TestConfigureConcurrency(t *testing.T) {
 		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 100})
 
 		Convey("reading the concurrency should be the same", func() {
-			So(GetConcurrency(""), ShouldEqual, 100)
+			So(getSettings("").MaxConcurrentRequests, ShouldEqual, 100)
 		})
 	})
 }
@@ -22,7 +22,7 @@ func TestConfigureTimeout(t *testing.T) {
 		ConfigureCommand("", CommandConfig{Timeout: 10000})
 
 		Convey("reading the timeout should be the same", func() {
-			So(GetTimeout(""), ShouldEqual, time.Duration(10*time.Second))
+			So(getSettings("").Timeout, ShouldEqual, time.Duration(10*time.Second))
 		})
 	})
 }
@@ -32,7 +32,7 @@ func TestConfigureRVT(t *testing.T) {
 		ConfigureCommand("", CommandConfig{RequestVolumeThreshold: 30})
 
 		Convey("reading the threshold should be the same", func() {
-			So(GetRequestVolumeThreshold(""), ShouldEqual, uint64(30))
+			So(getSettings("").RequestVolumeThreshold, ShouldEqual, uint64(30))
 		})
 	})
 }
@@ -42,7 +42,7 @@ func TestSleepWindowDefault(t *testing.T) {
 		ConfigureCommand("", CommandConfig{})
 
 		Convey("the sleep window should be 5 seconds", func() {
-			So(GetSleepWindow(""), ShouldEqual, time.Duration(5*time.Second))
+			So(getSettings("").SleepWindow, ShouldEqual, time.Duration(5*time.Second))
 		})
 	})
 }

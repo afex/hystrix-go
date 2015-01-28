@@ -112,7 +112,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			close(errChan)
 		}()
 
-		timer := time.NewTimer(GetTimeout(name))
+		timer := time.NewTimer(getSettings(name).Timeout)
 		defer timer.Stop()
 
 		select {

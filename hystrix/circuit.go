@@ -91,7 +91,7 @@ func (circuit *CircuitBreaker) isOpen() bool {
 		return true
 	}
 
-	if circuit.metrics.Requests().Sum(time.Now()) < GetRequestVolumeThreshold(circuit.Name) {
+	if circuit.metrics.Requests().Sum(time.Now()) < getSettings(circuit.Name).RequestVolumeThreshold {
 		return false
 	}
 
@@ -113,7 +113,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 	defer circuit.mutex.RUnlock()
 
 	now := time.Now().UnixNano()
-	if circuit.open && now > circuit.openedOrLastTestedTime+GetSleepWindow(circuit.Name).Nanoseconds() {
+	if circuit.open && now > circuit.openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, circuit.openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)

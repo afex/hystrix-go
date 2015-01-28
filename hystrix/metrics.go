@@ -134,5 +134,5 @@ func (m *metrics) ErrorPercent(now time.Time) int {
 }
 
 func (m *metrics) IsHealthy(now time.Time) bool {
-	return m.ErrorPercent(now) < GetErrorPercentThreshold(m.Name)
+	return m.ErrorPercent(now) < getSettings(m.Name).ErrorPercentThreshold
 }
