@@ -12,16 +12,16 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-type EventStreamTestServer struct {
+type eventStreamTestServer struct {
 	*httptest.Server
-	EventStreamer
+	eventStreamer
 }
 
-type EventStreamer interface {
+type eventStreamer interface {
 	Stop()
 }
 
-func (s *EventStreamTestServer) stopTestServer() error {
+func (s *eventStreamTestServer) stopTestServer() error {
 	s.Close()
 	s.Stop()
 	Flush()
@@ -29,10 +29,10 @@ func (s *EventStreamTestServer) stopTestServer() error {
 	return nil
 }
 
-func startTestServer() *EventStreamTestServer {
+func startTestServer() *eventStreamTestServer {
 	hystrixStreamHandler := NewStreamHandler()
 	hystrixStreamHandler.Start()
-	return &EventStreamTestServer{
+	return &eventStreamTestServer{
 		httptest.NewServer(hystrixStreamHandler),
 		hystrixStreamHandler,
 	}
@@ -71,8 +71,8 @@ func failingCommand(t *testing.T, name string, duration time.Duration) {
 
 // grabFirstFromStream reads on the http request until we see the first
 // full result printed
-func grabFirstCommandFromStream(t *testing.T, url string) StreamCmdEvent {
-	var event StreamCmdEvent
+func grabFirstCommandFromStream(t *testing.T, url string) streamCmdMetric {
+	var event streamCmdMetric
 
 	metrics, done := streamMetrics(t, url)
 	for m := range metrics {
@@ -92,8 +92,8 @@ func grabFirstCommandFromStream(t *testing.T, url string) StreamCmdEvent {
 	return event
 }
 
-func grabFirstThreadPoolFromStream(t *testing.T, url string) StreamThreadPoolEvent {
-	var event StreamThreadPoolEvent
+func grabFirstThreadPoolFromStream(t *testing.T, url string) streamThreadPoolMetric {
+	var event streamThreadPoolMetric
 
 	metrics, done := streamMetrics(t, url)
 	for m := range metrics {
