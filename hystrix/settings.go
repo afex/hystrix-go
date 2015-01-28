@@ -13,7 +13,7 @@ const (
 	DefaultErrorPercentThreshold = 50
 )
 
-type Settings struct {
+type settings struct {
 	Timeout                time.Duration
 	MaxConcurrentRequests  int
 	RequestVolumeThreshold uint64
@@ -29,11 +29,11 @@ type CommandConfig struct {
 	ErrorPercentThreshold  int `json:"error_percent_threshold"`
 }
 
-var settings map[string]*Settings
+var circuitSettings map[string]*settings
 var settingsMutex *sync.RWMutex
 
 func init() {
-	settings = make(map[string]*Settings)
+	circuitSettings = make(map[string]*settings)
 	settingsMutex = &sync.RWMutex{}
 }
 
@@ -72,7 +72,7 @@ func ConfigureCommand(name string, config CommandConfig) {
 		errorPercent = config.ErrorPercentThreshold
 	}
 
-	settings[name] = &Settings{
+	circuitSettings[name] = &settings{
 		Timeout:                time.Duration(timeout) * time.Millisecond,
 		MaxConcurrentRequests:  max,
 		RequestVolumeThreshold: uint64(volume),
@@ -81,9 +81,9 @@ func ConfigureCommand(name string, config CommandConfig) {
 	}
 }
 
-func getSettings(name string) *Settings {
+func getSettings(name string) *settings {
 	settingsMutex.RLock()
-	s, exists := settings[name]
+	s, exists := circuitSettings[name]
 	settingsMutex.RUnlock()
 
 	if !exists {
