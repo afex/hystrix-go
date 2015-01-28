@@ -64,7 +64,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
 		ticketMutex.Lock()
 		select {
-		case ticket = <-circuit.ExecutorPool.Tickets:
+		case ticket = <-circuit.executorPool.Tickets:
 			ticketMutex.Unlock()
 		default:
 			ticketMutex.Unlock()
@@ -106,7 +106,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			stopMutex.Unlock()
 
 			ticketMutex.Lock()
-			circuit.ExecutorPool.Return(ticket)
+			circuit.executorPool.Return(ticket)
 			ticketMutex.Unlock()
 
 			close(errChan)

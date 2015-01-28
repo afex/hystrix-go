@@ -43,7 +43,7 @@ func Configure(cmds map[string]CommandConfig) {
 	}
 }
 
-func ConfigureCommand(name string, config CommandConfig) *Settings {
+func ConfigureCommand(name string, config CommandConfig) {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
 
@@ -79,8 +79,6 @@ func ConfigureCommand(name string, config CommandConfig) *Settings {
 		SleepWindow:            time.Duration(sleep) * time.Millisecond,
 		ErrorPercentThreshold:  errorPercent,
 	}
-
-	return settings[name]
 }
 
 func getSettings(name string) *Settings {
@@ -88,8 +86,9 @@ func getSettings(name string) *Settings {
 	s, exists := settings[name]
 	settingsMutex.RUnlock()
 
-	if !exists {
-		s = ConfigureCommand(name, CommandConfig{})
+	if !exists {	
+		ConfigureCommand(name, CommandConfig{})
+		s = getSettings(name)
 	}
 
 	return s

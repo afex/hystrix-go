@@ -257,7 +257,7 @@ func TestFallbackAfterRejected(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		<-cb.ExecutorPool.Tickets
+		<-cb.executorPool.Tickets
 
 		Convey("executing a successful fallback function due to rejection", func() {
 			runChan := make(chan bool, 1)
@@ -300,7 +300,7 @@ func TestReturnTicket(t *testing.T) {
 
 			cb, _, err := GetCircuit("")
 			So(err, ShouldBeNil)
-			So(cb.ExecutorPool.ActiveCount(), ShouldEqual, 0)
+			So(cb.executorPool.ActiveCount(), ShouldEqual, 0)
 		})
 	})
 }

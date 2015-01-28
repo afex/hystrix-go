@@ -11,13 +11,13 @@ import (
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
 	Name                   string
-	Open                   bool
-	ForceOpen              bool
-	Mutex                  *sync.RWMutex
-	OpenedOrLastTestedTime int64
+	open                   bool
+	forceOpen              bool
+	mutex                  *sync.RWMutex
+	openedOrLastTestedTime int64
 
-	ExecutorPool *ExecutorPool
-	Metrics      *Metrics
+	executorPool *ExecutorPool
+	metrics      *Metrics
 }
 
 var (
@@ -51,7 +51,7 @@ func FlushMetrics() {
 	defer circuitBreakersMutex.Unlock()
 
 	for name, cb := range circuitBreakers {
-		cb.Metrics.Reset()
+		cb.metrics.Reset()
 		delete(circuitBreakers, name)
 	}
 }
@@ -64,7 +64,7 @@ func ForceCircuitOpen(name string, toggle bool) error {
 		return err
 	}
 
-	circuit.ForceOpen = toggle
+	circuit.forceOpen = toggle
 	return nil
 }
 
@@ -72,9 +72,9 @@ func ForceCircuitOpen(name string, toggle bool) error {
 func NewCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
-	c.Metrics = NewMetrics(name)
-	c.ExecutorPool = NewExecutorPool(name)
-	c.Mutex = &sync.RWMutex{}
+	c.metrics = NewMetrics(name)
+	c.executorPool = NewExecutorPool(name)
+	c.mutex = &sync.RWMutex{}
 
 	return c
 }
@@ -82,19 +82,19 @@ func NewCircuitBreaker(name string) *CircuitBreaker {
 // IsOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
-	circuit.Mutex.RLock()
-	o := circuit.ForceOpen || circuit.Open
-	circuit.Mutex.RUnlock()
+	circuit.mutex.RLock()
+	o := circuit.forceOpen || circuit.open
+	circuit.mutex.RUnlock()
 
 	if o {
 		return true
 	}
 
-	if circuit.Metrics.Requests().Sum(time.Now()) < GetRequestVolumeThreshold(circuit.Name) {
+	if circuit.metrics.Requests().Sum(time.Now()) < GetRequestVolumeThreshold(circuit.Name) {
 		return false
 	}
 
-	if !circuit.Metrics.IsHealthy(time.Now()) {
+	if !circuit.metrics.IsHealthy(time.Now()) {
 		// too many failures, open the circuit
 		circuit.SetOpen()
 		return true
@@ -108,12 +108,12 @@ func (circuit *CircuitBreaker) AllowRequest() bool {
 }
 
 func (circuit *CircuitBreaker) allowSingleTest() bool {
-	circuit.Mutex.RLock()
-	defer circuit.Mutex.RUnlock()
+	circuit.mutex.RLock()
+	defer circuit.mutex.RUnlock()
 
 	now := time.Now().UnixNano()
-	if circuit.Open && now > circuit.OpenedOrLastTestedTime+GetSleepWindow(circuit.Name).Nanoseconds() {
-		swapped := atomic.CompareAndSwapInt64(&circuit.OpenedOrLastTestedTime, circuit.OpenedOrLastTestedTime, now)
+	if circuit.open && now > circuit.openedOrLastTestedTime+GetSleepWindow(circuit.Name).Nanoseconds() {
+		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, circuit.openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
 		}
@@ -124,23 +124,23 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 }
 
 func (circuit *CircuitBreaker) SetOpen() {
-	circuit.Mutex.Lock()
-	defer circuit.Mutex.Unlock()
+	circuit.mutex.Lock()
+	defer circuit.mutex.Unlock()
 
 	log.Printf("hystrix-go: opening circuit %v", circuit.Name)
 
-	circuit.OpenedOrLastTestedTime = time.Now().UnixNano()
-	circuit.Open = true
+	circuit.openedOrLastTestedTime = time.Now().UnixNano()
+	circuit.open = true
 }
 
 func (circuit *CircuitBreaker) SetClose() {
-	circuit.Mutex.Lock()
-	defer circuit.Mutex.Unlock()
+	circuit.mutex.Lock()
+	defer circuit.mutex.Unlock()
 
 	log.Printf("hystrix-go: closing circuit %v", circuit.Name)
 
-	circuit.Open = false
-	circuit.Metrics.Reset()
+	circuit.open = false
+	circuit.metrics.Reset()
 }
 
 func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, runDuration time.Duration) error {
@@ -148,7 +148,7 @@ func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, ru
 		circuit.SetClose()
 	}
 
-	circuit.Metrics.Updates <- &commandExecution{
+	circuit.metrics.Updates <- &commandExecution{
 		Type:        eventType,
 		Start:       start,
 		RunDuration: runDuration,

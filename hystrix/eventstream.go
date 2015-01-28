@@ -57,7 +57,7 @@ func (sh *StreamHandler) loop() {
 			circuitBreakersMutex.RLock()
 			for _, cb := range circuitBreakers {
 				sh.publishMetrics(cb)
-				sh.publishThreadPools(cb.ExecutorPool)
+				sh.publishThreadPools(cb.executorPool)
 			}
 			circuitBreakersMutex.RUnlock()
 		case <-sh.done:
@@ -68,9 +68,9 @@ func (sh *StreamHandler) loop() {
 
 func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	now := time.Now()
-	reqCount := cb.Metrics.Requests().Sum(now)
-	errCount := cb.Metrics.Errors.Sum(now)
-	errPct := cb.Metrics.ErrorPercent(now)
+	reqCount := cb.metrics.Requests().Sum(now)
+	errCount := cb.metrics.Errors.Sum(now)
+	errPct := cb.metrics.ErrorPercent(now)
 
 	eventBytes, err := json.Marshal(&StreamCmdEvent{
 		Type:           "HystrixCommand",
@@ -84,18 +84,18 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		ErrorPct:           uint32(errPct),
 		CircuitBreakerOpen: cb.IsOpen(),
 
-		RollingCountSuccess:            uint32(cb.Metrics.Successes.Sum(now)),
-		RollingCountFailure:            uint32(cb.Metrics.Failures.Sum(now)),
-		RollingCountThreadPoolRejected: uint32(cb.Metrics.Rejected.Sum(now)),
-		RollingCountShortCircuited:     uint32(cb.Metrics.ShortCircuits.Sum(now)),
-		RollingCountTimeout:            uint32(cb.Metrics.Timeouts.Sum(now)),
-		RollingCountFallbackSuccess:    uint32(cb.Metrics.FallbackSuccesses.Sum(now)),
-		RollingCountFallbackFailure:    uint32(cb.Metrics.FallbackFailures.Sum(now)),
+		RollingCountSuccess:            uint32(cb.metrics.Successes.Sum(now)),
+		RollingCountFailure:            uint32(cb.metrics.Failures.Sum(now)),
+		RollingCountThreadPoolRejected: uint32(cb.metrics.Rejected.Sum(now)),
+		RollingCountShortCircuited:     uint32(cb.metrics.ShortCircuits.Sum(now)),
+		RollingCountTimeout:            uint32(cb.metrics.Timeouts.Sum(now)),
+		RollingCountFallbackSuccess:    uint32(cb.metrics.FallbackSuccesses.Sum(now)),
+		RollingCountFallbackFailure:    uint32(cb.metrics.FallbackFailures.Sum(now)),
 
-		LatencyTotal:       cb.Metrics.TotalDuration.Timings(),
-		LatencyTotalMean:   cb.Metrics.TotalDuration.Mean(),
-		LatencyExecute:     cb.Metrics.RunDuration.Timings(),
-		LatencyExecuteMean: cb.Metrics.RunDuration.Mean(),
+		LatencyTotal:       cb.metrics.TotalDuration.Timings(),
+		LatencyTotalMean:   cb.metrics.TotalDuration.Mean(),
+		LatencyExecute:     cb.metrics.RunDuration.Timings(),
+		LatencyExecuteMean: cb.metrics.RunDuration.Mean(),
 
 		// TODO: all hard-coded values should become configurable settings, per circuit
 
@@ -104,7 +104,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 
 		CircuitBreakerEnabled:                true,
 		CircuitBreakerForceClosed:            false,
-		CircuitBreakerForceOpen:              cb.ForceOpen,
+		CircuitBreakerForceOpen:              cb.forceOpen,
 		CircuitBreakerErrorThresholdPercent:  50,
 		CircuitBreakerSleepWindow:            5000,
 		CircuitBreakerRequestVolumeThreshold: 20,
