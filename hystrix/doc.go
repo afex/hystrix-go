@@ -8,7 +8,7 @@ Based on the java project of the same name, by Netflix. https://github.com/Netfl
 
 Execute code as a Hystrix command
 
-Define your application logic which relies on external systems, passing your function to ```hystrix.Go```. When that system is healthy this will be the only thing which executes.
+Define your application logic which relies on external systems, passing your function to Go. When that system is healthy this will be the only thing which executes.
 
 	hystrix.Go("my_command", func() error {
 		// talk to other services
@@ -17,9 +17,9 @@ Define your application logic which relies on external systems, passing your fun
 
 Defining fallback behavior
 
-If you want code to execute during a service outage, pass in a second function to ```hystrix.Go```. Ideally, the logic here will allow your application to gracefully handle external services being unavailable.
+If you want code to execute during a service outage, pass in a second function to Go. Ideally, the logic here will allow your application to gracefully handle external services being unavailable.
 
-This triggers when your code returns an error, or whenever it is unable to complete based on a [variety of health checks](https://github.com/Netflix/Hystrix/wiki/How-it-Works).
+This triggers when your code returns an error, or whenever it is unable to complete based on a variety of health checks https://github.com/Netflix/Hystrix/wiki/How-it-Works.
 
 	hystrix.Go("my_command", func() error {
 		// talk to other services
@@ -31,7 +31,7 @@ This triggers when your code returns an error, or whenever it is unable to compl
 
 Waiting for output
 
-Calling ```hystrix.Go``` is like launching a goroutine, except you receive a channel of errors you can choose to monitor.
+Calling Go is like launching a goroutine, except you receive a channel of errors you can choose to monitor.
 
 	output := make(chan bool, 1)
 	errors := hystrix.Go("my_command", func() error {
@@ -49,7 +49,7 @@ Calling ```hystrix.Go``` is like launching a goroutine, except you receive a cha
 
 Configure settings
 
-During application boot, you can call ```hystrix.ConfigureCommand()``` to tweak the settings for each command.
+During application boot, you can call ConfigureCommand to tweak the settings for each command.
 
 	hystrix.ConfigureCommand("my_command", hystrix.CommandConfig{
 		Timeout:               1000,
@@ -57,11 +57,11 @@ During application boot, you can call ```hystrix.ConfigureCommand()``` to tweak 
 		ErrorPercentThreshold: 25,
 	})
 
-You can also use ```hystrix.Configure()``` which accepts a ```map[string]CommandConfig```.
+You can also use Configure which accepts a map[string]CommandConfig.
 
 Enable dashboard metrics
 
-In your main.go, register the event stream HTTP handler on a port and launch it in a goroutine.  Once you configure turbine for your [Hystrix Dashboard](https://github.com/Netflix/Hystrix/tree/master/hystrix-dashboard) to start streaming events, your commands will automatically begin appearing.
+In your main.go, register the event stream HTTP handler on a port and launch it in a goroutine.  Once you configure turbine for your Hystrix Dashboard https://github.com/Netflix/Hystrix/tree/master/hystrix-dashboard to start streaming events, your commands will automatically begin appearing.
 
 	hystrixStreamHandler := hystrix.NewStreamHandler()
 	hystrixStreamHandler.Start()
