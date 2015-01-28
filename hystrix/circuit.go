@@ -38,7 +38,7 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 		circuitBreakersMutex.RUnlock()
 		circuitBreakersMutex.Lock()
 		defer circuitBreakersMutex.Unlock()
-		circuitBreakers[name] = NewCircuitBreaker(name)
+		circuitBreakers[name] = newCircuitBreaker(name)
 	} else {
 		defer circuitBreakersMutex.RUnlock()
 	}
@@ -57,8 +57,8 @@ func Flush() {
 	}
 }
 
-// NewCircuitBreaker creates a CircuitBreaker with associated Health
-func NewCircuitBreaker(name string) *CircuitBreaker {
+// newCircuitBreaker creates a CircuitBreaker with associated Health
+func newCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
 	c.metrics = NewMetrics(name)
