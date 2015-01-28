@@ -8,7 +8,7 @@ import (
 )
 
 func TestReturn(t *testing.T) {
-	defer FlushMetrics()
+	defer Flush()
 
 	Convey("when returning a ticket to the pool", t, func() {
 		pool := NewExecutorPool("pool")
@@ -21,7 +21,7 @@ func TestReturn(t *testing.T) {
 }
 
 func TestActiveCount(t *testing.T) {
-	defer FlushMetrics()
+	defer Flush()
 
 	Convey("when 3 tickets are pulled", t, func() {
 		pool := NewExecutorPool("pool")

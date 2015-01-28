@@ -10,7 +10,7 @@ import (
 
 func TestSuccess(t *testing.T) {
 	Convey("with a command which sends to a channel", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 
 		resultChan := make(chan int)
 		errChan := Go("", func() error {
@@ -29,7 +29,7 @@ func TestSuccess(t *testing.T) {
 
 func TestFallback(t *testing.T) {
 	Convey("with a command which fails, and whose fallback sends to a channel", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 
 		resultChan := make(chan int)
 		errChan := Go("", func() error {
@@ -52,7 +52,7 @@ func TestFallback(t *testing.T) {
 
 func TestTimeout(t *testing.T) {
 	Convey("with a command which times out, and whose fallback sends to a channel", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		ConfigureCommand("", CommandConfig{Timeout: 100})
 
 		resultChan := make(chan int)
@@ -78,7 +78,7 @@ func TestTimeout(t *testing.T) {
 
 func TestTimeoutEmptyFallback(t *testing.T) {
 	Convey("with a command which times out, and has no fallback", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		ConfigureCommand("", CommandConfig{Timeout: 100})
 
 		resultChan := make(chan int)
@@ -96,7 +96,7 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 
 func TestMaxConcurrent(t *testing.T) {
 	Convey("if a command has max concurrency set to 2", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 2})
 		resultChan := make(chan int)
 
@@ -133,7 +133,7 @@ func TestMaxConcurrent(t *testing.T) {
 
 func TestForceOpenCircuit(t *testing.T) {
 	Convey("when a command with a forced open circuit is run", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		ForceCircuitOpen("", true)
 
 		errChan := Go("", func() error {
@@ -148,7 +148,7 @@ func TestForceOpenCircuit(t *testing.T) {
 
 func TestNilFallbackRunError(t *testing.T) {
 	Convey("when your run function returns an error and you have no fallback", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		errChan := Go("", func() error {
 			return fmt.Errorf("run_error")
 		}, nil)
@@ -163,7 +163,7 @@ func TestNilFallbackRunError(t *testing.T) {
 
 func TestFailedFallback(t *testing.T) {
 	Convey("when your run and fallback functions return an error", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		errChan := Go("", func() error {
 			return fmt.Errorf("run_error")
 		}, func(err error) error {
@@ -180,7 +180,7 @@ func TestFailedFallback(t *testing.T) {
 
 func TestCloseCircuitAfterSuccess(t *testing.T) {
 	Convey("when a circuit is open", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		cb, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
 
@@ -214,7 +214,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 
 func TestCloseErrorChannel(t *testing.T) {
 	Convey("when a command completes", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 
 		errChan := Go("", func() error {
 			return nil
@@ -233,7 +233,7 @@ func TestCloseErrorChannel(t *testing.T) {
 
 func TestFailAfterTimeout(t *testing.T) {
 	Convey("when a slow command fails after the timeout fires", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		ConfigureCommand("", CommandConfig{Timeout: 10})
 
 		errChan := Go("", func() error {
@@ -251,7 +251,7 @@ func TestFailAfterTimeout(t *testing.T) {
 
 func TestFallbackAfterRejected(t *testing.T) {
 	Convey("with a circuit whose pool is full", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 1})
 		cb, _, err := GetCircuit("")
 		if err != nil {
@@ -284,7 +284,7 @@ func TestFallbackAfterRejected(t *testing.T) {
 
 func TestReturnTicket(t *testing.T) {
 	Convey("with a run command that doesn't return", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 
 		ConfigureCommand("", CommandConfig{Timeout: 10})
 

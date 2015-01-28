@@ -46,12 +46,13 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 	return circuitBreakers[name], !ok, nil
 }
 
-func FlushMetrics() {
+func Flush() {
 	circuitBreakersMutex.Lock()
 	defer circuitBreakersMutex.Unlock()
 
 	for name, cb := range circuitBreakers {
 		cb.metrics.Reset()
+		cb.executorPool.Metrics.Reset()
 		delete(circuitBreakers, name)
 	}
 }

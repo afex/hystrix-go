@@ -24,7 +24,7 @@ type EventStreamer interface {
 func (s *EventStreamTestServer) stopTestServer() error {
 	s.Close()
 	s.Stop()
-	FlushMetrics()
+	Flush()
 
 	return nil
 }

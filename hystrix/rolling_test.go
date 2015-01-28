@@ -8,7 +8,7 @@ import (
 )
 
 func TestMax(t *testing.T) {
-	defer FlushMetrics()
+	defer Flush()
 
 	Convey("when adding values to a rolling number", t, func() {
 		n := newRollingNumber()

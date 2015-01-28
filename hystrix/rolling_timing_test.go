@@ -9,7 +9,7 @@ import (
 
 func TestOrdinal(t *testing.T) {
 	Convey("given a new rolling timing", t, func() {
-		defer FlushMetrics()
+		defer Flush()
 
 		r := newRollingTiming()
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetCircuit(t *testing.T) {
-	defer FlushMetrics()
+	defer Flush()
 
 	Convey("when calling GetCircuit", t, func() {
 		var created bool
