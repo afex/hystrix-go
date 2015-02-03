@@ -215,25 +215,6 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 	})
 }
 
-func TestCloseErrorChannel(t *testing.T) {
-	Convey("when a command completes", t, func() {
-		defer Flush()
-
-		errChan := Go("", func() error {
-			return nil
-		}, nil)
-
-		Convey("its error channel should be closed", func() {
-			select {
-			case _ = <-time.After(1 * time.Second):
-				t.Fatal("timer fired before error channel was closed")
-			case err := <-errChan:
-				So(err, ShouldEqual, nil)
-			}
-		})
-	})
-}
-
 func TestFailAfterTimeout(t *testing.T) {
 	Convey("when a slow command fails after the timeout fires", t, func() {
 		defer Flush()
