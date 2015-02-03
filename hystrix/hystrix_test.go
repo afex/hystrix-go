@@ -201,15 +201,14 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 		Convey("and a successful command is run after the sleep window", func() {
 			time.Sleep(6 * time.Second)
 
-			var done bool
-			errChan := Go("", func() error {
-				done = true
+			done := make(chan bool, 1)
+			Go("", func() error {
+				done <- true
 				return nil
 			}, nil)
 
 			Convey("the circuit should be closed", func() {
-				So(<-errChan, ShouldEqual, nil)
-				So(done, ShouldEqual, true)
+				So(<-done, ShouldEqual, true)
 				So(cb.isOpen(), ShouldEqual, false)
 			})
 		})
@@ -266,7 +265,7 @@ func TestFallbackAfterRejected(t *testing.T) {
 		Convey("executing a successful fallback function due to rejection", func() {
 			runChan := make(chan bool, 1)
 			fallbackChan := make(chan bool, 1)
-			errChan := Go("", func() error {
+			Go("", func() error {
 				// if run executes after fallback, this will panic due to sending to a closed channel
 				runChan <- true
 				close(fallbackChan)
@@ -278,7 +277,6 @@ func TestFallbackAfterRejected(t *testing.T) {
 			})
 
 			Convey("should not execute the run function", func() {
-				So(<-errChan, ShouldBeNil)
 				So(<-fallbackChan, ShouldBeTrue)
 				So(<-runChan, ShouldBeFalse)
 			})

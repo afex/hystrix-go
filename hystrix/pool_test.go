@@ -37,6 +37,7 @@ func TestActiveCount(t *testing.T) {
 			pool.Return(ticket)
 
 			Convey("max active requests should be 3", func() {
+				time.Sleep(1 * time.Millisecond) // allow poolMetrics to process channel
 				So(pool.Metrics.MaxActiveRequests.Max(time.Now()), ShouldEqual, 3)
 			})
 		})

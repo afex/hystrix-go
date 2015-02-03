@@ -102,8 +102,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			ticketMutex.Lock()
 			circuit.executorPool.Return(ticket)
 			ticketMutex.Unlock()
-
-			close(errChan)
 		}()
 
 		timer := time.NewTimer(getSettings(name).Timeout)
