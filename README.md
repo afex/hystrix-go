@@ -93,6 +93,13 @@ hystrixStreamHandler.Start()
 go http.ListenAndServe(net.JoinHostPort("", "81"), hystrixStreamHandler)
 ```
 
+FAQ
+---
+
+**What happens if my run function panics? Does hystrix-go trigger the fallback?**
+
+No. hystrix-go does not use ```recover()``` so panics will kill the process like normal.
+
 Build and Test
 --------------
 
