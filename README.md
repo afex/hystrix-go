@@ -78,6 +78,7 @@ hystrix.ConfigureCommand("my_command", hystrix.CommandConfig{
 	Timeout:               1000,
 	MaxConcurrentRequests: 100,
 	ErrorPercentThreshold: 25,
+	ThreadPool:            "ticketPoolName",
 })
 ```
 
