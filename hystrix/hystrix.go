@@ -56,19 +56,19 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// When requests slow down but the incoming rate of requests stays the same, you have to
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
-		getTicket := func() *struct{} {
+		obtainTicket := func() bool {
 			ticketMutex.Lock()
 			defer ticketMutex.Unlock()
+
 			select {
-			case ticket := <-circuit.executorPool.Tickets:
-				return ticket
+			case ticket = <-circuit.executorPool.Tickets:
+				return true
 			default:
-				return nil
+				return false
 			}
 		}
 
-		ticket = getTicket()
-		if ticket == nil {
+		if !obtainTicket() {
 			circuit.ReportEvent("rejected", start, 0)
 			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
 			if err != nil {
