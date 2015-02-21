@@ -53,8 +53,13 @@ func Flush() {
 
 	for name, cb := range circuitBreakers {
 		cb.metrics.Reset()
-		cb.executorPool.Metrics.Reset()
 		delete(circuitBreakers, name)
+	}
+
+	// Flush pools too
+	for name, pool := range pools {
+		pool.Metrics.Reset()
+		delete(pools, name)
 	}
 }
 
@@ -65,7 +70,7 @@ func newCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
 	c.metrics = newMetrics(name)
-	c.executorPool = newExecutorPool(settings.ThreadPool)
+	c.executorPool = getOrCreateExecutePool(settings.ThreadPool)
 	c.mutex = &sync.RWMutex{}
 
 	return c

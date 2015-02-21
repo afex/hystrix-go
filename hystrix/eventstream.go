@@ -61,7 +61,9 @@ func (sh *StreamHandler) loop() {
 			circuitBreakersMutex.RLock()
 			for _, cb := range circuitBreakers {
 				sh.publishMetrics(cb)
-				sh.publishThreadPools(cb.executorPool)
+			}
+			for _, pool := range pools {
+				sh.publishThreadPools(pool)
 			}
 			circuitBreakersMutex.RUnlock()
 		case <-sh.done:
