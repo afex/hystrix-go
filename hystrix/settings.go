@@ -24,6 +24,7 @@ type settings struct {
 	RequestVolumeThreshold uint64
 	SleepWindow            time.Duration
 	ErrorPercentThreshold  int
+	ThreadPool             string
 }
 
 // CommandConfig is used to tune circuit settings at runtime
@@ -33,6 +34,8 @@ type CommandConfig struct {
 	RequestVolumeThreshold int `json:"request_volume_threshold"`
 	SleepWindow            int `json:"sleep_window"`
 	ErrorPercentThreshold  int `json:"error_percent_threshold"`
+
+	ThreadPool string `json:"thread_pool"`
 }
 
 var circuitSettings map[string]*settings
@@ -80,12 +83,18 @@ func ConfigureCommand(name string, config CommandConfig) {
 		errorPercent = config.ErrorPercentThreshold
 	}
 
+	threadPool := config.ThreadPool
+	if threadPool == "" {
+		threadPool = name
+	}
+
 	circuitSettings[name] = &settings{
 		Timeout:                time.Duration(timeout) * time.Millisecond,
 		MaxConcurrentRequests:  max,
 		RequestVolumeThreshold: uint64(volume),
 		SleepWindow:            time.Duration(sleep) * time.Millisecond,
 		ErrorPercentThreshold:  errorPercent,
+		ThreadPool:             config.ThreadPool,
 	}
 }
 

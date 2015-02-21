@@ -60,10 +60,12 @@ func Flush() {
 
 // newCircuitBreaker creates a CircuitBreaker with associated Health
 func newCircuitBreaker(name string) *CircuitBreaker {
+	settings := getSettings(name)
+
 	c := &CircuitBreaker{}
 	c.Name = name
 	c.metrics = newMetrics(name)
-	c.executorPool = newExecutorPool(name)
+	c.executorPool = newExecutorPool(settings.ThreadPool)
 	c.mutex = &sync.RWMutex{}
 
 	return c
