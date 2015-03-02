@@ -61,7 +61,7 @@ func TestTimeout(t *testing.T) {
 			resultChan <- 1
 			return nil
 		}, func(err error) error {
-			if err.Error() == "timeout" {
+			if err == ErrTimeout {
 				resultChan <- 2
 			}
 			return nil
@@ -89,7 +89,7 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 		}, nil)
 
 		Convey("a timeout error should be returned", func() {
-			So((<-errChan).Error(), ShouldEqual, "timeout")
+			So(<-errChan, ShouldResemble, ErrTimeout)
 		})
 	})
 }
@@ -115,7 +115,7 @@ func TestMaxConcurrent(t *testing.T) {
 
 				select {
 				case err := <-errChan:
-					if err.Error() == "max concurrency" {
+					if err == ErrMaxConcurrency {
 						bad++
 					}
 				default:
@@ -145,7 +145,7 @@ func TestForceOpenCircuit(t *testing.T) {
 		}, nil)
 
 		Convey("a 'circuit open' error is returned", func() {
-			So((<-errChan).Error(), ShouldEqual, "circuit open")
+			So(<-errChan, ShouldResemble, ErrCircuitOpen)
 		})
 	})
 }
@@ -195,7 +195,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 				return nil
 			}, nil)
 
-			So((<-errChan).Error(), ShouldEqual, "circuit open")
+			So(<-errChan, ShouldResemble, ErrCircuitOpen)
 		})
 
 		Convey("and a successful command is run after the sleep window", func() {
@@ -226,7 +226,7 @@ func TestFailAfterTimeout(t *testing.T) {
 		}, nil)
 
 		Convey("we do not panic", func() {
-			So((<-errChan).Error(), ShouldEqual, "timeout")
+			So(<-errChan, ShouldResemble, ErrTimeout)
 			// wait for command to fail, should not panic
 			time.Sleep(100 * time.Millisecond)
 		})
@@ -279,7 +279,7 @@ func TestReturnTicket(t *testing.T) {
 
 		Convey("the ticket returns to the pool after the timeout", func() {
 			err := <-errChan
-			So(err.Error(), ShouldEqual, "timeout")
+			So(err, ShouldResemble, ErrTimeout)
 
 			cb, _, err := GetCircuit("")
 			So(err, ShouldBeNil)
