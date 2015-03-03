@@ -1,7 +1,6 @@
 package hystrix
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -9,6 +8,20 @@ import (
 
 type runFunc func() error
 type fallbackFunc func(error) error
+
+type CircuitError struct {
+	Message string
+}
+
+func (e CircuitError) Error() string {
+	return "hystrix: " + e.Message
+}
+
+var (
+	ErrMaxConcurrency = CircuitError{Message: "max concurrency"}
+	ErrCircuitOpen    = CircuitError{Message: "circuit open"}
+	ErrTimeout        = CircuitError{Message: "timeout"}
+)
 
 // Go runs your function while tracking the health of previous calls to it.
 // If your function begins slowing down or failing repeatedly, we will block
@@ -44,7 +57,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// new traffic when it feels a healthly state has returned.
 		if !circuit.AllowRequest() {
 			circuit.ReportEvent("short-circuit", start, 0)
-			err := tryFallback(circuit, start, 0, fallback, errors.New("circuit open"))
+			err := tryFallback(circuit, start, 0, fallback, ErrCircuitOpen)
 			if err != nil {
 				errChan <- err
 			}
@@ -63,7 +76,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		default:
 			ticketMutex.Unlock()
 			circuit.ReportEvent("rejected", start, 0)
-			err := tryFallback(circuit, start, 0, fallback, errors.New("max concurrency"))
+			err := tryFallback(circuit, start, 0, fallback, ErrMaxConcurrency)
 			if err != nil {
 				errChan <- err
 			}
@@ -112,7 +125,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		case <-timer.C:
 			circuit.ReportEvent("timeout", start, 0)
 
-			err := tryFallback(circuit, start, 0, fallback, errors.New("timeout"))
+			err := tryFallback(circuit, start, 0, fallback, ErrTimeout)
 			if err != nil {
 				errChan <- err
 			}
