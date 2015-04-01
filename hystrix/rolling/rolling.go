@@ -1,11 +1,11 @@
-package hystrix
+package rolling
 
 import (
 	"sync"
 	"time"
 )
 
-type rollingNumber struct {
+type RollingNumber struct {
 	Buckets map[int64]*numberBucket
 	Mutex   *sync.RWMutex
 }
@@ -14,15 +14,15 @@ type numberBucket struct {
 	Value uint64
 }
 
-func newRollingNumber() *rollingNumber {
-	r := &rollingNumber{
+func NewRollingNumber() *RollingNumber {
+	r := &RollingNumber{
 		Buckets: make(map[int64]*numberBucket),
 		Mutex:   &sync.RWMutex{},
 	}
 	return r
 }
 
-func (r *rollingNumber) getCurrentBucket() *numberBucket {
+func (r *RollingNumber) getCurrentBucket() *numberBucket {
 	r.Mutex.RLock()
 
 	now := time.Now()
@@ -40,7 +40,7 @@ func (r *rollingNumber) getCurrentBucket() *numberBucket {
 	return bucket
 }
 
-func (r *rollingNumber) removeOldBuckets() {
+func (r *RollingNumber) removeOldBuckets() {
 	now := time.Now()
 
 	for timestamp := range r.Buckets {
@@ -51,7 +51,7 @@ func (r *rollingNumber) removeOldBuckets() {
 	}
 }
 
-func (r *rollingNumber) Increment() {
+func (r *RollingNumber) Increment() {
 	b := r.getCurrentBucket()
 
 	r.Mutex.Lock()
@@ -61,7 +61,7 @@ func (r *rollingNumber) Increment() {
 	r.removeOldBuckets()
 }
 
-func (r *rollingNumber) UpdateMax(n int) {
+func (r *RollingNumber) UpdateMax(n int) {
 	b := r.getCurrentBucket()
 
 	r.Mutex.Lock()
@@ -73,7 +73,7 @@ func (r *rollingNumber) UpdateMax(n int) {
 	r.removeOldBuckets()
 }
 
-func (r *rollingNumber) Sum(now time.Time) uint64 {
+func (r *RollingNumber) Sum(now time.Time) uint64 {
 	sum := uint64(0)
 
 	r.Mutex.RLock()
@@ -89,7 +89,7 @@ func (r *rollingNumber) Sum(now time.Time) uint64 {
 	return sum
 }
 
-func (r *rollingNumber) Max(now time.Time) uint64 {
+func (r *RollingNumber) Max(now time.Time) uint64 {
 	var max uint64
 
 	r.Mutex.RLock()

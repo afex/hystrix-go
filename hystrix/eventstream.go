@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/afex/hystrix-go/hystrix/metric_collector"
+	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
 const (
@@ -73,7 +76,7 @@ func (sh *StreamHandler) loop() {
 func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	now := time.Now()
 	reqCount := cb.metrics.Requests().Sum(now)
-	errCount := cb.metrics.Errors.Sum(now)
+	errCount := cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Errors.Sum(now)
 	errPct := cb.metrics.ErrorPercent(now)
 
 	eventBytes, err := json.Marshal(&streamCmdMetric{
@@ -88,18 +91,18 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		ErrorPct:           uint32(errPct),
 		CircuitBreakerOpen: cb.isOpen(),
 
-		RollingCountSuccess:            uint32(cb.metrics.Successes.Sum(now)),
-		RollingCountFailure:            uint32(cb.metrics.Failures.Sum(now)),
-		RollingCountThreadPoolRejected: uint32(cb.metrics.Rejected.Sum(now)),
-		RollingCountShortCircuited:     uint32(cb.metrics.ShortCircuits.Sum(now)),
-		RollingCountTimeout:            uint32(cb.metrics.Timeouts.Sum(now)),
-		RollingCountFallbackSuccess:    uint32(cb.metrics.FallbackSuccesses.Sum(now)),
-		RollingCountFallbackFailure:    uint32(cb.metrics.FallbackFailures.Sum(now)),
+		RollingCountSuccess:            uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Successes.Sum(now)),
+		RollingCountFailure:            uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Failures.Sum(now)),
+		RollingCountThreadPoolRejected: uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Rejects.Sum(now)),
+		RollingCountShortCircuited:     uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).ShortCircuits.Sum(now)),
+		RollingCountTimeout:            uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Timeouts.Sum(now)),
+		RollingCountFallbackSuccess:    uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).FallbackSuccesses.Sum(now)),
+		RollingCountFallbackFailure:    uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).FallbackFailures.Sum(now)),
 
-		LatencyTotal:       cb.metrics.TotalDuration.Timings(),
-		LatencyTotalMean:   cb.metrics.TotalDuration.Mean(),
-		LatencyExecute:     cb.metrics.RunDuration.Timings(),
-		LatencyExecuteMean: cb.metrics.RunDuration.Mean(),
+		LatencyTotal:       GenerateLatencyTimings(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).TotalDuration),
+		LatencyTotalMean:   cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).TotalDuration.Mean(),
+		LatencyExecute:     GenerateLatencyTimings(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).RunDuration),
+		LatencyExecuteMean: cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).RunDuration.Mean(),
 
 		// TODO: all hard-coded values should become configurable settings, per circuit
 
@@ -204,6 +207,20 @@ func (sh *StreamHandler) unregister(req *http.Request) {
 	sh.mu.Lock()
 	delete(sh.requests, req)
 	sh.mu.Unlock()
+}
+
+func GenerateLatencyTimings(r *rolling.RollingTiming) streamCmdLatency {
+	return streamCmdLatency{
+		Timing0:   r.Percentile(0),
+		Timing25:  r.Percentile(25),
+		Timing50:  r.Percentile(50),
+		Timing75:  r.Percentile(75),
+		Timing90:  r.Percentile(90),
+		Timing95:  r.Percentile(95),
+		Timing99:  r.Percentile(99),
+		Timing995: r.Percentile(99.5),
+		Timing100: r.Percentile(100),
+	}
 }
 
 type streamCmdMetric struct {

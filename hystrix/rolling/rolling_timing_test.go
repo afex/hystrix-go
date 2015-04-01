@@ -1,4 +1,4 @@
-package hystrix
+package rolling
 
 import (
 	"testing"
@@ -9,9 +9,8 @@ import (
 
 func TestOrdinal(t *testing.T) {
 	Convey("given a new rolling timing", t, func() {
-		defer Flush()
 
-		r := newRollingTiming()
+		r := NewRollingTiming()
 
 		Convey("Mean() should be 0", func() {
 			So(r.Mean(), ShouldEqual, 0)

@@ -1,4 +1,4 @@
-package hystrix
+package rolling
 
 import (
 	"math"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type rollingTiming struct {
+type RollingTiming struct {
 	Buckets map[int64]*timingBucket
 	Mutex   *sync.RWMutex
 
@@ -19,8 +19,8 @@ type timingBucket struct {
 	Durations []time.Duration
 }
 
-func newRollingTiming() *rollingTiming {
-	r := &rollingTiming{
+func NewRollingTiming() *RollingTiming {
+	r := &RollingTiming{
 		Buckets: make(map[int64]*timingBucket),
 		Mutex:   &sync.RWMutex{},
 	}
@@ -33,7 +33,7 @@ func (c byDuration) Len() int           { return len(c) }
 func (c byDuration) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c byDuration) Less(i, j int) bool { return c[i] < c[j] }
 
-func (r *rollingTiming) SortedDurations() byDuration {
+func (r *RollingTiming) SortedDurations() byDuration {
 	r.Mutex.RLock()
 	t := r.LastCachedTime
 	r.Mutex.RUnlock()
@@ -66,7 +66,7 @@ func (r *rollingTiming) SortedDurations() byDuration {
 	return r.CachedSortedDurations
 }
 
-func (r *rollingTiming) getCurrentBucket() *timingBucket {
+func (r *RollingTiming) getCurrentBucket() *timingBucket {
 	r.Mutex.RLock()
 	now := time.Now()
 	bucket, exists := r.Buckets[now.Unix()]
@@ -83,7 +83,7 @@ func (r *rollingTiming) getCurrentBucket() *timingBucket {
 	return bucket
 }
 
-func (r *rollingTiming) removeOldBuckets() {
+func (r *RollingTiming) removeOldBuckets() {
 	now := time.Now()
 
 	for timestamp := range r.Buckets {
@@ -94,7 +94,7 @@ func (r *rollingTiming) removeOldBuckets() {
 	}
 }
 
-func (r *rollingTiming) Add(duration time.Duration) {
+func (r *RollingTiming) Add(duration time.Duration) {
 	b := r.getCurrentBucket()
 
 	r.Mutex.Lock()
@@ -104,7 +104,7 @@ func (r *rollingTiming) Add(duration time.Duration) {
 	r.removeOldBuckets()
 }
 
-func (r *rollingTiming) Percentile(p float64) uint32 {
+func (r *RollingTiming) Percentile(p float64) uint32 {
 	sortedDurations := r.SortedDurations()
 	length := len(sortedDurations)
 	if length <= 0 {
@@ -115,7 +115,7 @@ func (r *rollingTiming) Percentile(p float64) uint32 {
 	return uint32(sortedDurations[pos].Nanoseconds() / 1000000)
 }
 
-func (r *rollingTiming) ordinal(length int, percentile float64) int64 {
+func (r *RollingTiming) ordinal(length int, percentile float64) int64 {
 	if percentile == 0 && length > 0 {
 		return 1
 	}
@@ -123,7 +123,7 @@ func (r *rollingTiming) ordinal(length int, percentile float64) int64 {
 	return int64(math.Ceil((percentile / float64(100)) * float64(length)))
 }
 
-func (r *rollingTiming) Mean() uint32 {
+func (r *RollingTiming) Mean() uint32 {
 	sortedDurations := r.SortedDurations()
 	var sum time.Duration
 	for _, d := range sortedDurations {
@@ -136,18 +136,4 @@ func (r *rollingTiming) Mean() uint32 {
 	}
 
 	return uint32(sum.Nanoseconds()/length) / 1000000
-}
-
-func (r *rollingTiming) Timings() streamCmdLatency {
-	return streamCmdLatency{
-		Timing0:   r.Percentile(0),
-		Timing25:  r.Percentile(25),
-		Timing50:  r.Percentile(50),
-		Timing75:  r.Percentile(75),
-		Timing90:  r.Percentile(90),
-		Timing95:  r.Percentile(95),
-		Timing99:  r.Percentile(99),
-		Timing995: r.Percentile(99.5),
-		Timing100: r.Percentile(100),
-	}
 }

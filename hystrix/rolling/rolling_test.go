@@ -1,4 +1,4 @@
-package hystrix
+package rolling
 
 import (
 	"testing"
@@ -8,10 +8,9 @@ import (
 )
 
 func TestMax(t *testing.T) {
-	defer Flush()
 
 	Convey("when adding values to a rolling number", t, func() {
-		n := newRollingNumber()
+		n := NewRollingNumber()
 		for _, x := range []int{10, 11, 9} {
 			n.UpdateMax(x)
 			time.Sleep(1 * time.Second)
