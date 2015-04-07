@@ -5,19 +5,19 @@ import (
 	"time"
 )
 
-var Registry = metricCollectorRegistryManager{
+var Registry = metricCollectorRegistry{
 	lock: &sync.RWMutex{},
 	registry: []func(name string) MetricCollector{
 		newDefaultMetricCollector,
 	},
 }
 
-type metricCollectorRegistryManager struct {
+type metricCollectorRegistry struct {
 	lock     *sync.RWMutex
 	registry []func(name string) MetricCollector
 }
 
-func (m *metricCollectorRegistryManager) InitializeMetricCollectors(name string) []MetricCollector {
+func (m *metricCollectorRegistry) InitializeMetricCollectors(name string) []MetricCollector {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -28,7 +28,7 @@ func (m *metricCollectorRegistryManager) InitializeMetricCollectors(name string)
 	return metrics
 }
 
-func (m *metricCollectorRegistryManager) Register(initMetricCollector func(string) MetricCollector) {
+func (m *metricCollectorRegistry) Register(initMetricCollector func(string) MetricCollector) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 

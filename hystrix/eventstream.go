@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
 	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
@@ -76,7 +75,7 @@ func (sh *StreamHandler) loop() {
 func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	now := time.Now()
 	reqCount := cb.metrics.Requests().Sum(now)
-	errCount := cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Errors.Sum(now)
+	errCount := cb.metrics.DefaultCollector().Errors.Sum(now)
 	errPct := cb.metrics.ErrorPercent(now)
 
 	eventBytes, err := json.Marshal(&streamCmdMetric{
@@ -91,18 +90,18 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		ErrorPct:           uint32(errPct),
 		CircuitBreakerOpen: cb.isOpen(),
 
-		RollingCountSuccess:            uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Successes.Sum(now)),
-		RollingCountFailure:            uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Failures.Sum(now)),
-		RollingCountThreadPoolRejected: uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Rejects.Sum(now)),
-		RollingCountShortCircuited:     uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).ShortCircuits.Sum(now)),
-		RollingCountTimeout:            uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Timeouts.Sum(now)),
-		RollingCountFallbackSuccess:    uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).FallbackSuccesses.Sum(now)),
-		RollingCountFallbackFailure:    uint32(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).FallbackFailures.Sum(now)),
+		RollingCountSuccess:            uint32(cb.metrics.DefaultCollector().Successes.Sum(now)),
+		RollingCountFailure:            uint32(cb.metrics.DefaultCollector().Failures.Sum(now)),
+		RollingCountThreadPoolRejected: uint32(cb.metrics.DefaultCollector().Rejects.Sum(now)),
+		RollingCountShortCircuited:     uint32(cb.metrics.DefaultCollector().ShortCircuits.Sum(now)),
+		RollingCountTimeout:            uint32(cb.metrics.DefaultCollector().Timeouts.Sum(now)),
+		RollingCountFallbackSuccess:    uint32(cb.metrics.DefaultCollector().FallbackSuccesses.Sum(now)),
+		RollingCountFallbackFailure:    uint32(cb.metrics.DefaultCollector().FallbackFailures.Sum(now)),
 
-		LatencyTotal:       GenerateLatencyTimings(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).TotalDuration),
-		LatencyTotalMean:   cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).TotalDuration.Mean(),
-		LatencyExecute:     GenerateLatencyTimings(cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).RunDuration),
-		LatencyExecuteMean: cb.metrics.metricCollectors[0].(*metric_collector.DefaultMetricCollector).RunDuration.Mean(),
+		LatencyTotal:       GenerateLatencyTimings(cb.metrics.DefaultCollector().TotalDuration),
+		LatencyTotalMean:   cb.metrics.DefaultCollector().TotalDuration.Mean(),
+		LatencyExecute:     GenerateLatencyTimings(cb.metrics.DefaultCollector().RunDuration),
+		LatencyExecuteMean: cb.metrics.DefaultCollector().RunDuration.Mean(),
 
 		// TODO: all hard-coded values should become configurable settings, per circuit
 

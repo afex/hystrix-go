@@ -36,6 +36,18 @@ func newMetricExchange(name string) *metricExchange {
 	return m
 }
 
+// The Default Collector function will panic if collectors are not setup to specification.
+func (m *metricExchange) DefaultCollector() *metric_collector.DefaultMetricCollector {
+	if len(m.metricCollectors) < 1 {
+		panic("No Metric Collectors Registered.")
+	}
+	collection, ok := m.metricCollectors[0].(*metric_collector.DefaultMetricCollector)
+	if !ok {
+		panic("Default metric collector is not registered correctly. The default metric collector must be registered first.")
+	}
+	return collection
+}
+
 func (m *metricExchange) Monitor() {
 	for update := range m.Updates {
 		// we only grab a read lock to make sure Reset() isn't changing the numbers
@@ -96,7 +108,7 @@ func (m *metricExchange) Requests() *rolling.RollingNumber {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 
-	return m.metricCollectors[0].(*metric_collector.DefaultMetricCollector).NumRequests
+	return m.DefaultCollector().NumRequests
 }
 
 func (m *metricExchange) ErrorPercent(now time.Time) int {
@@ -105,7 +117,7 @@ func (m *metricExchange) ErrorPercent(now time.Time) int {
 
 	var errPct float64
 	reqs := m.Requests().Sum(now)
-	errs := m.metricCollectors[0].(*metric_collector.DefaultMetricCollector).Errors.Sum(now)
+	errs := m.DefaultCollector().Errors.Sum(now)
 
 	if reqs > 0 {
 		errPct = (float64(errs) / float64(reqs)) * 100
