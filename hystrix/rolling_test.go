@@ -22,3 +22,23 @@ func TestMax(t *testing.T) {
 		})
 	})
 }
+
+func BenchmarkRollingNumberIncrement(b *testing.B) {
+	n := newRollingNumber()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		n.Increment()
+	}
+}
+
+func BenchmarkRollingNumberUpdateMax(b *testing.B) {
+	n := newRollingNumber()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		n.UpdateMax(i)
+	}
+}
