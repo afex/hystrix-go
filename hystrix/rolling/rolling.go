@@ -5,7 +5,9 @@ import (
 	"time"
 )
 
-type RollingNumber struct {
+// Number tracks a numberBucket over a bounded number of
+// time buckets. Currently the buckets are one second long and only the last 10 seconds are kept.
+type Number struct {
 	Buckets map[int64]*numberBucket
 	Mutex   *sync.RWMutex
 }
@@ -14,15 +16,16 @@ type numberBucket struct {
 	Value uint64
 }
 
-func NewRollingNumber() *RollingNumber {
-	r := &RollingNumber{
+// NewNumber initializes a RollingNumber struct.
+func NewNumber() *Number {
+	r := &Number{
 		Buckets: make(map[int64]*numberBucket),
 		Mutex:   &sync.RWMutex{},
 	}
 	return r
 }
 
-func (r *RollingNumber) getCurrentBucket() *numberBucket {
+func (r *Number) getCurrentBucket() *numberBucket {
 	r.Mutex.RLock()
 
 	now := time.Now()
@@ -40,7 +43,7 @@ func (r *RollingNumber) getCurrentBucket() *numberBucket {
 	return bucket
 }
 
-func (r *RollingNumber) removeOldBuckets() {
+func (r *Number) removeOldBuckets() {
 	now := time.Now()
 
 	for timestamp := range r.Buckets {
@@ -51,7 +54,8 @@ func (r *RollingNumber) removeOldBuckets() {
 	}
 }
 
-func (r *RollingNumber) Increment() {
+// Increment increments the number in current timeBucket.
+func (r *Number) Increment() {
 	b := r.getCurrentBucket()
 
 	r.Mutex.Lock()
@@ -61,7 +65,8 @@ func (r *RollingNumber) Increment() {
 	r.removeOldBuckets()
 }
 
-func (r *RollingNumber) UpdateMax(n int) {
+// UpdateMax updates the maximum value in the current bucket.
+func (r *Number) UpdateMax(n int) {
 	b := r.getCurrentBucket()
 
 	r.Mutex.Lock()
@@ -73,7 +78,8 @@ func (r *RollingNumber) UpdateMax(n int) {
 	r.removeOldBuckets()
 }
 
-func (r *RollingNumber) Sum(now time.Time) uint64 {
+// Sum sums the values over the buckets in the last 10 seconds.
+func (r *Number) Sum(now time.Time) uint64 {
 	sum := uint64(0)
 
 	r.Mutex.RLock()
@@ -89,7 +95,8 @@ func (r *RollingNumber) Sum(now time.Time) uint64 {
 	return sum
 }
 
-func (r *RollingNumber) Max(now time.Time) uint64 {
+// Max returns the maximum value seen in the last 10 seconds.
+func (r *Number) Max(now time.Time) uint64 {
 	var max uint64
 
 	r.Mutex.RLock()

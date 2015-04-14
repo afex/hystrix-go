@@ -10,7 +10,7 @@ import (
 func TestOrdinal(t *testing.T) {
 	Convey("given a new rolling timing", t, func() {
 
-		r := NewRollingTiming()
+		r := NewTiming()
 
 		Convey("Mean() should be 0", func() {
 			So(r.Mean(), ShouldEqual, 0)

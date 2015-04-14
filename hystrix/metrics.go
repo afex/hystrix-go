@@ -19,7 +19,7 @@ type metricExchange struct {
 	Updates chan *commandExecution
 	Mutex   *sync.RWMutex
 
-	metricCollectors []metric_collector.MetricCollector
+	metricCollectors []metricCollector.MetricCollector
 }
 
 func newMetricExchange(name string) *metricExchange {
@@ -28,7 +28,7 @@ func newMetricExchange(name string) *metricExchange {
 
 	m.Updates = make(chan *commandExecution)
 	m.Mutex = &sync.RWMutex{}
-	m.metricCollectors = metric_collector.Registry.InitializeMetricCollectors(name)
+	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()
 
 	go m.Monitor()
@@ -37,11 +37,11 @@ func newMetricExchange(name string) *metricExchange {
 }
 
 // The Default Collector function will panic if collectors are not setup to specification.
-func (m *metricExchange) DefaultCollector() *metric_collector.DefaultMetricCollector {
+func (m *metricExchange) DefaultCollector() *metricCollector.DefaultMetricCollector {
 	if len(m.metricCollectors) < 1 {
 		panic("No Metric Collectors Registered.")
 	}
-	collection, ok := m.metricCollectors[0].(*metric_collector.DefaultMetricCollector)
+	collection, ok := m.metricCollectors[0].(*metricCollector.DefaultMetricCollector)
 	if !ok {
 		panic("Default metric collector is not registered correctly. The default metric collector must be registered first.")
 	}
@@ -50,8 +50,7 @@ func (m *metricExchange) DefaultCollector() *metric_collector.DefaultMetricColle
 
 func (m *metricExchange) Monitor() {
 	for update := range m.Updates {
-		// we only grab a read lock to make sure Reset() isn't changing the numbers
-		// Increment() and Add() implement their own internal locking
+		// we only grab a read lock to make sure Reset() isn't changing the numbers.
 		m.Mutex.RLock()
 
 		totalDuration := time.Now().Sub(update.Start)
@@ -103,8 +102,7 @@ func (m *metricExchange) Reset() {
 	}
 }
 
-// This is not thread safe.
-func (m *metricExchange) Requests() *rolling.RollingNumber {
+func (m *metricExchange) Requests() *rolling.Number {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 

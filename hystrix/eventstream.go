@@ -208,7 +208,7 @@ func (sh *StreamHandler) unregister(req *http.Request) {
 	sh.mu.Unlock()
 }
 
-func GenerateLatencyTimings(r *rolling.RollingTiming) streamCmdLatency {
+func GenerateLatencyTimings(r *rolling.Timing) streamCmdLatency {
 	return streamCmdLatency{
 		Timing0:   r.Percentile(0),
 		Timing25:  r.Percentile(25),

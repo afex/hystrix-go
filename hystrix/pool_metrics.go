@@ -11,8 +11,8 @@ type poolMetrics struct {
 	Updates chan poolMetricsUpdate
 
 	Name              string
-	MaxActiveRequests *rolling.RollingNumber
-	Executed          *rolling.RollingNumber
+	MaxActiveRequests *rolling.Number
+	Executed          *rolling.Number
 }
 
 type poolMetricsUpdate struct {
@@ -36,8 +36,8 @@ func (m *poolMetrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	m.MaxActiveRequests = rolling.NewRollingNumber()
-	m.Executed = rolling.NewRollingNumber()
+	m.MaxActiveRequests = rolling.NewNumber()
+	m.Executed = rolling.NewNumber()
 }
 
 func (m *poolMetrics) Monitor() {
