@@ -13,7 +13,6 @@ import (
 
 var makeTimerFunc = func() interface{} { return metrics.NewTimer() }
 var makeCounterFunc = func() interface{} { return metrics.NewCounter() }
-var makeGaugeFunc = func() interface{} { return metrics.NewGauge() }
 
 // GraphiteCollector fulfills the metricCollector interface allowing users to ship circuit
 // stats to a graphite backend. To use users must call InitializeGraphiteCollector before
