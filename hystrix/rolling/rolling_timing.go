@@ -1,4 +1,4 @@
-package hystrix
+package rolling
 
 import (
 	"math"
@@ -7,11 +7,14 @@ import (
 	"time"
 )
 
-type rollingTiming struct {
+// Timing maintains time Durations for each time bucket.
+// The Durations are kept in an array to allow for a variety of
+// statistics to be calculated from the source data.
+type Timing struct {
 	Buckets map[int64]*timingBucket
 	Mutex   *sync.RWMutex
 
-	CachedSortedDurations byDuration
+	CachedSortedDurations []time.Duration
 	LastCachedTime        int64
 }
 
@@ -19,8 +22,9 @@ type timingBucket struct {
 	Durations []time.Duration
 }
 
-func newRollingTiming() *rollingTiming {
-	r := &rollingTiming{
+// NewTiming creates a RollingTiming struct.
+func NewTiming() *Timing {
+	r := &Timing{
 		Buckets: make(map[int64]*timingBucket),
 		Mutex:   &sync.RWMutex{},
 	}
@@ -33,7 +37,9 @@ func (c byDuration) Len() int           { return len(c) }
 func (c byDuration) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c byDuration) Less(i, j int) bool { return c[i] < c[j] }
 
-func (r *rollingTiming) SortedDurations() byDuration {
+// SortedDurations returns an array of time.Duration sorted from shortest
+// to longest that have occurred in the last 60 seconds.
+func (r *Timing) SortedDurations() []time.Duration {
 	r.Mutex.RLock()
 	t := r.LastCachedTime
 	r.Mutex.RUnlock()
@@ -66,7 +72,7 @@ func (r *rollingTiming) SortedDurations() byDuration {
 	return r.CachedSortedDurations
 }
 
-func (r *rollingTiming) getCurrentBucket() *timingBucket {
+func (r *Timing) getCurrentBucket() *timingBucket {
 	r.Mutex.RLock()
 	now := time.Now()
 	bucket, exists := r.Buckets[now.Unix()]
@@ -83,7 +89,7 @@ func (r *rollingTiming) getCurrentBucket() *timingBucket {
 	return bucket
 }
 
-func (r *rollingTiming) removeOldBuckets() {
+func (r *Timing) removeOldBuckets() {
 	now := time.Now()
 
 	for timestamp := range r.Buckets {
@@ -94,7 +100,8 @@ func (r *rollingTiming) removeOldBuckets() {
 	}
 }
 
-func (r *rollingTiming) Add(duration time.Duration) {
+// Add appends the time.Duration given to the current time bucket.
+func (r *Timing) Add(duration time.Duration) {
 	b := r.getCurrentBucket()
 
 	r.Mutex.Lock()
@@ -104,7 +111,8 @@ func (r *rollingTiming) Add(duration time.Duration) {
 	r.removeOldBuckets()
 }
 
-func (r *rollingTiming) Percentile(p float64) uint32 {
+// Percentile computes the percentile given with a linear interpolation.
+func (r *Timing) Percentile(p float64) uint32 {
 	sortedDurations := r.SortedDurations()
 	length := len(sortedDurations)
 	if length <= 0 {
@@ -115,7 +123,7 @@ func (r *rollingTiming) Percentile(p float64) uint32 {
 	return uint32(sortedDurations[pos].Nanoseconds() / 1000000)
 }
 
-func (r *rollingTiming) ordinal(length int, percentile float64) int64 {
+func (r *Timing) ordinal(length int, percentile float64) int64 {
 	if percentile == 0 && length > 0 {
 		return 1
 	}
@@ -123,7 +131,8 @@ func (r *rollingTiming) ordinal(length int, percentile float64) int64 {
 	return int64(math.Ceil((percentile / float64(100)) * float64(length)))
 }
 
-func (r *rollingTiming) Mean() uint32 {
+// Mean computes the average timing in the last 60 seconds.
+func (r *Timing) Mean() uint32 {
 	sortedDurations := r.SortedDurations()
 	var sum time.Duration
 	for _, d := range sortedDurations {
@@ -136,18 +145,4 @@ func (r *rollingTiming) Mean() uint32 {
 	}
 
 	return uint32(sum.Nanoseconds()/length) / 1000000
-}
-
-func (r *rollingTiming) Timings() streamCmdLatency {
-	return streamCmdLatency{
-		Timing0:   r.Percentile(0),
-		Timing25:  r.Percentile(25),
-		Timing50:  r.Percentile(50),
-		Timing75:  r.Percentile(75),
-		Timing90:  r.Percentile(90),
-		Timing95:  r.Percentile(95),
-		Timing99:  r.Percentile(99),
-		Timing995: r.Percentile(99.5),
-		Timing100: r.Percentile(100),
-	}
 }

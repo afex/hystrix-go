@@ -3,6 +3,9 @@ package hystrix
 import (
 	"sync"
 	"time"
+
+	"github.com/afex/hystrix-go/hystrix/metric_collector"
+	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
 type commandExecution struct {
@@ -11,34 +14,21 @@ type commandExecution struct {
 	RunDuration time.Duration `json:"run_duration"`
 }
 
-type metrics struct {
+type metricExchange struct {
 	Name    string
 	Updates chan *commandExecution
 	Mutex   *sync.RWMutex
 
-	numRequests *rollingNumber
-	Errors      *rollingNumber
-
-	Successes     *rollingNumber
-	Failures      *rollingNumber
-	Rejected      *rollingNumber
-	ShortCircuits *rollingNumber
-	Timeouts      *rollingNumber
-
-	FallbackSuccesses *rollingNumber
-	FallbackFailures  *rollingNumber
-
-	TotalDuration *rollingTiming
-	RunDuration   *rollingTiming
+	metricCollectors []metricCollector.MetricCollector
 }
 
-func newMetrics(name string) *metrics {
-	m := &metrics{}
+func newMetricExchange(name string) *metricExchange {
+	m := &metricExchange{}
 	m.Name = name
 
 	m.Updates = make(chan *commandExecution)
 	m.Mutex = &sync.RWMutex{}
-
+	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()
 
 	go m.Monitor()
@@ -46,85 +36,86 @@ func newMetrics(name string) *metrics {
 	return m
 }
 
-func (m *metrics) Monitor() {
+// The Default Collector function will panic if collectors are not setup to specification.
+func (m *metricExchange) DefaultCollector() *metricCollector.DefaultMetricCollector {
+	if len(m.metricCollectors) < 1 {
+		panic("No Metric Collectors Registered.")
+	}
+	collection, ok := m.metricCollectors[0].(*metricCollector.DefaultMetricCollector)
+	if !ok {
+		panic("Default metric collector is not registered correctly. The default metric collector must be registered first.")
+	}
+	return collection
+}
+
+func (m *metricExchange) Monitor() {
 	for update := range m.Updates {
-		// we only grab a read lock to make sure Reset() isn't changing the numbers
-		// Increment() and Add() implement their own internal locking
+		// we only grab a read lock to make sure Reset() isn't changing the numbers.
 		m.Mutex.RLock()
 
-		// combined metrics
-		m.numRequests.Increment()
-		if update.Type != "success" {
-			m.Errors.Increment()
-		}
-
-		// granular metrics
-		if update.Type == "success" {
-			m.Successes.Increment()
-		}
-		if update.Type == "failure" {
-			m.Failures.Increment()
-		}
-		if update.Type == "rejected" {
-			m.Rejected.Increment()
-		}
-		if update.Type == "short-circuit" {
-			m.ShortCircuits.Increment()
-		}
-		if update.Type == "timeout" {
-			m.Timeouts.Increment()
-		}
-
-		// fallback metrics
-		if update.Type == "fallback-success" {
-			m.FallbackSuccesses.Increment()
-		}
-		if update.Type == "fallback-failure" {
-			m.FallbackFailures.Increment()
-		}
-
 		totalDuration := time.Now().Sub(update.Start)
-		m.TotalDuration.Add(totalDuration)
-		m.RunDuration.Add(update.RunDuration)
+		for _, collector := range m.metricCollectors {
+			collector.IncrementAttempts()
+			if update.Type != "success" {
+				collector.IncrementErrors()
+			}
+
+			// granular metrics
+			if update.Type == "success" {
+				collector.IncrementSuccesses()
+			}
+			if update.Type == "failure" {
+				collector.IncrementFailures()
+			}
+			if update.Type == "rejected" {
+				collector.IncrementRejects()
+			}
+			if update.Type == "short-circuit" {
+				collector.IncrementShortCircuits()
+			}
+			if update.Type == "timeout" {
+				collector.IncrementTimeouts()
+			}
+
+			// fallback metrics
+			if update.Type == "fallback-success" {
+				collector.IncrementFallbackSuccesses()
+			}
+			if update.Type == "fallback-failure" {
+				collector.IncrementFallbackFailures()
+			}
+
+			collector.UpdateTotalDuration(totalDuration)
+			collector.UpdateRunDuration(update.RunDuration)
+		}
 
 		m.Mutex.RUnlock()
 	}
 }
 
-func (m *metrics) Reset() {
+func (m *metricExchange) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	m.numRequests = newRollingNumber()
-	m.Errors = newRollingNumber()
-
-	m.Successes = newRollingNumber()
-	m.Rejected = newRollingNumber()
-	m.ShortCircuits = newRollingNumber()
-	m.Failures = newRollingNumber()
-	m.Timeouts = newRollingNumber()
-
-	m.FallbackSuccesses = newRollingNumber()
-	m.FallbackFailures = newRollingNumber()
-
-	m.TotalDuration = newRollingTiming()
-	m.RunDuration = newRollingTiming()
+	for _, collector := range m.metricCollectors {
+		collector.Reset()
+	}
 }
 
-func (m *metrics) Requests() *rollingNumber {
+func (m *metricExchange) Requests() *rolling.Number {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 
-	return m.numRequests
+	return m.DefaultCollector().NumRequests
 }
 
-func (m *metrics) ErrorPercent(now time.Time) int {
+func (m *metricExchange) ErrorPercent(now time.Time) int {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
 
 	var errPct float64
 	reqs := m.Requests().Sum(now)
-	errs := m.Errors.Sum(now)
+	errs := m.DefaultCollector().Errors.Sum(now)
 
 	if reqs > 0 {
 		errPct = (float64(errs) / float64(reqs)) * 100
@@ -133,6 +124,6 @@ func (m *metrics) ErrorPercent(now time.Time) int {
 	return int(errPct + 0.5)
 }
 
-func (m *metrics) IsHealthy(now time.Time) bool {
+func (m *metricExchange) IsHealthy(now time.Time) bool {
 	return m.ErrorPercent(now) < getSettings(m.Name).ErrorPercentThreshold
 }
