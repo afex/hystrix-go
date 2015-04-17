@@ -57,6 +57,7 @@ type StatsdCollectorConfig struct {
 func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorClient, error) {
 	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, config.FlushInterval, config.FlushBytes)
 	if err != nil {
+		log.Printf("Could not initiale buffered client: %s. Falling back to a Noop Statsd client", err)
 		c, _ = statsd.NewNoopClient()
 	}
 	return &StatsdCollectorClient{
@@ -69,7 +70,7 @@ func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorC
 // Circuits with "/" in their names will have them replaced with ".".
 func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.MetricCollector {
 	if s.client == nil {
-		log.Fatalf("Statsd client must be initialized before circutis are created.")
+		log.Fatalf("Statsd client must be initialized before circuits are created.")
 	}
 	name = strings.Replace(name, "/", ".", -1)
 	return &StatsdCollector{
