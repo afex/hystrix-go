@@ -54,7 +54,9 @@ func InitializeGraphiteCollector(config *GraphiteCollectorConfig) {
 // prefix given to this circuit will be {config.Prefix}.{circuit_name}.{metric}.
 // Circuits with "/" in their names will have them replaced with ".".
 func NewGraphiteCollector(name string) metricCollector.MetricCollector {
-	name = strings.Replace(name, "/", ".", -1)
+	name = strings.Replace(name, "/", "-", -1)
+	name = strings.Replace(name, ":", "-", -1)
+	name = strings.Replace(name, ".", "-", -1)
 	return &GraphiteCollector{
 		attemptsPrefix:          name + ".attempts",
 		errorsPrefix:            name + ".errors",

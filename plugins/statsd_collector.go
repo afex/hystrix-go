@@ -72,7 +72,9 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 	if s.client == nil {
 		log.Fatalf("Statsd client must be initialized before circuits are created.")
 	}
-	name = strings.Replace(name, "/", ".", -1)
+	name = strings.Replace(name, "/", "-", -1)
+	name = strings.Replace(name, ":", "-", -1)
+	name = strings.Replace(name, ".", "-", -1)
 	return &StatsdCollector{
 		client:                  s.client,
 		attemptsPrefix:          name + ".attempts",
