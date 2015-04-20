@@ -39,15 +39,6 @@ type StatsdCollectorConfig struct {
 	StatsdAddr string
 	// Prefix is the prefix that will be prepended to all metrics sent from this collector.
 	Prefix string
-	// FlushInterval
-	FlushInterval time.Duration
-	// FlushBytes specifies the maximum udp packet size you wish to send.
-	// If adding a metric would result in a larger packet than flushBytes,
-	// the packet will first be send, then the new data will be added to the next packet.
-	//
-	// If flushBytes is 0, defaults to 1432 bytes, which is considered safe for local traffic.
-	// If sending over the public internet, 512 bytes is the recommended value.
-	FlushBytes int
 }
 
 // InitializeStatsdCollector creates the connection to the Statsd server
@@ -55,7 +46,7 @@ type StatsdCollectorConfig struct {
 //
 // Users should ensure to call Close() on the client.
 func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorClient, error) {
-	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, config.FlushInterval, config.FlushBytes)
+	c, err := statsd.NewClient(config.StatsdAddr, config.Prefix)
 	if err != nil {
 		log.Printf("Could not initiale buffered client: %s. Falling back to a Noop Statsd client", err)
 		c, _ = statsd.NewNoopClient()
