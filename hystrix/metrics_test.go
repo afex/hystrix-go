@@ -7,8 +7,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func metricFailingPercent(p int) *metrics {
-	m := newMetrics("")
+func metricFailingPercent(p int) *metricExchange {
+	m := newMetricExchange("")
 	for i := 0; i < 100; i++ {
 		t := "success"
 		if i < p {
