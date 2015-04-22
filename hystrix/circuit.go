@@ -38,6 +38,12 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 		circuitBreakersMutex.RUnlock()
 		circuitBreakersMutex.Lock()
 		defer circuitBreakersMutex.Unlock()
+		// because we released the rlock before we obtained the exclusive lock,
+		// we need to double check that some other thread didn't beat us to
+		// creation.
+		if cb, ok := circuitBreakers[name]; ok {
+			return cb, false, nil
+		}
 		circuitBreakers[name] = newCircuitBreaker(name)
 	} else {
 		defer circuitBreakersMutex.RUnlock()
