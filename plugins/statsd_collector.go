@@ -68,6 +68,7 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 	name = strings.Replace(name, ".", "-", -1)
 	return &StatsdCollector{
 		client:                  s.client,
+		cicuitOpenPrefix:        name + ".circuitOpen",
 		attemptsPrefix:          name + ".attempts",
 		errorsPrefix:            name + ".errors",
 		successesPrefix:         name + ".successes",
@@ -79,6 +80,13 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 		fallbackFailuresPrefix:  name + ".fallbackFailures",
 		totalDurationPrefix:     name + ".totalDuration",
 		runDurationPrefix:       name + ".runDuration",
+	}
+}
+
+func (g *StatsdCollector) setGauge(prefix string, value int64) {
+	err := g.client.Gauge(prefix, value, 1.0)
+	if err != nil {
+		log.Printf("Error sending statsd metrics %s", prefix)
 	}
 }
 
@@ -114,6 +122,7 @@ func (g *StatsdCollector) IncrementErrors() {
 // IncrementSuccesses increments the number of requests that succeed.
 // This registers as a counter in the Statsd collector.
 func (g *StatsdCollector) IncrementSuccesses() {
+	g.setGauge(g.circuitOpenPrefix, 0)
 	g.incrementCounterMetric(g.successesPrefix)
 
 }
@@ -133,6 +142,7 @@ func (g *StatsdCollector) IncrementRejects() {
 // IncrementShortCircuits increments the number of requests that short circuited due to the circuit being open.
 // This registers as a counter in the Statsd collector.
 func (g *StatsdCollector) IncrementShortCircuits() {
+	g.setGauge(g.circuitOpenPrefix, 1)
 	g.incrementCounterMetric(g.shortCircuitsPrefix)
 }
 
