@@ -16,6 +16,7 @@ import (
 // This Collector uses https://github.com/cactus/go-statsd-client/ for transport.
 type StatsdCollector struct {
 	client                  statsd.Statter
+	circuitOpenPrefix       string
 	attemptsPrefix          string
 	errorsPrefix            string
 	successesPrefix         string
@@ -68,7 +69,7 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 	name = strings.Replace(name, ".", "-", -1)
 	return &StatsdCollector{
 		client:                  s.client,
-		cicuitOpenPrefix:        name + ".circuitOpen",
+		circuitOpenPrefix:       name + ".circuitOpen",
 		attemptsPrefix:          name + ".attempts",
 		errorsPrefix:            name + ".errors",
 		successesPrefix:         name + ".successes",
