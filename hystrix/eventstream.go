@@ -111,9 +111,9 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		CircuitBreakerEnabled:                true,
 		CircuitBreakerForceClosed:            false,
 		CircuitBreakerForceOpen:              cb.forceOpen,
-		CircuitBreakerErrorThresholdPercent:  50,
-		CircuitBreakerSleepWindow:            5000,
-		CircuitBreakerRequestVolumeThreshold: 20,
+		CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name).ErrorPercentThreshold),
+		CircuitBreakerSleepWindow:            uint32(getSettings(cb.Name).SleepWindow.Seconds() * 1000),
+		CircuitBreakerRequestVolumeThreshold: uint32(getSettings(cb.Name).RequestVolumeThreshold),
 	})
 	if err != nil {
 		return err
