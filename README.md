@@ -101,7 +101,7 @@ c, err := plugins.InitializeStatsdCollector(&plugins.StatsdCollectorConfig{
 	Prefix:     "myapp.hystrix",
 })
 if err != nil {
-	log.Fatalf("could not initialize statsd client: %s\n", err)
+	log.Fatalf("could not initialize statsd client: %v", err)
 }
 
 metricCollector.Registry.Register(c.NewStatsdCollector)
