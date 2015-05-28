@@ -86,32 +86,28 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		runStart := time.Now()
 		runErr := run()
 		runDuration := time.Now().Sub(runStart)
+
+		stopMutex.Lock()
+		defer stopMutex.Unlock()
+		if stop {
+			return
+		}
+		stop = true
+
 		if runErr != nil {
 			circuit.ReportEvent("failure", start, runDuration)
 			err := tryFallback(circuit, start, runDuration, fallback, runErr)
 			if err != nil {
-				stopMutex.Lock()
-				defer stopMutex.Unlock()
-				if !stop {
-					errChan <- err
-				}
+				errChan <- err
 				return
 			}
 		}
 
-		stopMutex.Lock()
-		defer stopMutex.Unlock()
-		if !stop {
-			circuit.ReportEvent("success", start, runDuration)
-		}
+		circuit.ReportEvent("success", start, runDuration)
 	}()
 
 	go func() {
 		defer func() {
-			stopMutex.Lock()
-			stop = true
-			stopMutex.Unlock()
-
 			ticketMutex.Lock()
 			circuit.executorPool.Return(ticket)
 			ticketMutex.Unlock()
@@ -123,11 +119,18 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		select {
 		case <-finished:
 		case <-timer.C:
-			circuit.ReportEvent("timeout", start, 0)
+			stopMutex.Lock()
+			defer stopMutex.Unlock()
 
-			err := tryFallback(circuit, start, 0, fallback, ErrTimeout)
-			if err != nil {
-				errChan <- err
+			if !stop {
+				stop = true
+
+				circuit.ReportEvent("timeout", start, 0)
+
+				err := tryFallback(circuit, start, 0, fallback, ErrTimeout)
+				if err != nil {
+					errChan <- err
+				}
 			}
 		}
 	}()
