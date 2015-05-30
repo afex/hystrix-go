@@ -89,7 +89,7 @@ func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
 
 // isOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
-func (circuit *CircuitBreaker) isOpen() bool {
+func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.mutex.RLock()
 	o := circuit.forceOpen || circuit.open
 	circuit.mutex.RUnlock()
@@ -115,7 +115,7 @@ func (circuit *CircuitBreaker) isOpen() bool {
 // When the circuit is open, this call will occasionally return true to measure whether the external service
 // has recovered.
 func (circuit *CircuitBreaker) AllowRequest() bool {
-	return !circuit.isOpen() || circuit.allowSingleTest()
+	return !circuit.IsOpen() || circuit.allowSingleTest()
 }
 
 func (circuit *CircuitBreaker) allowSingleTest() bool {
@@ -156,7 +156,7 @@ func (circuit *CircuitBreaker) setClose() {
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
 func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, runDuration time.Duration) error {
-	if eventType == "success" && circuit.isOpen() {
+	if eventType == "success" && circuit.IsOpen() {
 		circuit.setClose()
 	}
 
