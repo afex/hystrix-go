@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const (
+var (
 	// DefaultTimeout is how long to wait for command to complete, in milliseconds
 	DefaultTimeout = 1000
 	// DefaultMaxConcurrent is how many commands of the same type can run at the same time
