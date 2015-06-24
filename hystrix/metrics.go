@@ -76,6 +76,9 @@ func (m *metricExchange) Monitor() {
 			if update.Type == "timeout" {
 				collector.IncrementTimeouts()
 			}
+			if update.Type == "bad-request" {
+				collector.IncrementBadRequests()
+			}
 
 			// fallback metrics
 			if update.Type == "fallback-success" {

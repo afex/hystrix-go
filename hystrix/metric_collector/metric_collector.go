@@ -59,6 +59,8 @@ type MetricCollector interface {
 	IncrementShortCircuits()
 	// IncrementTimeouts increments the number of timeouts that occurred in the circuit breaker.
 	IncrementTimeouts()
+	// IncrementBadRequests increments the number of bad requests seen in the latest time bucket.
+	IncrementBadRequests()
 	// IncrementFallbackSuccesses increments the number of successes that occurred during the execution of the fallback function.
 	IncrementFallbackSuccesses()
 	// IncrementFallbackFailures increments the number of failures that occurred during the execution of the fallback function.

@@ -95,6 +95,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		RollingCountThreadPoolRejected: uint32(cb.metrics.DefaultCollector().Rejects.Sum(now)),
 		RollingCountShortCircuited:     uint32(cb.metrics.DefaultCollector().ShortCircuits.Sum(now)),
 		RollingCountTimeout:            uint32(cb.metrics.DefaultCollector().Timeouts.Sum(now)),
+		RollingCountBadRequests:        uint32(cb.metrics.DefaultCollector().BadRequests.Sum(now)),
 		RollingCountFallbackSuccess:    uint32(cb.metrics.DefaultCollector().FallbackSuccesses.Sum(now)),
 		RollingCountFallbackFailure:    uint32(cb.metrics.DefaultCollector().FallbackFailures.Sum(now)),
 
@@ -247,6 +248,7 @@ type streamCmdMetric struct {
 	RollingCountSuccess            uint32 `json:"rollingCountSuccess"`
 	RollingCountThreadPoolRejected uint32 `json:"rollingCountThreadPoolRejected"`
 	RollingCountTimeout            uint32 `json:"rollingCountTimeout"`
+	RollingCountBadRequests        uint32 `json:"rollingCountBadRequests"`
 
 	CurrentConcurrentExecutionCount uint32 `json:"currentConcurrentExecutionCount"`
 

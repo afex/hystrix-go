@@ -21,6 +21,7 @@ type DefaultMetricCollector struct {
 	Rejects       *rolling.Number
 	ShortCircuits *rolling.Number
 	Timeouts      *rolling.Number
+	BadRequests   *rolling.Number
 
 	FallbackSuccesses *rolling.Number
 	FallbackFailures  *rolling.Number
@@ -70,6 +71,11 @@ func (d *DefaultMetricCollector) IncrementTimeouts() {
 	d.Timeouts.Increment()
 }
 
+// IncrementBadRequests increments the number of bad requests seen in the latest time bucket.
+func (d *DefaultMetricCollector) IncrementBadRequests() {
+	d.BadRequests.Increment()
+}
+
 // IncrementFallbackSuccesses increments the number of successful calls to the fallback function in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementFallbackSuccesses() {
 	d.FallbackSuccesses.Increment()
@@ -99,6 +105,7 @@ func (d *DefaultMetricCollector) Reset() {
 	d.ShortCircuits = rolling.NewNumber()
 	d.Failures = rolling.NewNumber()
 	d.Timeouts = rolling.NewNumber()
+	d.BadRequests = rolling.NewNumber()
 	d.FallbackSuccesses = rolling.NewNumber()
 	d.FallbackFailures = rolling.NewNumber()
 	d.TotalDuration = rolling.NewTiming()
