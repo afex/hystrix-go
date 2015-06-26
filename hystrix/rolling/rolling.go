@@ -106,3 +106,7 @@ func (r *Number) Max(now time.Time) float64 {
 
 	return max
 }
+
+func (r *Number) Avg(now time.Time) float64 {
+	return r.Sum(now) / 10
+}

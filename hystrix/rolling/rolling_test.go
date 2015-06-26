@@ -22,6 +22,20 @@ func TestMax(t *testing.T) {
 	})
 }
 
+func TestAvg(t *testing.T) {
+	Convey("when adding values to a rolling number", t, func() {
+		n := NewNumber()
+		for _, x := range []float64{0.5, 1.5, 2.5, 3.5, 4.5} {
+			n.Increment(x)
+			time.Sleep(1 * time.Second)
+		}
+
+		Convey("it should calculate the average over the number of configured buckets", func() {
+			So(n.Avg(time.Now()), ShouldEqual, 1.25)
+		})
+	})
+}
+
 func BenchmarkRollingNumberIncrement(b *testing.B) {
 	n := NewNumber()
 
