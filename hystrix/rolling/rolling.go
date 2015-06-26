@@ -13,7 +13,7 @@ type Number struct {
 }
 
 type numberBucket struct {
-	Value uint64
+	Value float64
 }
 
 // NewNumber initializes a RollingNumber struct.
@@ -50,30 +50,30 @@ func (r *Number) removeOldBuckets() {
 }
 
 // Increment increments the number in current timeBucket.
-func (r *Number) Increment() {
+func (r *Number) Increment(i float64) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
 	b := r.getCurrentBucket()
-	b.Value++
+	b.Value += i
 	r.removeOldBuckets()
 }
 
 // UpdateMax updates the maximum value in the current bucket.
-func (r *Number) UpdateMax(n int) {
+func (r *Number) UpdateMax(n float64) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
 	b := r.getCurrentBucket()
-	if uint64(n) > b.Value {
-		b.Value = uint64(n)
+	if n > b.Value {
+		b.Value = n
 	}
 	r.removeOldBuckets()
 }
 
 // Sum sums the values over the buckets in the last 10 seconds.
-func (r *Number) Sum(now time.Time) uint64 {
-	sum := uint64(0)
+func (r *Number) Sum(now time.Time) float64 {
+	sum := float64(0)
 
 	r.Mutex.RLock()
 	defer r.Mutex.RUnlock()
@@ -89,8 +89,8 @@ func (r *Number) Sum(now time.Time) uint64 {
 }
 
 // Max returns the maximum value seen in the last 10 seconds.
-func (r *Number) Max(now time.Time) uint64 {
-	var max uint64
+func (r *Number) Max(now time.Time) float64 {
+	var max float64
 
 	r.Mutex.RLock()
 	defer r.Mutex.RUnlock()
