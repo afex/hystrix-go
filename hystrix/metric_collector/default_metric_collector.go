@@ -36,48 +36,48 @@ func newDefaultMetricCollector(name string) MetricCollector {
 
 // IncrementAttempts increments the number of requests seen in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementAttempts() {
-	d.NumRequests.Increment()
+	d.NumRequests.Increment(1)
 }
 
 // IncrementErrors increments the number of errors seen in the latest time bucket.
 // Errors are any result from an attempt that is not a success.
 func (d *DefaultMetricCollector) IncrementErrors() {
-	d.Errors.Increment()
+	d.Errors.Increment(1)
 }
 
 // IncrementSuccesses increments the number of successes seen in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementSuccesses() {
-	d.Successes.Increment()
+	d.Successes.Increment(1)
 }
 
 // IncrementFailures increments the number of failures seen in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementFailures() {
-	d.Failures.Increment()
+	d.Failures.Increment(1)
 }
 
 // IncrementRejects increments the number of rejected requests seen in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementRejects() {
-	d.Rejects.Increment()
+	d.Rejects.Increment(1)
 }
 
 // IncrementShortCircuits increments the number of rejected requests seen in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementShortCircuits() {
-	d.ShortCircuits.Increment()
+	d.ShortCircuits.Increment(1)
 }
 
 // IncrementTimeouts increments the number of requests that timed out in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementTimeouts() {
-	d.Timeouts.Increment()
+	d.Timeouts.Increment(1)
 }
 
 // IncrementFallbackSuccesses increments the number of successful calls to the fallback function in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementFallbackSuccesses() {
-	d.FallbackSuccesses.Increment()
+	d.FallbackSuccesses.Increment(1)
 }
 
 // IncrementFallbackFailures increments the number of failed calls to the fallback function in the latest time bucket.
 func (d *DefaultMetricCollector) IncrementFallbackFailures() {
-	d.FallbackFailures.Increment()
+	d.FallbackFailures.Increment(1)
 }
 
 // UpdateTotalDuration updates the total amount of time this circuit has been running.

@@ -98,7 +98,7 @@ func (circuit *CircuitBreaker) IsOpen() bool {
 		return true
 	}
 
-	if circuit.metrics.Requests().Sum(time.Now()) < getSettings(circuit.Name).RequestVolumeThreshold {
+	if uint64(circuit.metrics.Requests().Sum(time.Now())) < getSettings(circuit.Name).RequestVolumeThreshold {
 		return false
 	}
 

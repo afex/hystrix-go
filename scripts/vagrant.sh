@@ -14,5 +14,7 @@ source /home/vagrant/.profile
 go get code.google.com/p/go.tools/cmd/goimports
 go get github.com/golang/lint/golint
 go get github.com/smartystreets/goconvey/convey
+go get github.com/cactus/go-statsd-client/statsd
+go get github.com/rcrowley/go-metrics
 
 chown -R vagrant:vagrant /go
