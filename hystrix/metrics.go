@@ -114,7 +114,7 @@ func (m *metricExchange) ErrorPercent(now time.Time) int {
 	defer m.Mutex.RUnlock()
 
 	var errPct float64
-	reqs := m.Requests().Sum(now)
+	reqs := m.DefaultCollector().NumRequests.Sum(now)
 	errs := m.DefaultCollector().Errors.Sum(now)
 
 	if reqs > 0 {
