@@ -123,8 +123,9 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 	defer circuit.mutex.RUnlock()
 
 	now := time.Now().UnixNano()
-	if circuit.open && now > circuit.openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
-		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, circuit.openedOrLastTestedTime, now)
+	openedOrLastTestedTime := atomic.LoadInt64(&circuit.openedOrLastTestedTime)
+	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
+		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
 		}
