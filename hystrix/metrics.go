@@ -105,7 +105,10 @@ func (m *metricExchange) Reset() {
 func (m *metricExchange) Requests() *rolling.Number {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
+	return m.requestsLocked()
+}
 
+func (m *metricExchange) requestsLocked() *rolling.Number {
 	return m.DefaultCollector().NumRequests
 }
 
@@ -114,7 +117,7 @@ func (m *metricExchange) ErrorPercent(now time.Time) int {
 	defer m.Mutex.RUnlock()
 
 	var errPct float64
-	reqs := m.Requests().Sum(now)
+	reqs := m.requestsLocked().Sum(now)
 	errs := m.DefaultCollector().Errors.Sum(now)
 
 	if reqs > 0 {
