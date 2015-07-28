@@ -24,6 +24,7 @@ type StatsdCollector struct {
 	rejectsPrefix           string
 	shortCircuitsPrefix     string
 	timeoutsPrefix          string
+	badRequestsPrefix       string
 	fallbackSuccessesPrefix string
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
@@ -77,6 +78,7 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 		rejectsPrefix:           name + ".rejects",
 		shortCircuitsPrefix:     name + ".shortCircuits",
 		timeoutsPrefix:          name + ".timeouts",
+		badRequestsPrefix:       name + ".timeouts",
 		fallbackSuccessesPrefix: name + ".fallbackSuccesses",
 		fallbackFailuresPrefix:  name + ".fallbackFailures",
 		totalDurationPrefix:     name + ".totalDuration",
@@ -150,6 +152,12 @@ func (g *StatsdCollector) IncrementShortCircuits() {
 // IncrementTimeouts increments the number of timeouts that occurred in the circuit breaker.
 // This registers as a counter in the Statsd collector.
 func (g *StatsdCollector) IncrementTimeouts() {
+	g.incrementCounterMetric(g.timeoutsPrefix)
+}
+
+// IncrementBadRequests increments the number of bad requests that occurred in the circuit breaker.
+// This registers as a counter in the Statsd collector.
+func (g *StatsdCollector) IncrementBadRequests() {
 	g.incrementCounterMetric(g.timeoutsPrefix)
 }
 

@@ -21,6 +21,7 @@ var (
 	ErrMaxConcurrency = CircuitError{Message: "max concurrency"}
 	ErrCircuitOpen    = CircuitError{Message: "circuit open"}
 	ErrTimeout        = CircuitError{Message: "timeout"}
+	ErrBadRequest     = CircuitError{Message: "bad request"}
 )
 
 // Go runs your function while tracking the health of previous calls to it.
@@ -95,7 +96,12 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		stop = true
 
 		if runErr != nil {
-			circuit.ReportEvent("failure", start, runDuration)
+			if runErr == ErrBadRequest {
+				circuit.ReportEvent("bad-request", start, runDuration)
+			} else {
+				circuit.ReportEvent("failure", start, runDuration)
+			}
+
 			err := tryFallback(circuit, start, runDuration, fallback, runErr)
 			if err != nil {
 				errChan <- err

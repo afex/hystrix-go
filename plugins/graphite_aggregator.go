@@ -28,6 +28,7 @@ type GraphiteCollector struct {
 	rejectsPrefix           string
 	shortCircuitsPrefix     string
 	timeoutsPrefix          string
+	badRequestsPrefix       string
 	fallbackSuccessesPrefix string
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
@@ -65,6 +66,7 @@ func NewGraphiteCollector(name string) metricCollector.MetricCollector {
 		rejectsPrefix:           name + ".rejects",
 		shortCircuitsPrefix:     name + ".shortCircuits",
 		timeoutsPrefix:          name + ".timeouts",
+		badRequestsPrefix:       name + ".badRequests",
 		fallbackSuccessesPrefix: name + ".fallbackSuccesses",
 		fallbackFailuresPrefix:  name + ".fallbackFailures",
 		totalDurationPrefix:     name + ".totalDuration",
@@ -132,6 +134,12 @@ func (g *GraphiteCollector) IncrementShortCircuits() {
 // This registers as a counter in the graphite collector.
 func (g *GraphiteCollector) IncrementTimeouts() {
 	g.incrementCounterMetric(g.timeoutsPrefix)
+}
+
+// IncrementBadRequests increments the number of bad requests that occurred in the circuit breaker.
+// This registers as a counter in the graphite collector.
+func (g *GraphiteCollector) IncrementBadRequests() {
+	g.incrementCounterMetric(g.badRequestsPrefix)
 }
 
 // IncrementFallbackSuccesses increments the number of successes that occurred during the execution of the fallback function.
