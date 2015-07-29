@@ -209,7 +209,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 
 			Convey("the circuit should be closed", func() {
 				So(<-done, ShouldEqual, true)
-				So(cb.isOpen(), ShouldEqual, false)
+				So(cb.IsOpen(), ShouldEqual, false)
 			})
 		})
 	})
@@ -220,15 +220,24 @@ func TestFailAfterTimeout(t *testing.T) {
 		defer Flush()
 		ConfigureCommand("", CommandConfig{Timeout: 10})
 
+		out := make(chan struct{}, 2)
 		errChan := Go("", func() error {
 			time.Sleep(50 * time.Millisecond)
 			return fmt.Errorf("foo")
-		}, nil)
+		}, func(err error) error {
+			out <- struct{}{}
+			return err
+		})
 
 		Convey("we do not panic", func() {
-			So(<-errChan, ShouldResemble, ErrTimeout)
+			So((<-errChan).Error(), ShouldContainSubstring, "timeout")
 			// wait for command to fail, should not panic
 			time.Sleep(100 * time.Millisecond)
+		})
+
+		Convey("we do not call the fallback twice", func() {
+			time.Sleep(100 * time.Millisecond)
+			So(len(out), ShouldEqual, 1)
 		})
 	})
 }

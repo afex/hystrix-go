@@ -89,7 +89,7 @@ func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
 
 // isOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
-func (circuit *CircuitBreaker) isOpen() bool {
+func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.mutex.RLock()
 	o := circuit.forceOpen || circuit.open
 	circuit.mutex.RUnlock()
@@ -98,7 +98,7 @@ func (circuit *CircuitBreaker) isOpen() bool {
 		return true
 	}
 
-	if circuit.metrics.Requests().Sum(time.Now()) < getSettings(circuit.Name).RequestVolumeThreshold {
+	if uint64(circuit.metrics.Requests().Sum(time.Now())) < getSettings(circuit.Name).RequestVolumeThreshold {
 		return false
 	}
 
@@ -115,7 +115,7 @@ func (circuit *CircuitBreaker) isOpen() bool {
 // When the circuit is open, this call will occasionally return true to measure whether the external service
 // has recovered.
 func (circuit *CircuitBreaker) AllowRequest() bool {
-	return !circuit.isOpen() || circuit.allowSingleTest()
+	return !circuit.IsOpen() || circuit.allowSingleTest()
 }
 
 func (circuit *CircuitBreaker) allowSingleTest() bool {
@@ -123,8 +123,9 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 	defer circuit.mutex.RUnlock()
 
 	now := time.Now().UnixNano()
-	if circuit.open && now > circuit.openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
-		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, circuit.openedOrLastTestedTime, now)
+	openedOrLastTestedTime := atomic.LoadInt64(&circuit.openedOrLastTestedTime)
+	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
+		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
 		}
@@ -156,7 +157,7 @@ func (circuit *CircuitBreaker) setClose() {
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
 func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, runDuration time.Duration) error {
-	if eventType == "success" && circuit.isOpen() {
+	if eventType == "success" && circuit.IsOpen() {
 		circuit.setClose()
 	}
 

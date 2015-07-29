@@ -44,8 +44,8 @@ func (m *poolMetrics) Monitor() {
 	for u := range m.Updates {
 		m.Mutex.RLock()
 
-		m.Executed.Increment()
-		m.MaxActiveRequests.UpdateMax(u.activeCount)
+		m.Executed.Increment(1)
+		m.MaxActiveRequests.UpdateMax(float64(u.activeCount))
 
 		m.Mutex.RUnlock()
 	}

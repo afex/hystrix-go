@@ -93,6 +93,20 @@ hystrixStreamHandler.Start()
 go http.ListenAndServe(net.JoinHostPort("", "81"), hystrixStreamHandler)
 ```
 
+### Send circuit metrics to Statsd
+
+```go
+c, err := plugins.InitializeStatsdCollector(&plugins.StatsdCollectorConfig{
+	StatsdAddr: "localhost:8125",
+	Prefix:     "myapp.hystrix",
+})
+if err != nil {
+	log.Fatalf("could not initialize statsd client: %v", err)
+}
+
+metricCollector.Registry.Register(c.NewStatsdCollector)
+```
+
 FAQ
 ---
 
