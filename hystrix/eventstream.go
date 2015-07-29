@@ -75,7 +75,7 @@ func (sh *StreamHandler) loop() {
 func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	now := time.Now()
 	reqCount := cb.metrics.Requests().Sum(now)
-	errCount := cb.metrics.DefaultCollector().Errors.Sum(now)
+	errCount := cb.metrics.DefaultCollector().Errors().Sum(now)
 	errPct := cb.metrics.ErrorPercent(now)
 
 	eventBytes, err := json.Marshal(&streamCmdMetric{
@@ -90,18 +90,18 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		ErrorPct:           uint32(errPct),
 		CircuitBreakerOpen: cb.IsOpen(),
 
-		RollingCountSuccess:            uint32(cb.metrics.DefaultCollector().Successes.Sum(now)),
-		RollingCountFailure:            uint32(cb.metrics.DefaultCollector().Failures.Sum(now)),
-		RollingCountThreadPoolRejected: uint32(cb.metrics.DefaultCollector().Rejects.Sum(now)),
-		RollingCountShortCircuited:     uint32(cb.metrics.DefaultCollector().ShortCircuits.Sum(now)),
-		RollingCountTimeout:            uint32(cb.metrics.DefaultCollector().Timeouts.Sum(now)),
-		RollingCountFallbackSuccess:    uint32(cb.metrics.DefaultCollector().FallbackSuccesses.Sum(now)),
-		RollingCountFallbackFailure:    uint32(cb.metrics.DefaultCollector().FallbackFailures.Sum(now)),
+		RollingCountSuccess:            uint32(cb.metrics.DefaultCollector().Successes().Sum(now)),
+		RollingCountFailure:            uint32(cb.metrics.DefaultCollector().Failures().Sum(now)),
+		RollingCountThreadPoolRejected: uint32(cb.metrics.DefaultCollector().Rejects().Sum(now)),
+		RollingCountShortCircuited:     uint32(cb.metrics.DefaultCollector().ShortCircuits().Sum(now)),
+		RollingCountTimeout:            uint32(cb.metrics.DefaultCollector().Timeouts().Sum(now)),
+		RollingCountFallbackSuccess:    uint32(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(now)),
+		RollingCountFallbackFailure:    uint32(cb.metrics.DefaultCollector().FallbackFailures().Sum(now)),
 
-		LatencyTotal:       GenerateLatencyTimings(cb.metrics.DefaultCollector().TotalDuration),
-		LatencyTotalMean:   cb.metrics.DefaultCollector().TotalDuration.Mean(),
-		LatencyExecute:     GenerateLatencyTimings(cb.metrics.DefaultCollector().RunDuration),
-		LatencyExecuteMean: cb.metrics.DefaultCollector().RunDuration.Mean(),
+		LatencyTotal:       GenerateLatencyTimings(cb.metrics.DefaultCollector().TotalDuration()),
+		LatencyTotalMean:   cb.metrics.DefaultCollector().TotalDuration().Mean(),
+		LatencyExecute:     GenerateLatencyTimings(cb.metrics.DefaultCollector().RunDuration()),
+		LatencyExecuteMean: cb.metrics.DefaultCollector().RunDuration().Mean(),
 
 		// TODO: all hard-coded values should become configurable settings, per circuit
 

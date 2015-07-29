@@ -109,7 +109,7 @@ func (m *metricExchange) Requests() *rolling.Number {
 }
 
 func (m *metricExchange) requestsLocked() *rolling.Number {
-	return m.DefaultCollector().NumRequests
+	return m.DefaultCollector().NumRequests()
 }
 
 func (m *metricExchange) ErrorPercent(now time.Time) int {
@@ -118,7 +118,7 @@ func (m *metricExchange) ErrorPercent(now time.Time) int {
 
 	var errPct float64
 	reqs := m.requestsLocked().Sum(now)
-	errs := m.DefaultCollector().Errors.Sum(now)
+	errs := m.DefaultCollector().Errors().Sum(now)
 
 	if reqs > 0 {
 		errPct = (float64(errs) / float64(reqs)) * 100
