@@ -138,6 +138,46 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	return errChan
 }
 
+// Do runs your function in a synchronous manner, blocking until either your function succeeds 
+// or an error is returned, including hystrix circuit errors
+func Do(name string, run runFunc, fallback fallbackFunc) error {
+	done := make(chan struct{}, 1)
+
+	r := func() error {
+		err := run()
+		if err != nil {
+			return err
+		}
+
+		done <- struct{}{}
+		return nil
+	}
+
+	f := func(e error) error {
+		err := fallback(e)
+		if err != nil {
+			return err
+		}
+
+		done <- struct{}{}
+		return nil
+	}
+
+	var errChan chan error
+	if fallback == nil {
+		errChan = Go(name, r, nil)
+	} else {
+		errChan = Go(name, r, f)
+	}
+
+	select {
+	case <-done:
+		return nil
+	case err := <-errChan:
+		return err
+	}
+}
+
 func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
 	if fallback == nil {
 		// If we don't have a fallback return the original error.
