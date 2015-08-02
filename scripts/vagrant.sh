@@ -1,10 +1,11 @@
 #!/bin/bash
 set -e
 
-wget -q https://storage.googleapis.com/golang/go1.4.1.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.4.1.linux-amd64.tar.gz
+wget -q https://storage.googleapis.com/golang/go1.4.2.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.4.2.linux-amd64.tar.gz
 
-apt-get -y install git mercurial
+apt-get update
+apt-get -y install git mercurial apache2-utils
 
 echo 'export PATH=$PATH:/usr/local/go/bin:/go/bin
 export GOPATH=/go' >> /home/vagrant/.profile
