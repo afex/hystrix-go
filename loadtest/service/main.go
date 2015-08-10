@@ -41,7 +41,7 @@ func main() {
 	statsdHost := flag.String("statsd", "", "Statsd host to record load test metrics")
 	flag.Parse()
 
-	_, err := statsd.NewClient(*statsdHost, "hystrix.loadtest.driver")
+	stats, err := statsd.NewClient(*statsdHost, "hystrix.loadtest.service")
 	if err != nil {
 		log.Fatalf("could not initialize statsd client: %v", err)
 	}
@@ -61,9 +61,17 @@ func main() {
 
 	go rotateDelay()
 
-	http.HandleFunc("/", handle)
+	http.HandleFunc("/", timedHandler(handle, stats))
 	log.Print("starting server")
 	log.Fatal(http.ListenAndServe(":8888", nil))
+}
+
+func timedHandler(fn func (w http.ResponseWriter, r *http.Request), stats statsd.Statter) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		fn(w, r)
+		stats.TimingDuration("request", time.Since(start), 1)
+	}
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
