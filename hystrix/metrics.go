@@ -26,7 +26,7 @@ func newMetricExchange(name string) *metricExchange {
 	m := &metricExchange{}
 	m.Name = name
 
-	m.Updates = make(chan *commandExecution)
+	m.Updates = make(chan *commandExecution, 1000)
 	m.Mutex = &sync.RWMutex{}
 	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()
@@ -55,26 +55,34 @@ func (m *metricExchange) Monitor() {
 
 		totalDuration := time.Now().Sub(update.Start)
 		for _, collector := range m.metricCollectors {
-			collector.IncrementAttempts()
-			if update.Type != "success" {
-				collector.IncrementErrors()
-			}
-
 			// granular metrics
 			if update.Type == "success" {
+				collector.IncrementAttempts()
 				collector.IncrementSuccesses()
 			}
 			if update.Type == "failure" {
 				collector.IncrementFailures()
+
+				collector.IncrementAttempts()
+				collector.IncrementErrors()
 			}
 			if update.Type == "rejected" {
 				collector.IncrementRejects()
+
+				collector.IncrementAttempts()
+				collector.IncrementErrors()
 			}
 			if update.Type == "short-circuit" {
 				collector.IncrementShortCircuits()
+
+				collector.IncrementAttempts()
+				collector.IncrementErrors()
 			}
 			if update.Type == "timeout" {
 				collector.IncrementTimeouts()
+
+				collector.IncrementAttempts()
+				collector.IncrementErrors()
 			}
 
 			// fallback metrics
