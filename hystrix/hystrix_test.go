@@ -296,3 +296,78 @@ func TestReturnTicket(t *testing.T) {
 		})
 	})
 }
+
+func TestDo(t *testing.T) {
+	Convey("with a command which succeeds", t, func() {
+		defer Flush()
+
+		out := make(chan bool, 1)
+		run := func() error {
+			out <- true
+			return nil
+		}
+
+		Convey("the run function is executed", func() {
+			err := Do("", run, nil)
+			So(err, ShouldBeNil)
+			So(<-out, ShouldEqual, true)
+		})
+	})
+
+	Convey("with a command which fails", t, func() {
+		defer Flush()
+
+		run := func() error {
+			return fmt.Errorf("i failed")
+		}
+
+		Convey("with no fallback", func() {
+			err := Do("", run, nil)
+			Convey("the error is returned", func() {
+				So(err.Error(), ShouldEqual, "i failed")
+			})
+		})
+
+		Convey("with a succeeding fallback", func() {
+			out := make(chan bool, 1)
+			fallback := func(err error) error {
+				out <- true
+				return nil
+			}
+
+			err := Do("", run, fallback)
+
+			Convey("the fallback is executed", func() {
+				So(err, ShouldBeNil)
+				So(<-out, ShouldEqual, true)
+			})
+		})
+
+		Convey("with a failing fallback", func() {
+			fallback := func(err error) error {
+				return fmt.Errorf("fallback failed")
+			}
+
+			err := Do("", run, fallback)
+
+			Convey("both errors are returned", func() {
+				So(err.Error(), ShouldEqual, "fallback failed with 'fallback failed'. run error was 'i failed'")
+			})
+		})
+	})
+
+	Convey("with a command which times out", t, func() {
+		defer Flush()
+
+		ConfigureCommand("", CommandConfig{Timeout: 10})
+
+		err := Do("", func() error {
+			time.Sleep(100 * time.Millisecond)
+			return nil
+		}, nil)
+
+		Convey("the timeout error is returned", func() {
+			So(err.Error(), ShouldEqual, "hystrix: timeout")
+		})
+	})
+}
