@@ -26,7 +26,7 @@ func newMetricExchange(name string) *metricExchange {
 	m := &metricExchange{}
 	m.Name = name
 
-	m.Updates = make(chan *commandExecution, 1000)
+	m.Updates = make(chan *commandExecution)
 	m.Mutex = &sync.RWMutex{}
 	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()

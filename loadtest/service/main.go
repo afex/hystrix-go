@@ -110,7 +110,7 @@ func rotateDelay() {
 			delay -= 1
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 		log.Printf("setting delay to %v", delay)
 	}
 }

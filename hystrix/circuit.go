@@ -139,6 +139,10 @@ func (circuit *CircuitBreaker) setOpen() {
 	circuit.mutex.Lock()
 	defer circuit.mutex.Unlock()
 
+	if circuit.open {
+		return
+	}
+
 	log.Printf("hystrix-go: opening circuit %v", circuit.Name)
 
 	circuit.openedOrLastTestedTime = time.Now().UnixNano()
@@ -148,6 +152,10 @@ func (circuit *CircuitBreaker) setOpen() {
 func (circuit *CircuitBreaker) setClose() {
 	circuit.mutex.Lock()
 	defer circuit.mutex.Unlock()
+
+	if !circuit.open {
+		return
+	}
 
 	log.Printf("hystrix-go: closing circuit %v", circuit.Name)
 
