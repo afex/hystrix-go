@@ -66,7 +66,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8888", nil))
 }
 
-func timedHandler(fn func (w http.ResponseWriter, r *http.Request), stats statsd.Statter) func(w http.ResponseWriter, r *http.Request) {
+func timedHandler(fn func(w http.ResponseWriter, r *http.Request), stats statsd.Statter) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		fn(w, r)

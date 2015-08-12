@@ -9,4 +9,6 @@ Vagrant.configure("2") do |config|
 	config.vm.provider "virtualbox" do |v|
 		v.cpus = 3
 	end
+
+	config.vm.network "forwarded_port", guest: 8888, host: 8888
 end
