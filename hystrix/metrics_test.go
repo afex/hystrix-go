@@ -18,7 +18,7 @@ func metricFailingPercent(p int) *metricExchange {
 	}
 
 	// Updates needs to be flushed
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	return m
 }

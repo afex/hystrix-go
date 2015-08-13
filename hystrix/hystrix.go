@@ -138,7 +138,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	return errChan
 }
 
-// Do runs your function in a synchronous manner, blocking until either your function succeeds 
+// Do runs your function in a synchronous manner, blocking until either your function succeeds
 // or an error is returned, including hystrix circuit errors
 func Do(name string, run runFunc, fallback fallbackFunc) error {
 	done := make(chan struct{}, 1)

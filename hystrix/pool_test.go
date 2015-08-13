@@ -14,6 +14,7 @@ func TestReturn(t *testing.T) {
 		pool := newExecutorPool("pool")
 		ticket := <-pool.Tickets
 		pool.Return(ticket)
+		time.Sleep(1 * time.Millisecond)
 		Convey("total executed requests should increment", func() {
 			So(pool.Metrics.Executed.Sum(time.Now()), ShouldEqual, 1)
 		})

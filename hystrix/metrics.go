@@ -26,7 +26,7 @@ func newMetricExchange(name string) *metricExchange {
 	m := &metricExchange{}
 	m.Name = name
 
-	m.Updates = make(chan *commandExecution)
+	m.Updates = make(chan *commandExecution, 2000)
 	m.Mutex = &sync.RWMutex{}
 	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()
@@ -54,43 +54,60 @@ func (m *metricExchange) Monitor() {
 		m.Mutex.RLock()
 
 		totalDuration := time.Now().Sub(update.Start)
+		wg := &sync.WaitGroup{}
 		for _, collector := range m.metricCollectors {
-			collector.IncrementAttempts()
-			if update.Type != "success" {
-				collector.IncrementErrors()
-			}
-
-			// granular metrics
-			if update.Type == "success" {
-				collector.IncrementSuccesses()
-			}
-			if update.Type == "failure" {
-				collector.IncrementFailures()
-			}
-			if update.Type == "rejected" {
-				collector.IncrementRejects()
-			}
-			if update.Type == "short-circuit" {
-				collector.IncrementShortCircuits()
-			}
-			if update.Type == "timeout" {
-				collector.IncrementTimeouts()
-			}
-
-			// fallback metrics
-			if update.Type == "fallback-success" {
-				collector.IncrementFallbackSuccesses()
-			}
-			if update.Type == "fallback-failure" {
-				collector.IncrementFallbackFailures()
-			}
-
-			collector.UpdateTotalDuration(totalDuration)
-			collector.UpdateRunDuration(update.RunDuration)
+			wg.Add(1)
+			go m.IncrementMetrics(wg, collector, update, totalDuration)
 		}
+		wg.Wait()
 
 		m.Mutex.RUnlock()
 	}
+}
+
+func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCollector.MetricCollector, update *commandExecution, totalDuration time.Duration) {
+	// granular metrics
+	if update.Type == "success" {
+		collector.IncrementAttempts()
+		collector.IncrementSuccesses()
+	}
+	if update.Type == "failure" {
+		collector.IncrementFailures()
+
+		collector.IncrementAttempts()
+		collector.IncrementErrors()
+	}
+	if update.Type == "rejected" {
+		collector.IncrementRejects()
+
+		collector.IncrementAttempts()
+		collector.IncrementErrors()
+	}
+	if update.Type == "short-circuit" {
+		collector.IncrementShortCircuits()
+
+		collector.IncrementAttempts()
+		collector.IncrementErrors()
+	}
+	if update.Type == "timeout" {
+		collector.IncrementTimeouts()
+
+		collector.IncrementAttempts()
+		collector.IncrementErrors()
+	}
+
+	// fallback metrics
+	if update.Type == "fallback-success" {
+		collector.IncrementFallbackSuccesses()
+	}
+	if update.Type == "fallback-failure" {
+		collector.IncrementFallbackFailures()
+	}
+
+	collector.UpdateTotalDuration(totalDuration)
+	collector.UpdateRunDuration(update.RunDuration)
+
+	wg.Done()
 }
 
 func (m *metricExchange) Reset() {
