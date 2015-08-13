@@ -69,6 +69,17 @@ case err := <-errors:
 }
 ```
 
+### Synchronous API
+
+Since calling a command and immediately waiting for it to finish is a common pattern, a synchronous API is available with the `hystrix.Do` function which returns a single error.
+
+```go
+err := hystrix.Do("my_command", func() error {
+	// talk to other services
+	return nil
+}, nil)
+```
+
 ### Configure settings
 
 During application boot, you can call ```hystrix.ConfigureCommand()``` to tweak the settings for each command.

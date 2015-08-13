@@ -98,9 +98,9 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		RollingCountFallbackSuccess:    uint32(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(now)),
 		RollingCountFallbackFailure:    uint32(cb.metrics.DefaultCollector().FallbackFailures().Sum(now)),
 
-		LatencyTotal:       GenerateLatencyTimings(cb.metrics.DefaultCollector().TotalDuration()),
+		LatencyTotal:       generateLatencyTimings(cb.metrics.DefaultCollector().TotalDuration()),
 		LatencyTotalMean:   cb.metrics.DefaultCollector().TotalDuration().Mean(),
-		LatencyExecute:     GenerateLatencyTimings(cb.metrics.DefaultCollector().RunDuration()),
+		LatencyExecute:     generateLatencyTimings(cb.metrics.DefaultCollector().RunDuration()),
 		LatencyExecuteMean: cb.metrics.DefaultCollector().RunDuration().Mean(),
 
 		// TODO: all hard-coded values should become configurable settings, per circuit
@@ -208,7 +208,7 @@ func (sh *StreamHandler) unregister(req *http.Request) {
 	sh.mu.Unlock()
 }
 
-func GenerateLatencyTimings(r *rolling.Timing) streamCmdLatency {
+func generateLatencyTimings(r *rolling.Timing) streamCmdLatency {
 	return streamCmdLatency{
 		Timing0:   r.Percentile(0),
 		Timing25:  r.Percentile(25),

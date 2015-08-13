@@ -9,6 +9,8 @@ import (
 type runFunc func() error
 type fallbackFunc func(error) error
 
+// A CircuitError is an error which models various failure states of execution, 
+// such as the circuit being open or a timeout.
 type CircuitError struct {
 	Message string
 }
@@ -18,8 +20,11 @@ func (e CircuitError) Error() string {
 }
 
 var (
+	// ErrMaxConcurrency occurs when too many of the same named command are executed at the same time.
 	ErrMaxConcurrency = CircuitError{Message: "max concurrency"}
+	// ErrCircuitOpen returns when an execution attempt "short circuits". This happens due to the circuit being measured as unhealthy.
 	ErrCircuitOpen    = CircuitError{Message: "circuit open"}
+	// ErrTimeout occurs when the provided function takes too long to execute.
 	ErrTimeout        = CircuitError{Message: "timeout"}
 )
 

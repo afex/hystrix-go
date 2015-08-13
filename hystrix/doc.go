@@ -47,6 +47,15 @@ Calling Go is like launching a goroutine, except you receive a channel of errors
 		// failure
 	}
 
+Synchronous API
+
+Since calling a command and immediately waiting for it to finish is a common pattern, a synchronous API is available with the Do function which returns a single error.
+
+	err := hystrix.Do("my_command", func() error {
+		// talk to other services
+		return nil
+	}, nil)
+
 Configure settings
 
 During application boot, you can call ConfigureCommand to tweak the settings for each command.

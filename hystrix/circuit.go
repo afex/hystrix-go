@@ -87,7 +87,7 @@ func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
 	return nil
 }
 
-// isOpen is called before any Command execution to check whether or
+// IsOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.mutex.RLock()
