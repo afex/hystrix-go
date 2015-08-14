@@ -62,6 +62,13 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if !circuit.AllowRequest() {
+			stopMutex.Lock()
+			defer stopMutex.Unlock()
+			if stop {
+				return
+			}
+			stop = true
+			
 			circuit.ReportEvent("short-circuit", start, 0)
 			err := tryFallback(fallbackOnce, circuit, start, 0, fallback, ErrCircuitOpen)
 			if err != nil {
