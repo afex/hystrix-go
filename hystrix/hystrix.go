@@ -22,8 +22,9 @@ func (e CircuitError) Error() string {
 // command models the state used for a single execution on a circuit. "hystrix command" is commonly
 // used to describe the pairing of your run/fallback functions with a circuit.
 type command struct {
+	sync.Mutex
+
 	ticket       *struct{}
-	ticketMutex  *sync.Mutex
 	start        time.Time
 	errChan      chan error
 	finished     chan bool
@@ -31,6 +32,9 @@ type command struct {
 	circuit      *CircuitBreaker
 	run          runFunc
 	fallback     fallbackFunc
+	runDuration  time.Duration
+	events       []string
+	timedOut     bool
 }
 
 var (
@@ -51,7 +55,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	cmd := &command{
 		run:          run,
 		fallback:     fallback,
-		ticketMutex:  &sync.Mutex{},
 		start:        time.Now(),
 		errChan:      make(chan error, 1),
 		finished:     make(chan bool, 1),
@@ -76,7 +79,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if !cmd.circuit.AllowRequest() {
-			cmd.errorWithFallback(ErrCircuitOpen, 0)
+			cmd.errorWithFallback(ErrCircuitOpen)
 			return
 		}
 
@@ -85,33 +88,38 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// When requests slow down but the incoming rate of requests stays the same, you have to
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
-		cmd.ticketMutex.Lock()
+		cmd.Lock()
 		select {
 		case cmd.ticket = <-circuit.executorPool.Tickets:
-			cmd.ticketMutex.Unlock()
+			cmd.Unlock()
 		default:
-			cmd.ticketMutex.Unlock()
-			cmd.errorWithFallback(ErrMaxConcurrency, 0)
+			cmd.Unlock()
+			cmd.errorWithFallback(ErrMaxConcurrency)
 			return
 		}
 
 		runStart := time.Now()
 		runErr := run()
-		runDuration := time.Since(runStart)
 
-		if runErr != nil {
-			cmd.errorWithFallback(runErr, runDuration)
-			return
+		if !cmd.isTimedOut() {
+			cmd.runDuration = time.Since(runStart)
+
+			if runErr != nil {
+				cmd.errorWithFallback(runErr)
+				return
+			}
+
+			cmd.reportEvent("success")
 		}
-
-		cmd.circuit.ReportEvent("success", cmd.start, runDuration)
 	}()
 
 	go func() {
 		defer func() {
-			cmd.ticketMutex.Lock()
+			cmd.Lock()
 			cmd.circuit.executorPool.Return(cmd.ticket)
-			cmd.ticketMutex.Unlock()
+			cmd.Unlock()
+
+			cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
 		}()
 
 		timer := time.NewTimer(getSettings(name).Timeout)
@@ -120,7 +128,11 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		select {
 		case <-cmd.finished:
 		case <-timer.C:
-			cmd.errorWithFallback(ErrTimeout, 0)
+			cmd.Lock()
+			cmd.timedOut = true
+			cmd.Unlock()
+
+			cmd.errorWithFallback(ErrTimeout)
 			return
 		}
 	}()
@@ -168,10 +180,24 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 	}
 }
 
+func (c *command) reportEvent(eventType string) {
+	c.Lock()
+	defer c.Unlock()
+
+	c.events = append(c.events, eventType)
+}
+
+func (c *command) isTimedOut() bool {
+	c.Lock()
+	defer c.Unlock()
+
+	return c.timedOut
+}
+
 // errorWithFallback triggers the fallback while reporting the appropriate metric events.
 // If called multiple times for a single command, only the first will execute to insure
 // accurate metrics and prevent the fallback from executing more than once.
-func (c *command) errorWithFallback(err error, runDuration time.Duration) {
+func (c *command) errorWithFallback(err error) {
 	c.fallbackOnce.Do(func() {
 		eventType := "failure"
 		if err == ErrCircuitOpen {
@@ -182,15 +208,15 @@ func (c *command) errorWithFallback(err error, runDuration time.Duration) {
 			eventType = "timeout"
 		}
 
-		c.circuit.ReportEvent(eventType, c.start, runDuration)
-		fallbackErr := c.tryFallback(runDuration, err)
+		c.reportEvent(eventType)
+		fallbackErr := c.tryFallback(err)
 		if fallbackErr != nil {
 			c.errChan <- fallbackErr
 		}
 	})
 }
 
-func (c *command) tryFallback(runDuration time.Duration, err error) error {
+func (c *command) tryFallback(err error) error {
 	if c.fallback == nil {
 		// If we don't have a fallback return the original error.
 		return err
@@ -198,11 +224,11 @@ func (c *command) tryFallback(runDuration time.Duration, err error) error {
 
 	fallbackErr := c.fallback(err)
 	if fallbackErr != nil {
-		c.circuit.ReportEvent("fallback-failure", c.start, runDuration)
+		c.reportEvent("fallback-failure")
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
 	}
 
-	c.circuit.ReportEvent("fallback-success", c.start, runDuration)
+	c.reportEvent("fallback-success")
 
 	return nil
 }
