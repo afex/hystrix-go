@@ -34,8 +34,6 @@ var (
 //
 // Define a fallback function if you want to define some code to execute during outages.
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
-	stop := false
-	stopMutex := &sync.Mutex{}
 	var ticket *struct{}
 	ticketMutex := &sync.Mutex{}
 
@@ -62,18 +60,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if !circuit.AllowRequest() {
-			stopMutex.Lock()
-			defer stopMutex.Unlock()
-			if stop {
-				return
-			}
-			stop = true
-			
-			circuit.ReportEvent("short-circuit", start, 0)
-			err := tryFallback(fallbackOnce, circuit, start, 0, fallback, ErrCircuitOpen)
-			if err != nil {
-				errChan <- err
-			}
+			errorWithFallback(fallbackOnce, errChan, circuit, ErrCircuitOpen, start, 0, fallback)
 			return
 		}
 
@@ -88,32 +75,17 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			ticketMutex.Unlock()
 		default:
 			ticketMutex.Unlock()
-			circuit.ReportEvent("rejected", start, 0)
-			err := tryFallback(fallbackOnce, circuit, start, 0, fallback, ErrMaxConcurrency)
-			if err != nil {
-				errChan <- err
-			}
+			errorWithFallback(fallbackOnce, errChan, circuit, ErrMaxConcurrency, start, 0, fallback)
 			return
 		}
 
 		runStart := time.Now()
 		runErr := run()
-		runDuration := time.Now().Sub(runStart)
-
-		stopMutex.Lock()
-		defer stopMutex.Unlock()
-		if stop {
-			return
-		}
-		stop = true
+		runDuration := time.Since(runStart)
 
 		if runErr != nil {
-			circuit.ReportEvent("failure", start, runDuration)
-			err := tryFallback(fallbackOnce, circuit, start, runDuration, fallback, runErr)
-			if err != nil {
-				errChan <- err
-				return
-			}
+			errorWithFallback(fallbackOnce, errChan, circuit, runErr, start, runDuration, fallback)
+			return
 		}
 
 		circuit.ReportEvent("success", start, runDuration)
@@ -132,19 +104,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		select {
 		case <-finished:
 		case <-timer.C:
-			stopMutex.Lock()
-			defer stopMutex.Unlock()
-
-			if !stop {
-				stop = true
-
-				circuit.ReportEvent("timeout", start, 0)
-
-				err := tryFallback(fallbackOnce, circuit, start, 0, fallback, ErrTimeout)
-				if err != nil {
-					errChan <- err
-				}
-			}
+			errorWithFallback(fallbackOnce, errChan, circuit, ErrTimeout, start, 0, fallback)
+			return
 		}
 	}()
 
@@ -191,33 +152,41 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 	}
 }
 
-func tryFallback(once *sync.Once, circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
-	errors := make(chan error, 1)
-	var ran bool
-
+// errorWithFallback triggers the fallback while reporting the appropriate metric events.
+// If called multiple times for a single command, only the first will execute to insure
+// accurate metrics and prevent the fallback from executing more than once.
+func errorWithFallback(once *sync.Once, errChan chan error, circuit *CircuitBreaker, err error, start time.Time, runDuration time.Duration, fallback fallbackFunc) {
 	once.Do(func() {
-		ran = true
-		if fallback == nil {
-			// If we don't have a fallback return the original error.
-			errors <- err
-			return
+		eventType := "failure"
+		if err == ErrCircuitOpen {
+			eventType = "short-circuit"
+		} else if err == ErrMaxConcurrency {
+			eventType = "rejected"
+		} else if err == ErrTimeout {
+			eventType = "timeout"
 		}
 
-		fallbackErr := fallback(err)
+		circuit.ReportEvent(eventType, start, runDuration)
+		fallbackErr := tryFallback(circuit, start, runDuration, fallback, err)
 		if fallbackErr != nil {
-			circuit.ReportEvent("fallback-failure", start, runDuration)
-			errors <- fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
-			return
+			errChan <- fallbackErr
 		}
-
-		circuit.ReportEvent("fallback-success", start, runDuration)
-
-		errors <- nil
 	})
+}
 
-	if !ran {
-		errors <- nil
+func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
+	if fallback == nil {
+		// If we don't have a fallback return the original error.
+		return err
 	}
 
-	return <-errors
+	fallbackErr := fallback(err)
+	if fallbackErr != nil {
+		circuit.ReportEvent("fallback-failure", start, runDuration)
+		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
+	}
+
+	circuit.ReportEvent("fallback-success", start, runDuration)
+
+	return nil
 }
