@@ -266,6 +266,11 @@ func TestSlowFallbackOpenCircuit(t *testing.T) {
 			Convey("the fallback only fires for the short-circuit, not both", func() {
 				time.Sleep(250 * time.Millisecond)
 				So(len(out), ShouldEqual, 1)
+
+				Convey("and a timeout event is not recorded", func() {
+					So(cb.metrics.DefaultCollector().ShortCircuits().Sum(time.Now()), ShouldEqual, 1)
+					So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
+				})
 			})
 		})
 	})
