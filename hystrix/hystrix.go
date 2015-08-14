@@ -9,7 +9,7 @@ import (
 type runFunc func() error
 type fallbackFunc func(error) error
 
-// A CircuitError is an error which models various failure states of execution, 
+// A CircuitError is an error which models various failure states of execution,
 // such as the circuit being open or a timeout.
 type CircuitError struct {
 	Message string
@@ -19,13 +19,27 @@ func (e CircuitError) Error() string {
 	return "hystrix: " + e.Message
 }
 
+// command models the state used for a single execution on a circuit. "hystrix command" is commonly
+// used to describe the pairing of your run/fallback functions with a circuit.
+type command struct {
+	ticket       *struct{}
+	ticketMutex  *sync.Mutex
+	start        time.Time
+	errChan      chan error
+	finished     chan bool
+	fallbackOnce *sync.Once
+	circuit      *CircuitBreaker
+	run          runFunc
+	fallback     fallbackFunc
+}
+
 var (
 	// ErrMaxConcurrency occurs when too many of the same named command are executed at the same time.
 	ErrMaxConcurrency = CircuitError{Message: "max concurrency"}
 	// ErrCircuitOpen returns when an execution attempt "short circuits". This happens due to the circuit being measured as unhealthy.
-	ErrCircuitOpen    = CircuitError{Message: "circuit open"}
+	ErrCircuitOpen = CircuitError{Message: "circuit open"}
 	// ErrTimeout occurs when the provided function takes too long to execute.
-	ErrTimeout        = CircuitError{Message: "timeout"}
+	ErrTimeout = CircuitError{Message: "timeout"}
 )
 
 // Go runs your function while tracking the health of previous calls to it.
@@ -34,15 +48,15 @@ var (
 //
 // Define a fallback function if you want to define some code to execute during outages.
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
-	stop := false
-	stopMutex := &sync.Mutex{}
-	var ticket *struct{}
-	ticketMutex := &sync.Mutex{}
-
-	start := time.Now()
-
-	errChan := make(chan error, 1)
-	finished := make(chan bool, 1)
+	cmd := &command{
+		run:          run,
+		fallback:     fallback,
+		ticketMutex:  &sync.Mutex{},
+		start:        time.Now(),
+		errChan:      make(chan error, 1),
+		finished:     make(chan bool, 1),
+		fallbackOnce: &sync.Once{},
+	}
 
 	// dont have methods with explicit params and returns
 	// let data come in and out naturally, like with any closure
@@ -50,22 +64,19 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 	circuit, _, err := GetCircuit(name)
 	if err != nil {
-		errChan <- err
-		return errChan
+		cmd.errChan <- err
+		return cmd.errChan
 	}
+	cmd.circuit = circuit
 
 	go func() {
-		defer func() { finished <- true }()
+		defer func() { cmd.finished <- true }()
 
 		// Circuits get opened when recent executions have shown to have a high error rate.
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
-		if !circuit.AllowRequest() {
-			circuit.ReportEvent("short-circuit", start, 0)
-			err := tryFallback(circuit, start, 0, fallback, ErrCircuitOpen)
-			if err != nil {
-				errChan <- err
-			}
+		if !cmd.circuit.AllowRequest() {
+			cmd.errorWithFallback(ErrCircuitOpen, 0)
 			return
 		}
 
@@ -74,73 +85,47 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// When requests slow down but the incoming rate of requests stays the same, you have to
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
-		ticketMutex.Lock()
+		cmd.ticketMutex.Lock()
 		select {
-		case ticket = <-circuit.executorPool.Tickets:
-			ticketMutex.Unlock()
+		case cmd.ticket = <-circuit.executorPool.Tickets:
+			cmd.ticketMutex.Unlock()
 		default:
-			ticketMutex.Unlock()
-			circuit.ReportEvent("rejected", start, 0)
-			err := tryFallback(circuit, start, 0, fallback, ErrMaxConcurrency)
-			if err != nil {
-				errChan <- err
-			}
+			cmd.ticketMutex.Unlock()
+			cmd.errorWithFallback(ErrMaxConcurrency, 0)
 			return
 		}
 
 		runStart := time.Now()
 		runErr := run()
-		runDuration := time.Now().Sub(runStart)
-
-		stopMutex.Lock()
-		defer stopMutex.Unlock()
-		if stop {
-			return
-		}
-		stop = true
+		runDuration := time.Since(runStart)
 
 		if runErr != nil {
-			circuit.ReportEvent("failure", start, runDuration)
-			err := tryFallback(circuit, start, runDuration, fallback, runErr)
-			if err != nil {
-				errChan <- err
-				return
-			}
+			cmd.errorWithFallback(runErr, runDuration)
+			return
 		}
 
-		circuit.ReportEvent("success", start, runDuration)
+		cmd.circuit.ReportEvent("success", cmd.start, runDuration)
 	}()
 
 	go func() {
 		defer func() {
-			ticketMutex.Lock()
-			circuit.executorPool.Return(ticket)
-			ticketMutex.Unlock()
+			cmd.ticketMutex.Lock()
+			cmd.circuit.executorPool.Return(cmd.ticket)
+			cmd.ticketMutex.Unlock()
 		}()
 
 		timer := time.NewTimer(getSettings(name).Timeout)
 		defer timer.Stop()
 
 		select {
-		case <-finished:
+		case <-cmd.finished:
 		case <-timer.C:
-			stopMutex.Lock()
-			defer stopMutex.Unlock()
-
-			if !stop {
-				stop = true
-
-				circuit.ReportEvent("timeout", start, 0)
-
-				err := tryFallback(circuit, start, 0, fallback, ErrTimeout)
-				if err != nil {
-					errChan <- err
-				}
-			}
+			cmd.errorWithFallback(ErrTimeout, 0)
+			return
 		}
 	}()
 
-	return errChan
+	return cmd.errChan
 }
 
 // Do runs your function in a synchronous manner, blocking until either your function succeeds
@@ -183,19 +168,41 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 	}
 }
 
-func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
-	if fallback == nil {
+// errorWithFallback triggers the fallback while reporting the appropriate metric events.
+// If called multiple times for a single command, only the first will execute to insure
+// accurate metrics and prevent the fallback from executing more than once.
+func (c *command) errorWithFallback(err error, runDuration time.Duration) {
+	c.fallbackOnce.Do(func() {
+		eventType := "failure"
+		if err == ErrCircuitOpen {
+			eventType = "short-circuit"
+		} else if err == ErrMaxConcurrency {
+			eventType = "rejected"
+		} else if err == ErrTimeout {
+			eventType = "timeout"
+		}
+
+		c.circuit.ReportEvent(eventType, c.start, runDuration)
+		fallbackErr := c.tryFallback(runDuration, err)
+		if fallbackErr != nil {
+			c.errChan <- fallbackErr
+		}
+	})
+}
+
+func (c *command) tryFallback(runDuration time.Duration, err error) error {
+	if c.fallback == nil {
 		// If we don't have a fallback return the original error.
 		return err
 	}
 
-	fallbackErr := fallback(err)
+	fallbackErr := c.fallback(err)
 	if fallbackErr != nil {
-		circuit.ReportEvent("fallback-failure", start, runDuration)
+		c.circuit.ReportEvent("fallback-failure", c.start, runDuration)
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
 	}
 
-	circuit.ReportEvent("fallback-success", start, runDuration)
+	c.circuit.ReportEvent("fallback-success", c.start, runDuration)
 
 	return nil
 }
