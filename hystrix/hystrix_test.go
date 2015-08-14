@@ -262,7 +262,7 @@ func TestSlowFallbackOpenCircuit(t *testing.T) {
 				out <- struct{}{}
 				return nil
 			})
-			
+
 			Convey("the fallback only fires for the short-circuit, not both", func() {
 				time.Sleep(250 * time.Millisecond)
 				So(len(out), ShouldEqual, 1)
