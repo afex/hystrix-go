@@ -19,6 +19,20 @@ func (e CircuitError) Error() string {
 	return "hystrix: " + e.Message
 }
 
+// command models the state used for a single execution on a circuit. "hystrix command" is commonly
+// used to describe the pairing of your run/fallback functions with a circuit.
+type command struct {
+	ticket       *struct{}
+	ticketMutex  *sync.Mutex
+	start        time.Time
+	errChan      chan error
+	finished     chan bool
+	fallbackOnce *sync.Once
+	circuit      *CircuitBreaker
+	run          runFunc
+	fallback     fallbackFunc
+}
+
 var (
 	// ErrMaxConcurrency occurs when too many of the same named command are executed at the same time.
 	ErrMaxConcurrency = CircuitError{Message: "max concurrency"}
@@ -34,14 +48,15 @@ var (
 //
 // Define a fallback function if you want to define some code to execute during outages.
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
-	var ticket *struct{}
-	ticketMutex := &sync.Mutex{}
-
-	start := time.Now()
-
-	errChan := make(chan error, 1)
-	finished := make(chan bool, 1)
-	fallbackOnce := &sync.Once{}
+	cmd := &command{
+		run:          run,
+		fallback:     fallback,
+		ticketMutex:  &sync.Mutex{},
+		start:        time.Now(),
+		errChan:      make(chan error, 1),
+		finished:     make(chan bool, 1),
+		fallbackOnce: &sync.Once{},
+	}
 
 	// dont have methods with explicit params and returns
 	// let data come in and out naturally, like with any closure
@@ -49,18 +64,19 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 	circuit, _, err := GetCircuit(name)
 	if err != nil {
-		errChan <- err
-		return errChan
+		cmd.errChan <- err
+		return cmd.errChan
 	}
+	cmd.circuit = circuit
 
 	go func() {
-		defer func() { finished <- true }()
+		defer func() { cmd.finished <- true }()
 
 		// Circuits get opened when recent executions have shown to have a high error rate.
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
-		if !circuit.AllowRequest() {
-			errorWithFallback(fallbackOnce, errChan, circuit, ErrCircuitOpen, start, 0, fallback)
+		if !cmd.circuit.AllowRequest() {
+			cmd.errorWithFallback(ErrCircuitOpen, 0)
 			return
 		}
 
@@ -69,13 +85,13 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// When requests slow down but the incoming rate of requests stays the same, you have to
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
-		ticketMutex.Lock()
+		cmd.ticketMutex.Lock()
 		select {
-		case ticket = <-circuit.executorPool.Tickets:
-			ticketMutex.Unlock()
+		case cmd.ticket = <-circuit.executorPool.Tickets:
+			cmd.ticketMutex.Unlock()
 		default:
-			ticketMutex.Unlock()
-			errorWithFallback(fallbackOnce, errChan, circuit, ErrMaxConcurrency, start, 0, fallback)
+			cmd.ticketMutex.Unlock()
+			cmd.errorWithFallback(ErrMaxConcurrency, 0)
 			return
 		}
 
@@ -84,32 +100,32 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		runDuration := time.Since(runStart)
 
 		if runErr != nil {
-			errorWithFallback(fallbackOnce, errChan, circuit, runErr, start, runDuration, fallback)
+			cmd.errorWithFallback(runErr, runDuration)
 			return
 		}
 
-		circuit.ReportEvent("success", start, runDuration)
+		cmd.circuit.ReportEvent("success", cmd.start, runDuration)
 	}()
 
 	go func() {
 		defer func() {
-			ticketMutex.Lock()
-			circuit.executorPool.Return(ticket)
-			ticketMutex.Unlock()
+			cmd.ticketMutex.Lock()
+			cmd.circuit.executorPool.Return(cmd.ticket)
+			cmd.ticketMutex.Unlock()
 		}()
 
 		timer := time.NewTimer(getSettings(name).Timeout)
 		defer timer.Stop()
 
 		select {
-		case <-finished:
+		case <-cmd.finished:
 		case <-timer.C:
-			errorWithFallback(fallbackOnce, errChan, circuit, ErrTimeout, start, 0, fallback)
+			cmd.errorWithFallback(ErrTimeout, 0)
 			return
 		}
 	}()
 
-	return errChan
+	return cmd.errChan
 }
 
 // Do runs your function in a synchronous manner, blocking until either your function succeeds
@@ -155,8 +171,8 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 // errorWithFallback triggers the fallback while reporting the appropriate metric events.
 // If called multiple times for a single command, only the first will execute to insure
 // accurate metrics and prevent the fallback from executing more than once.
-func errorWithFallback(once *sync.Once, errChan chan error, circuit *CircuitBreaker, err error, start time.Time, runDuration time.Duration, fallback fallbackFunc) {
-	once.Do(func() {
+func (c *command) errorWithFallback(err error, runDuration time.Duration) {
+	c.fallbackOnce.Do(func() {
 		eventType := "failure"
 		if err == ErrCircuitOpen {
 			eventType = "short-circuit"
@@ -166,27 +182,27 @@ func errorWithFallback(once *sync.Once, errChan chan error, circuit *CircuitBrea
 			eventType = "timeout"
 		}
 
-		circuit.ReportEvent(eventType, start, runDuration)
-		fallbackErr := tryFallback(circuit, start, runDuration, fallback, err)
+		c.circuit.ReportEvent(eventType, c.start, runDuration)
+		fallbackErr := c.tryFallback(runDuration, err)
 		if fallbackErr != nil {
-			errChan <- fallbackErr
+			c.errChan <- fallbackErr
 		}
 	})
 }
 
-func tryFallback(circuit *CircuitBreaker, start time.Time, runDuration time.Duration, fallback fallbackFunc, err error) error {
-	if fallback == nil {
+func (c *command) tryFallback(runDuration time.Duration, err error) error {
+	if c.fallback == nil {
 		// If we don't have a fallback return the original error.
 		return err
 	}
 
-	fallbackErr := fallback(err)
+	fallbackErr := c.fallback(err)
 	if fallbackErr != nil {
-		circuit.ReportEvent("fallback-failure", start, runDuration)
+		c.circuit.ReportEvent("fallback-failure", c.start, runDuration)
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
 	}
 
-	circuit.ReportEvent("fallback-success", start, runDuration)
+	c.circuit.ReportEvent("fallback-success", c.start, runDuration)
 
 	return nil
 }
