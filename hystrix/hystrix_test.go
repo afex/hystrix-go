@@ -242,6 +242,35 @@ func TestFailAfterTimeout(t *testing.T) {
 	})
 }
 
+func TestSlowFallbackOpenCircuit(t *testing.T) {
+	Convey("with an open circuit and a slow fallback", t, func() {
+		defer Flush()
+
+		ConfigureCommand("", CommandConfig{Timeout: 10})
+
+		cb, _, err := GetCircuit("")
+		So(err, ShouldEqual, nil)
+		cb.setOpen()
+
+		out := make(chan struct{}, 2)
+
+		Convey("when the command short circuits", func() {
+			Go("", func() error {
+				return nil
+			}, func(err error) error {
+				time.Sleep(100 * time.Millisecond)
+				out <- struct{}{}
+				return nil
+			})
+			
+			Convey("the fallback only fires for the short-circuit, not both", func() {
+				time.Sleep(250 * time.Millisecond)
+				So(len(out), ShouldEqual, 1)
+			})
+		})
+	})
+}
+
 func TestFallbackAfterRejected(t *testing.T) {
 	Convey("with a circuit whose pool is full", t, func() {
 		defer Flush()
