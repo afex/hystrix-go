@@ -9,7 +9,7 @@ import (
 )
 
 type commandExecution struct {
-	Type        string        `json:"type"`
+	Types       []string      `json:"types"`
 	Start       time.Time     `json:"start_time"`
 	RunDuration time.Duration `json:"run_duration"`
 }
@@ -53,7 +53,7 @@ func (m *metricExchange) Monitor() {
 		// we only grab a read lock to make sure Reset() isn't changing the numbers.
 		m.Mutex.RLock()
 
-		totalDuration := time.Now().Sub(update.Start)
+		totalDuration := time.Since(update.Start)
 		wg := &sync.WaitGroup{}
 		for _, collector := range m.metricCollectors {
 			wg.Add(1)
@@ -67,41 +67,43 @@ func (m *metricExchange) Monitor() {
 
 func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCollector.MetricCollector, update *commandExecution, totalDuration time.Duration) {
 	// granular metrics
-	if update.Type == "success" {
+	if update.Types[0] == "success" {
 		collector.IncrementAttempts()
 		collector.IncrementSuccesses()
 	}
-	if update.Type == "failure" {
+	if update.Types[0] == "failure" {
 		collector.IncrementFailures()
 
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
-	if update.Type == "rejected" {
+	if update.Types[0] == "rejected" {
 		collector.IncrementRejects()
 
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
-	if update.Type == "short-circuit" {
+	if update.Types[0] == "short-circuit" {
 		collector.IncrementShortCircuits()
 
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
-	if update.Type == "timeout" {
+	if update.Types[0] == "timeout" {
 		collector.IncrementTimeouts()
 
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
 
-	// fallback metrics
-	if update.Type == "fallback-success" {
-		collector.IncrementFallbackSuccesses()
-	}
-	if update.Type == "fallback-failure" {
-		collector.IncrementFallbackFailures()
+	if len(update.Types) > 1 {
+		// fallback metrics
+		if update.Types[1] == "fallback-success" {
+			collector.IncrementFallbackSuccesses()
+		}
+		if update.Types[1] == "fallback-failure" {
+			collector.IncrementFallbackFailures()
+		}
 	}
 
 	collector.UpdateTotalDuration(totalDuration)

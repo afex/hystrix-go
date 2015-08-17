@@ -14,7 +14,7 @@ func metricFailingPercent(p int) *metricExchange {
 		if i < p {
 			t = "failure"
 		}
-		m.Updates <- &commandExecution{Type: t}
+		m.Updates <- &commandExecution{Types: []string{t}}
 	}
 
 	// Updates needs to be flushed

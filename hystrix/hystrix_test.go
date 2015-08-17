@@ -20,9 +20,15 @@ func TestSuccess(t *testing.T) {
 
 		Convey("reading from that channel should provide the expected value", func() {
 			So(<-resultChan, ShouldEqual, 1)
-		})
-		Convey("no errors should be returned", func() {
-			So(len(errChan), ShouldEqual, 0)
+
+			Convey("no errors should be returned", func() {
+				So(len(errChan), ShouldEqual, 0)
+			})
+			Convey("metrics are recorded", func() {
+				time.Sleep(10 * time.Millisecond)
+				cb, _, _ := GetCircuit("")
+				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 1)
+			})
 		})
 	})
 }
@@ -43,9 +49,17 @@ func TestFallback(t *testing.T) {
 
 		Convey("reading from that channel should provide the expected value", func() {
 			So(<-resultChan, ShouldEqual, 1)
-		})
-		Convey("no errors should be returned", func() {
-			So(len(errChan), ShouldEqual, 0)
+
+			Convey("no errors should be returned", func() {
+				So(len(errChan), ShouldEqual, 0)
+			})
+			Convey("metrics are recorded", func() {
+				time.Sleep(10 * time.Millisecond)
+				cb, _, _ := GetCircuit("")
+				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 1)
+				So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
+			})
 		})
 	})
 }
@@ -90,6 +104,15 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 
 		Convey("a timeout error should be returned", func() {
 			So(<-errChan, ShouldResemble, ErrTimeout)
+
+			Convey("metrics are recorded", func() {
+				time.Sleep(10 * time.Millisecond)
+				cb, _, _ := GetCircuit("")
+				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 1)
+				So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.metrics.DefaultCollector().FallbackFailures().Sum(time.Now()), ShouldEqual, 0)
+			})
 		})
 	})
 }
@@ -146,6 +169,13 @@ func TestForceOpenCircuit(t *testing.T) {
 
 		Convey("a 'circuit open' error is returned", func() {
 			So(<-errChan, ShouldResemble, ErrCircuitOpen)
+
+			Convey("metrics are recorded", func() {
+				time.Sleep(10 * time.Millisecond)
+				cb, _, _ := GetCircuit("")
+				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.metrics.DefaultCollector().ShortCircuits().Sum(time.Now()), ShouldEqual, 1)
+			})
 		})
 	})
 }
@@ -209,6 +239,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 
 			Convey("the circuit should be closed", func() {
 				So(<-done, ShouldEqual, true)
+				time.Sleep(10 * time.Millisecond)
 				So(cb.IsOpen(), ShouldEqual, false)
 			})
 		})

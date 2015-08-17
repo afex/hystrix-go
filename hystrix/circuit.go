@@ -1,6 +1,7 @@
 package hystrix
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -164,13 +165,17 @@ func (circuit *CircuitBreaker) setClose() {
 }
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
-func (circuit *CircuitBreaker) ReportEvent(eventType string, start time.Time, runDuration time.Duration) error {
-	if eventType == "success" && circuit.IsOpen() {
+func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration) error {
+	if len(eventTypes) == 0 {
+		return fmt.Errorf("no event types sent for metrics")
+	}
+
+	if eventTypes[0] == "success" && circuit.IsOpen() {
 		circuit.setClose()
 	}
 
 	circuit.metrics.Updates <- &commandExecution{
-		Type:        eventType,
+		Types:       eventTypes,
 		Start:       start,
 		RunDuration: runDuration,
 	}
