@@ -62,6 +62,29 @@ func TestFallback(t *testing.T) {
 			})
 		})
 	})
+
+	Convey("with a command which fails, and whose fallback returns the original error", t, func() {
+		defer Flush()
+
+		errChan := Go("", func() error {
+			return fmt.Errorf("error")
+		}, func(err error) error {
+			return err
+		})
+
+		Convey("One errors should be returned", func() {
+			err := <-errChan
+
+			So(err.Error(), ShouldEqual, "error")
+		})
+		Convey("metrics are recorded", func() {
+			time.Sleep(10 * time.Millisecond)
+			cb, _, _ := GetCircuit("")
+			So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 0)
+		})
+	})
 }
 
 func TestTimeout(t *testing.T) {
