@@ -3,9 +3,11 @@ package hystrix
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,11 +16,7 @@ import (
 
 type eventStreamTestServer struct {
 	*httptest.Server
-	eventStreamer
-}
-
-type eventStreamer interface {
-	Stop()
+	*StreamHandler
 }
 
 func (s *eventStreamTestServer) stopTestServer() error {
@@ -176,6 +174,76 @@ func TestEventStream(t *testing.T) {
 				metric := grabFirstCommandFromStream(t, server.URL)
 
 				So(metric.ErrorPct, ShouldEqual, 67)
+			})
+		})
+	})
+}
+
+func TestClientCancelEventStream(t *testing.T) {
+	Convey("given a running event stream", t, func() {
+		server := startTestServer()
+		defer server.stopTestServer()
+
+		sleepingCommand(t, "eventstream", 1*time.Millisecond)
+
+		Convey("after a client connects", func() {
+			req, err := http.NewRequest("GET", server.URL, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// use a transport so we can cancel the stream when we're done - in 1.5 this is much easier
+			tr := &http.Transport{}
+			client := &http.Client{Transport: tr}
+			wait := make(chan struct{})
+			afterFirstRead := &sync.WaitGroup{}
+			afterFirstRead.Add(1)
+
+			go func() {
+				afr := afterFirstRead
+				buf := []byte{0}
+				res, err := client.Do(req)
+				if err != nil {
+					log.Fatal(err)
+					t.Fatal(err)
+				}
+				defer res.Body.Close()
+
+				for {
+					select {
+					case <-wait:
+						//wait for master goroutine to break us out
+						tr.CancelRequest(req)
+						return
+					default:
+						//read something
+						_, err = res.Body.Read(buf)
+						if err != nil {
+							log.Fatal(err)
+							t.Fatal(err)
+						}
+						if afr != nil {
+							afr.Done()
+							afr = nil
+						}
+					}
+				}
+			}()
+			// need to make sure our request has round-tripped to the server
+			afterFirstRead.Wait()
+
+			Convey("it should be registered", func() {
+				So(len(server.StreamHandler.requests), ShouldEqual, 1)
+
+				Convey("after client disconnects", func() {
+					// let the request be cancelled and the body closed
+					close(wait)
+					// wait for the server to clean up
+					time.Sleep(2000 * time.Millisecond)
+					Convey("it should be detected as disconnected and de-registered", func() {
+						//confirm we have 0 clients
+						So(len(server.StreamHandler.requests), ShouldEqual, 0)
+					})
+				})
 			})
 		})
 	})
