@@ -232,8 +232,9 @@ func TestClientCancelEventStream(t *testing.T) {
 			afterFirstRead.Wait()
 
 			Convey("it should be registered", func() {
+				server.StreamHandler.mu.RLock()
 				So(len(server.StreamHandler.requests), ShouldEqual, 1)
-
+				server.StreamHandler.mu.RUnlock()
 				Convey("after client disconnects", func() {
 					// let the request be cancelled and the body closed
 					close(wait)
@@ -241,7 +242,9 @@ func TestClientCancelEventStream(t *testing.T) {
 					time.Sleep(2000 * time.Millisecond)
 					Convey("it should be detected as disconnected and de-registered", func() {
 						//confirm we have 0 clients
+						server.StreamHandler.mu.RLock()
 						So(len(server.StreamHandler.requests), ShouldEqual, 0)
+						server.StreamHandler.mu.RUnlock()
 					})
 				})
 			})
