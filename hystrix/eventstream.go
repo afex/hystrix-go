@@ -41,15 +41,30 @@ func (sh *StreamHandler) Stop() {
 var _ http.Handler = (*StreamHandler)(nil)
 
 func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	// Make sure that the writer supports flushing.
+	f, ok := rw.(http.Flusher)
+	if !ok {
+		http.Error(rw, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
 	events := sh.register(req)
 	defer sh.unregister(req)
+
+	notify := rw.(http.CloseNotifier).CloseNotify()
+
 	rw.Header().Add("Content-Type", "text/event-stream")
-	for event := range events {
-		_, err := rw.Write(event)
-		if err != nil {
+	rw.Header().Set("Cache-Control", "no-cache")
+	rw.Header().Set("Connection", "keep-alive")
+	for {
+		select {
+		case <-notify:
+			// client is gone
 			return
-		}
-		if f, ok := rw.(http.Flusher); ok {
+		case event := <-events:
+			_, err := rw.Write(event)
+			if err != nil {
+				return
+			}
 			f.Flush()
 		}
 	}
