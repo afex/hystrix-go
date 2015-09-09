@@ -3,7 +3,6 @@ package hystrix
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -203,7 +202,6 @@ func TestClientCancelEventStream(t *testing.T) {
 				buf := []byte{0}
 				res, err := client.Do(req)
 				if err != nil {
-					log.Fatal(err)
 					t.Fatal(err)
 				}
 				defer res.Body.Close()
@@ -218,7 +216,6 @@ func TestClientCancelEventStream(t *testing.T) {
 						//read something
 						_, err = res.Body.Read(buf)
 						if err != nil {
-							log.Fatal(err)
 							t.Fatal(err)
 						}
 						if afr != nil {
