@@ -38,9 +38,9 @@ type StatsdCollectorClient struct {
 
 // https://github.com/etsy/statsd/blob/master/docs/metric_types.md#multi-metric-packets
 const (
-	WANFlushSize     = 512
-	LANFlushSize     = 1432
-	GigabitFlushSize = 8932
+	WANStatsdFlushSize     = 512
+	LANStatsdFlushSize     = 1432
+	GigabitStatsdFlushSize = 8932
 )
 
 // StatsdCollectorConfig provides configuration that the Statsd client will need.
@@ -62,7 +62,7 @@ type StatsdCollectorConfig struct {
 func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorClient, error) {
 	flushsize := config.FlushBytes
 	if flushsize == 0 {
-		flushsize = LANFlushSize
+		flushsize = LANStatsdFlushSize
 	}
 
 	sampleRate := config.SampleRate
