@@ -28,11 +28,20 @@ type StatsdCollector struct {
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
 	runDurationPrefix       string
+	sampleRate              float32
 }
 
 type StatsdCollectorClient struct {
-	client statsd.Statter
+	client     statsd.Statter
+	sampleRate float32
 }
+
+// https://github.com/etsy/statsd/blob/master/docs/metric_types.md#multi-metric-packets
+const (
+	WANStatsdFlushBytes     = 512
+	LANStatsdFlushBytes     = 1432
+	GigabitStatsdFlushBytes = 8932
+)
 
 // StatsdCollectorConfig provides configuration that the Statsd client will need.
 type StatsdCollectorConfig struct {
@@ -40,6 +49,10 @@ type StatsdCollectorConfig struct {
 	StatsdAddr string
 	// Prefix is the prefix that will be prepended to all metrics sent from this collector.
 	Prefix string
+	// StatsdSampleRate sets statsd sampling. If 0, defaults to 1.0. (no sampling)
+	SampleRate float32
+	// FlushBytes sets message size for statsd packets. If 0, defaults to LANFlushSize.
+	FlushBytes int
 }
 
 // InitializeStatsdCollector creates the connection to the Statsd server
@@ -47,13 +60,24 @@ type StatsdCollectorConfig struct {
 //
 // Users should ensure to call Close() on the client.
 func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorClient, error) {
-	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, 1*time.Second, 512)
+	flushBytes := config.FlushBytes
+	if flushBytes == 0 {
+		flushBytes = LANStatsdFlushBytes
+	}
+
+	sampleRate := config.SampleRate
+	if sampleRate == 0 {
+		sampleRate = 1
+	}
+
+	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, 1*time.Second, flushBytes)
 	if err != nil {
 		log.Printf("Could not initiale buffered client: %s. Falling back to a Noop Statsd client", err)
 		c, _ = statsd.NewNoopClient()
 	}
 	return &StatsdCollectorClient{
-		client: c,
+		client:     c,
+		sampleRate: sampleRate,
 	}, err
 }
 
@@ -81,25 +105,26 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 		fallbackFailuresPrefix:  name + ".fallbackFailures",
 		totalDurationPrefix:     name + ".totalDuration",
 		runDurationPrefix:       name + ".runDuration",
+		sampleRate:              s.sampleRate,
 	}
 }
 
 func (g *StatsdCollector) setGauge(prefix string, value int64) {
-	err := g.client.Gauge(prefix, value, 1.0)
+	err := g.client.Gauge(prefix, value, g.sampleRate)
 	if err != nil {
 		log.Printf("Error sending statsd metrics %s", prefix)
 	}
 }
 
 func (g *StatsdCollector) incrementCounterMetric(prefix string) {
-	err := g.client.Inc(prefix, 1, 1.0)
+	err := g.client.Inc(prefix, 1, g.sampleRate)
 	if err != nil {
 		log.Printf("Error sending statsd metrics %s", prefix)
 	}
 }
 
 func (g *StatsdCollector) updateTimerMetric(prefix string, dur time.Duration) {
-	err := g.client.TimingDuration(prefix, dur, 1.0)
+	err := g.client.TimingDuration(prefix, dur, g.sampleRate)
 	if err != nil {
 		log.Printf("Error sending statsd metrics %s", prefix)
 	}
