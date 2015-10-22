@@ -174,10 +174,14 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		circuit.setClose()
 	}
 
-	circuit.metrics.Updates <- &commandExecution{
+	select {
+	case circuit.metrics.Updates <- &commandExecution{
 		Types:       eventTypes,
 		Start:       start,
 		RunDuration: runDuration,
+	}:
+	default:
+		return CircuitError{Message: "metrics channel is at capacity"}
 	}
 
 	return nil
