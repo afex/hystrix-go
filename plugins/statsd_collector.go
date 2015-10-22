@@ -38,9 +38,9 @@ type StatsdCollectorClient struct {
 
 // https://github.com/etsy/statsd/blob/master/docs/metric_types.md#multi-metric-packets
 const (
-	WANStatsdFlushSize     = 512
-	LANStatsdFlushSize     = 1432
-	GigabitStatsdFlushSize = 8932
+	WANStatsdFlushBytes     = 512
+	LANStatsdFlushBytes     = 1432
+	GigabitStatsdFlushBytes = 8932
 )
 
 // StatsdCollectorConfig provides configuration that the Statsd client will need.
@@ -60,9 +60,9 @@ type StatsdCollectorConfig struct {
 //
 // Users should ensure to call Close() on the client.
 func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorClient, error) {
-	flushsize := config.FlushBytes
-	if flushsize == 0 {
-		flushsize = LANStatsdFlushSize
+	flushBytes := config.FlushBytes
+	if flushBytes == 0 {
+		flushBytes = LANStatsdFlushBytes
 	}
 
 	sampleRate := config.SampleRate
@@ -70,7 +70,7 @@ func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorC
 		sampleRate = 1
 	}
 
-	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, 1*time.Second, flushsize)
+	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, 1*time.Second, flushBytes)
 	if err != nil {
 		log.Printf("Could not initiale buffered client: %s. Falling back to a Noop Statsd client", err)
 		c, _ = statsd.NewNoopClient()
