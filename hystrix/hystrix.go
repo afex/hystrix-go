@@ -34,7 +34,9 @@ type command struct {
 	fallback     fallbackFunc
 	runDuration  time.Duration
 	events       []string
-	timedOut     bool
+
+	timedOut       bool
+	returnedTicket bool
 }
 
 var (
@@ -72,6 +74,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	}
 	cmd.circuit = circuit
 
+	// this routine executes the user-provided function. it makes sure only to run the user code
+	// if the all the healthy checks are passing.
 	go func() {
 		defer func() { cmd.finished <- true }()
 
@@ -89,13 +93,14 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
 		cmd.Lock()
-		select {
-		case cmd.ticket = <-circuit.executorPool.Tickets:
+		var ok bool
+		if cmd.ticket, ok = cmd.grabTicketLocked(); ok {
 			cmd.Unlock()
-		default:
-			cmd.Unlock()
-			cmd.errorWithFallback(ErrMaxConcurrency)
-			return
+
+			if !ok {
+				cmd.errorWithFallback(ErrMaxConcurrency)
+				return
+			}
 		}
 
 		runStart := time.Now()
@@ -113,10 +118,13 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		}
 	}()
 
+	// this routine is racing the execution routine. it will either wait for the execution routine
+	// to finish, or trigger a timeout. since it will always be the last routine we are waiting for,
+	// it is responsible for cleanup that needs to happen each run.
 	go func() {
 		defer func() {
 			cmd.Lock()
-			cmd.circuit.executorPool.Return(cmd.ticket)
+			cmd.returnTicketLocked(cmd.ticket)
 			cmd.Unlock()
 
 			cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
@@ -192,6 +200,30 @@ func (c *command) isTimedOut() bool {
 	defer c.Unlock()
 
 	return c.timedOut
+}
+
+// grab a execution ticket. in the case of a race, don't grab once we've already returned
+func (c *command) grabTicketLocked() (*struct{}, bool) {
+	if c.returnedTicket {
+		return nil, false
+	}
+
+	select {
+	case t := <-c.circuit.executorPool.Tickets:
+		return t, true
+	default:
+		return nil, false
+	}
+}
+
+// put the ticket back into the pool. if a timeout happens before the ticket is grabbed,
+// this ticket could be nil. we record the action anyway to prevent followup grabs
+func (c *command) returnTicketLocked(ticket *struct{}) error {
+	c.returnedTicket = true
+
+	c.circuit.executorPool.Return(ticket)
+
+	return nil
 }
 
 // errorWithFallback triggers the fallback while reporting the appropriate metric events.
