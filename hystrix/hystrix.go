@@ -93,14 +93,12 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
 		cmd.Lock()
-		var ok bool
-		if cmd.ticket, ok = cmd.grabTicketLocked(); ok {
-			cmd.Unlock()
+		cmd.ticket = cmd.grabTicketLocked()
+		cmd.Unlock()
 
-			if !ok {
-				cmd.errorWithFallback(ErrMaxConcurrency)
-				return
-			}
+		if cmd.ticket == nil {
+			cmd.errorWithFallback(ErrMaxConcurrency)
+			return
 		}
 
 		runStart := time.Now()
@@ -203,16 +201,16 @@ func (c *command) isTimedOut() bool {
 }
 
 // grab a execution ticket. in the case of a race, don't grab once we've already returned
-func (c *command) grabTicketLocked() (*struct{}, bool) {
+func (c *command) grabTicketLocked() *struct{} {
 	if c.returnedTicket {
-		return nil, false
+		return nil
 	}
 
 	select {
 	case t := <-c.circuit.executorPool.Tickets:
-		return t, true
+		return t
 	default:
-		return nil, false
+		return nil
 	}
 }
 
