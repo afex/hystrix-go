@@ -198,8 +198,8 @@ func (c *command) isTimedOut() bool {
 
 func (c *command) grabTicket() bool {
 	c.Lock()
+	defer c.Unlock()
 	c.ticket = c.grabTicketLocked()
-	c.Unlock()
 
 	return c.ticket != nil
 }
