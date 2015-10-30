@@ -92,11 +92,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// When requests slow down but the incoming rate of requests stays the same, you have to
 		// run more at a time to keep up. By controlling concurrency during these situations, you can
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
-		cmd.Lock()
-		cmd.ticket = cmd.grabTicketLocked()
-		cmd.Unlock()
-
-		if cmd.ticket == nil {
+		if !cmd.grabTicket() {
 			cmd.errorWithFallback(ErrMaxConcurrency)
 			return
 		}
@@ -198,6 +194,14 @@ func (c *command) isTimedOut() bool {
 	defer c.Unlock()
 
 	return c.timedOut
+}
+
+func (c *command) grabTicket() bool {
+	c.Lock()
+	c.ticket = c.grabTicketLocked()
+	c.Unlock()
+
+	return c.ticket != nil
 }
 
 // grab a execution ticket. in the case of a race, don't grab once we've already returned
