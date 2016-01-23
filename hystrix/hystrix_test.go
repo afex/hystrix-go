@@ -161,7 +161,7 @@ func TestForceOpenCircuit(t *testing.T) {
 		cb, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
 
-		cb.toggleForceOpen(true)
+		cb.ToggleForceOpen(true)
 
 		errChan := Go("", func() error {
 			return nil
