@@ -46,3 +46,23 @@ func TestSleepWindowDefault(t *testing.T) {
 		})
 	})
 }
+
+func TestCircuitBreakerDisabledDefault(t *testing.T) {
+	Convey("given default settings", t, func() {
+		ConfigureCommand("", CommandConfig{})
+
+		Convey("the circuit breaker disabled should be false", func() {
+			So(getSettings("").CircuitBreakerDisabled, ShouldEqual, false)
+		})
+	})
+}
+
+func TestConfigCircuitBreakerDisabled(t *testing.T) {
+	Convey("given a command configured to circuit breaker disabled true", t, func() {
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true})
+
+		Convey("the circuit breaker disabled should be true", func() {
+			So(getSettings("").CircuitBreakerDisabled, ShouldEqual, true)
+		})
+	})
+}

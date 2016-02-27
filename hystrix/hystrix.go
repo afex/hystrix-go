@@ -29,7 +29,7 @@ type command struct {
 	errChan      chan error
 	finished     chan bool
 	fallbackOnce *sync.Once
-	circuit      *CircuitBreaker
+	circuit      CircuitBreakerInterface
 	run          runFunc
 	fallback     fallbackFunc
 	runDuration  time.Duration
@@ -90,7 +90,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// shed load which accumulates due to the increasing ratio of active commands to incoming requests.
 		cmd.Lock()
 		select {
-		case cmd.ticket = <-circuit.executorPool.Tickets:
+		case cmd.ticket = <-cmd.circuit.ExecutorPool().Ticket():
 			cmd.Unlock()
 		default:
 			cmd.Unlock()
@@ -116,7 +116,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	go func() {
 		defer func() {
 			cmd.Lock()
-			cmd.circuit.executorPool.Return(cmd.ticket)
+			cmd.circuit.ExecutorPool().Return(cmd.ticket)
 			cmd.Unlock()
 
 			cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)

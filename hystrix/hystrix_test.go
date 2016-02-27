@@ -27,7 +27,7 @@ func TestSuccess(t *testing.T) {
 			Convey("metrics are recorded", func() {
 				time.Sleep(10 * time.Millisecond)
 				cb, _, _ := GetCircuit("")
-				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 1)
+				So(cb.Metrics().DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 1)
 			})
 		})
 	})
@@ -56,9 +56,9 @@ func TestFallback(t *testing.T) {
 			Convey("metrics are recorded", func() {
 				time.Sleep(10 * time.Millisecond)
 				cb, _, _ := GetCircuit("")
-				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
-				So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 1)
-				So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
+				So(cb.Metrics().DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.Metrics().DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 1)
+				So(cb.Metrics().DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
 			})
 		})
 	})
@@ -108,10 +108,10 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 			Convey("metrics are recorded", func() {
 				time.Sleep(10 * time.Millisecond)
 				cb, _, _ := GetCircuit("")
-				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
-				So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 1)
-				So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 0)
-				So(cb.metrics.DefaultCollector().FallbackFailures().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.Metrics().DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.Metrics().DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 1)
+				So(cb.Metrics().DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.Metrics().DefaultCollector().FallbackFailures().Sum(time.Now()), ShouldEqual, 0)
 			})
 		})
 	})
@@ -158,9 +158,11 @@ func TestForceOpenCircuit(t *testing.T) {
 	Convey("when a command with a forced open circuit is run", t, func() {
 		defer Flush()
 
-		cb, _, err := GetCircuit("")
+		circuit, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
 
+		cb, ok := circuit.(*CircuitBreaker)
+		So(ok, ShouldEqual, true)
 		cb.toggleForceOpen(true)
 
 		errChan := Go("", func() error {
@@ -173,8 +175,8 @@ func TestForceOpenCircuit(t *testing.T) {
 			Convey("metrics are recorded", func() {
 				time.Sleep(10 * time.Millisecond)
 				cb, _, _ := GetCircuit("")
-				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
-				So(cb.metrics.DefaultCollector().ShortCircuits().Sum(time.Now()), ShouldEqual, 1)
+				So(cb.Metrics().DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.Metrics().DefaultCollector().ShortCircuits().Sum(time.Now()), ShouldEqual, 1)
 			})
 		})
 	})
@@ -215,9 +217,11 @@ func TestFailedFallback(t *testing.T) {
 func TestCloseCircuitAfterSuccess(t *testing.T) {
 	Convey("when a circuit is open", t, func() {
 		defer Flush()
-		cb, _, err := GetCircuit("")
+		circuit, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
 
+		cb, ok := circuit.(*CircuitBreaker)
+		So(ok, ShouldEqual, true)
 		cb.setOpen()
 
 		Convey("commands immediately following should short-circuit", func() {
@@ -279,8 +283,11 @@ func TestSlowFallbackOpenCircuit(t *testing.T) {
 
 		ConfigureCommand("", CommandConfig{Timeout: 10})
 
-		cb, _, err := GetCircuit("")
+		circuit, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
+
+		cb, ok := circuit.(*CircuitBreaker)
+		So(ok, ShouldEqual, true)
 		cb.setOpen()
 
 		out := make(chan struct{}, 2)
@@ -299,8 +306,8 @@ func TestSlowFallbackOpenCircuit(t *testing.T) {
 				So(len(out), ShouldEqual, 1)
 
 				Convey("and a timeout event is not recorded", func() {
-					So(cb.metrics.DefaultCollector().ShortCircuits().Sum(time.Now()), ShouldEqual, 1)
-					So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
+					So(cb.Metrics().DefaultCollector().ShortCircuits().Sum(time.Now()), ShouldEqual, 1)
+					So(cb.Metrics().DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
 				})
 			})
 		})
@@ -315,7 +322,7 @@ func TestFallbackAfterRejected(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		<-cb.executorPool.Tickets
+		<-cb.ExecutorPool().Ticket()
 
 		Convey("executing a successful fallback function due to rejection", func() {
 			runChan := make(chan bool, 1)
@@ -357,7 +364,7 @@ func TestReturnTicket(t *testing.T) {
 
 			cb, _, err := GetCircuit("")
 			So(err, ShouldBeNil)
-			So(cb.executorPool.ActiveCount(), ShouldEqual, 0)
+			So(cb.ExecutorPool().ActiveCount(), ShouldEqual, 0)
 		})
 	})
 }
@@ -435,4 +442,260 @@ func TestDo(t *testing.T) {
 			So(err.Error(), ShouldEqual, "hystrix: timeout")
 		})
 	})
+}
+
+func TestNoOpSuccess(t *testing.T) {
+	Convey("given a command config setting to disable circuit breaker", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true})
+
+		Convey("with a command which sends to a channel", func() {
+			resultChan := make(chan int)
+			errChan := Go("", func() error {
+				resultChan <- 1
+				return nil
+			}, nil)
+
+			Convey("reading from that channel should provide the expected value", func() {
+				So(<-resultChan, ShouldEqual, 1)
+
+				Convey("no errors should be returned", func() {
+					So(len(errChan), ShouldEqual, 0)
+				})
+				Convey("metrics are recorded", func() {
+					time.Sleep(10 * time.Millisecond)
+					cb, _, _ := GetCircuit("")
+					So(cb.Metrics().DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 1)
+				})
+			})
+		})
+	})
+}
+
+func TestNoOpFallback(t *testing.T) {
+	Convey("given a command config setting to disable circuit breaker", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true})
+
+		Convey("with a command which fails, and whose fallback sends to a channel", func() {
+			resultChan := make(chan int)
+			errChan := Go("", func() error {
+				return fmt.Errorf("error")
+			}, func(err error) error {
+				if err.Error() == "error" {
+					resultChan <- 1
+				}
+				return nil
+			})
+
+			Convey("reading from that channel should provide the expected value", func() {
+				So(<-resultChan, ShouldEqual, 1)
+
+				Convey("no errors should be returned", func() {
+					So(len(errChan), ShouldEqual, 0)
+				})
+				Convey("metrics are recorded", func() {
+					time.Sleep(10 * time.Millisecond)
+					cb, _, _ := GetCircuit("")
+					So(cb.Metrics().DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+					So(cb.Metrics().DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 1)
+					So(cb.Metrics().DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
+					So(cb.Metrics().DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
+				})
+			})
+		})
+	})
+}
+
+func TestNoOpFailFallbackNotCalledTwice(t *testing.T) {
+	Convey("given a command config setting to disable circuit breaker", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true, Timeout: 10})
+
+		Convey("when a slow command fails after the timeout fires", func() {
+			out := make(chan struct{}, 2)
+			errChan := Go("", func() error {
+				time.Sleep(20 * time.Millisecond)
+				return fmt.Errorf("foo")
+			}, func(err error) error {
+				out <- struct{}{}
+				return err
+			})
+
+			Convey("we do not panic", func() {
+				So((<-errChan).Error(), ShouldContainSubstring, "foo")
+				// wait for command to fail, should not panic
+				time.Sleep(30 * time.Millisecond)
+			})
+
+			Convey("we do not call the fallback twice", func() {
+				time.Sleep(30 * time.Millisecond)
+				So(len(out), ShouldEqual, 1)
+			})
+		})
+	})
+}
+
+func TestNoOpNilFallbackRunError(t *testing.T) {
+	Convey("given a command config setting to disable circuit breaker", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true})
+
+		Convey("when your run function returns an error and you have no fallback", func() {
+			errChan := Go("", func() error {
+				return fmt.Errorf("run_error")
+			}, nil)
+
+			Convey("the returned error should be the run error", func() {
+				err := <-errChan
+
+				So(err.Error(), ShouldEqual, "run_error")
+			})
+		})
+	})
+}
+
+func TestNoOpFailedFallback(t *testing.T) {
+	Convey("given a command config setting to disable circuit breaker", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true})
+
+		Convey("when your run and fallback functions return an error", func() {
+			errChan := Go("", func() error {
+				return fmt.Errorf("run_error")
+			}, func(err error) error {
+				return fmt.Errorf("fallback_error")
+			})
+
+			Convey("the returned error should contain both", func() {
+				err := <-errChan
+
+				So(err.Error(), ShouldEqual, "fallback failed with 'fallback_error'. run error was 'run_error'")
+			})
+		})
+	})
+}
+
+func TestNoOpDo(t *testing.T) {
+	Convey("given a command config setting to disable circuit breaker", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true})
+
+		Convey("with a command which succeeds", func() {
+			out := make(chan bool, 1)
+			run := func() error {
+				out <- true
+				return nil
+			}
+
+			Convey("the run function is executed", func() {
+				err := Do("", run, nil)
+				So(err, ShouldBeNil)
+				So(<-out, ShouldEqual, true)
+			})
+		})
+	})
+
+	Convey("given a command config setting to disable circuit breaker", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true})
+
+		Convey("with a command which fails", func() {
+
+			run := func() error {
+				return fmt.Errorf("i failed")
+			}
+
+			Convey("with no fallback", func() {
+				err := Do("", run, nil)
+				Convey("the error is returned", func() {
+					So(err.Error(), ShouldEqual, "i failed")
+				})
+			})
+
+			Convey("with a succeeding fallback", func() {
+				out := make(chan bool, 1)
+				fallback := func(err error) error {
+					out <- true
+					return nil
+				}
+
+				err := Do("", run, fallback)
+
+				Convey("the fallback is executed", func() {
+					So(err, ShouldBeNil)
+					So(<-out, ShouldEqual, true)
+				})
+			})
+
+			Convey("with a failing fallback", func() {
+				fallback := func(err error) error {
+					return fmt.Errorf("fallback failed")
+				}
+
+				err := Do("", run, fallback)
+
+				Convey("both errors are returned", func() {
+					So(err.Error(), ShouldEqual, "fallback failed with 'fallback failed'. run error was 'i failed'")
+				})
+			})
+		})
+	})
+
+	Convey("given a command config setting to disable circuit breaker", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{CircuitBreakerDisabled: true, Timeout: 10})
+
+		Convey("with a slow command", func() {
+			err := Do("", func() error {
+				time.Sleep(20 * time.Millisecond)
+				return nil
+			}, nil)
+
+			Convey("no timeout error is returned", func() {
+				So(err, ShouldBeNil)
+			})
+		})
+	})
+}
+
+func BenchmarkGo(B *testing.B) {
+	run := func() error {
+		return nil
+	}
+	ConfigureCommand("BenchmarkGo", CommandConfig{CircuitBreakerDisabled: false})
+
+	for i := 0; i < B.N; i++ {
+		Go("BenchmarkGo", run, nil)
+	}
+}
+
+func BenchmarkDo(B *testing.B) {
+	run := func() error {
+		return nil
+	}
+	ConfigureCommand("BenchmarkDo", CommandConfig{CircuitBreakerDisabled: false})
+	for i := 0; i < B.N; i++ {
+		Do("BenchmarkDo", run, nil)
+	}
+}
+
+func BenchmarkNoOpGo(B *testing.B) {
+	run := func() error {
+		return nil
+	}
+	ConfigureCommand("BenchmarkNoOpGo", CommandConfig{CircuitBreakerDisabled: true})
+	for i := 0; i < B.N; i++ {
+		Go("BenchmarkNoOpGo", run, nil)
+	}
+}
+
+func BenchmarkNoOpDo(B *testing.B) {
+	run := func() error {
+		return nil
+	}
+	ConfigureCommand("BenchmarkNoOpDo", CommandConfig{CircuitBreakerDisabled: true})
+	for i := 0; i < B.N; i++ {
+		Do("BenchmarkNoOpDo", run, nil)
+	}
 }

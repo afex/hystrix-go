@@ -8,10 +8,88 @@ import (
 	"time"
 )
 
+// CircuitBreakerInterface is the interface of circuit breaker
+type CircuitBreakerInterface interface {
+	// Name returns circuit name
+	Name() string
+	// AllowRequest returns true if circuit allow request
+	AllowRequest() bool
+	// IsOpen returns true if circuit is open
+	IsOpen() bool
+	// ForceOpen returns true if circuit being forced opened
+	ForceOpen() bool
+	// ReportEvent reports events to circuit metrics
+	ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration) error
+	// Metrics returns circuit metrics
+	Metrics() *metricExchange
+	// ExecutorPool returns circuit executor pool
+	ExecutorPool() ExecutorPoolInterface
+}
+
+// NoOpCircuitBreaker is created to allow all requests in all conditions
+// Only enable metrics
+type NoOpCircuitBreaker struct {
+	name         string
+	executorPool *noOpExecutorPool
+	metrics      *metricExchange
+}
+
+// newNoOpCircuitBreaker creates a NoOpCircuitBreaker
+func newNoOpCircuitBreaker(name string) *NoOpCircuitBreaker {
+	c := &NoOpCircuitBreaker{}
+	c.name = name
+	c.metrics = newMetricExchange(name)
+	c.executorPool = newNoOpExecutorPool(name)
+	return c
+}
+
+// AllowRequest always returns true for NoOpCircuitBreaker
+func (circuit *NoOpCircuitBreaker) AllowRequest() bool {
+	return true
+}
+
+// IsOpen always returns false for NoOpCircuitBreaker
+func (circuit *NoOpCircuitBreaker) IsOpen() bool {
+	return false
+}
+
+// ForceOpen always returns false as can't force open NoOpCircuitBreaker
+func (circuit *NoOpCircuitBreaker) ForceOpen() bool {
+	return false
+}
+
+func (circuit *NoOpCircuitBreaker) Name() string {
+	return circuit.name
+}
+
+func (circuit *NoOpCircuitBreaker) Metrics() *metricExchange {
+	return circuit.metrics
+}
+
+func (circuit *NoOpCircuitBreaker) ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration) error {
+	if len(eventTypes) == 0 {
+		return fmt.Errorf("no event types sent for metrics")
+	}
+
+	circuit.metrics.Updates <- &commandExecution{
+		Types:       eventTypes,
+		Start:       start,
+		RunDuration: runDuration,
+	}
+
+	return nil
+}
+
+// ExecutorPool returns circuit executor pool
+// NoOpCircuitBreaker will return noOpExecutorPool
+func (circuit *NoOpCircuitBreaker) ExecutorPool() ExecutorPoolInterface {
+	return circuit.executorPool
+}
+
 // CircuitBreaker is created for each ExecutorPool to track whether requests
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
-	Name                   string
+	name                   string
 	open                   bool
 	forceOpen              bool
 	mutex                  *sync.RWMutex
@@ -23,16 +101,16 @@ type CircuitBreaker struct {
 
 var (
 	circuitBreakersMutex *sync.RWMutex
-	circuitBreakers      map[string]*CircuitBreaker
+	circuitBreakers      map[string]CircuitBreakerInterface
 )
 
 func init() {
 	circuitBreakersMutex = &sync.RWMutex{}
-	circuitBreakers = make(map[string]*CircuitBreaker)
+	circuitBreakers = make(map[string]CircuitBreakerInterface)
 }
 
 // GetCircuit returns the circuit for the given command and whether this call created it.
-func GetCircuit(name string) (*CircuitBreaker, bool, error) {
+func GetCircuit(name string) (CircuitBreakerInterface, bool, error) {
 	circuitBreakersMutex.RLock()
 	_, ok := circuitBreakers[name]
 	if !ok {
@@ -45,7 +123,11 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 		if cb, ok := circuitBreakers[name]; ok {
 			return cb, false, nil
 		}
-		circuitBreakers[name] = newCircuitBreaker(name)
+		if getSettings(name).CircuitBreakerDisabled {
+			circuitBreakers[name] = newNoOpCircuitBreaker(name)
+		} else {
+			circuitBreakers[name] = newCircuitBreaker(name)
+		}
 	} else {
 		defer circuitBreakersMutex.RUnlock()
 	}
@@ -59,8 +141,8 @@ func Flush() {
 	defer circuitBreakersMutex.Unlock()
 
 	for name, cb := range circuitBreakers {
-		cb.metrics.Reset()
-		cb.executorPool.Metrics.Reset()
+		cb.Metrics().Reset()
+		cb.ExecutorPool().Metrics().Reset()
 		delete(circuitBreakers, name)
 	}
 }
@@ -68,24 +150,31 @@ func Flush() {
 // newCircuitBreaker creates a CircuitBreaker with associated Health
 func newCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
-	c.Name = name
+	c.name = name
 	c.metrics = newMetricExchange(name)
 	c.executorPool = newExecutorPool(name)
 	c.mutex = &sync.RWMutex{}
-
 	return c
 }
 
 // toggleForceOpen allows manually causing the fallback logic for all instances
 // of a given command.
 func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
-	circuit, _, err := GetCircuit(circuit.Name)
+	newCircuit, _, err := GetCircuit(circuit.name)
 	if err != nil {
 		return err
 	}
 
-	circuit.forceOpen = toggle
+	if cb, ok := newCircuit.(*CircuitBreaker); ok {
+		circuit = cb
+		circuit.forceOpen = toggle
+	}
 	return nil
+}
+
+// ForceOpen returns if circuit had been force opened
+func (circuit *CircuitBreaker) ForceOpen() bool {
+	return circuit.forceOpen
 }
 
 // IsOpen is called before any Command execution to check whether or
@@ -99,7 +188,7 @@ func (circuit *CircuitBreaker) IsOpen() bool {
 		return true
 	}
 
-	if uint64(circuit.metrics.Requests().Sum(time.Now())) < getSettings(circuit.Name).RequestVolumeThreshold {
+	if uint64(circuit.metrics.Requests().Sum(time.Now())) < getSettings(circuit.name).RequestVolumeThreshold {
 		return false
 	}
 
@@ -125,10 +214,10 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 
 	now := time.Now().UnixNano()
 	openedOrLastTestedTime := atomic.LoadInt64(&circuit.openedOrLastTestedTime)
-	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
+	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.name).SleepWindow.Nanoseconds() {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
-			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
+			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.name)
 		}
 		return swapped
 	}
@@ -144,7 +233,7 @@ func (circuit *CircuitBreaker) setOpen() {
 		return
 	}
 
-	log.Printf("hystrix-go: opening circuit %v", circuit.Name)
+	log.Printf("hystrix-go: opening circuit %v", circuit.name)
 
 	circuit.openedOrLastTestedTime = time.Now().UnixNano()
 	circuit.open = true
@@ -158,7 +247,7 @@ func (circuit *CircuitBreaker) setClose() {
 		return
 	}
 
-	log.Printf("hystrix-go: closing circuit %v", circuit.Name)
+	log.Printf("hystrix-go: closing circuit %v", circuit.name)
 
 	circuit.open = false
 	circuit.metrics.Reset()
@@ -181,4 +270,16 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 	}
 
 	return nil
+}
+
+func (circuit *CircuitBreaker) Name() string {
+	return circuit.name
+}
+
+func (circuit *CircuitBreaker) Metrics() *metricExchange {
+	return circuit.metrics
+}
+
+func (circuit *CircuitBreaker) ExecutorPool() ExecutorPoolInterface {
+	return circuit.executorPool
 }

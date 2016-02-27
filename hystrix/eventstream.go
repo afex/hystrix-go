@@ -78,7 +78,7 @@ func (sh *StreamHandler) loop() {
 			circuitBreakersMutex.RLock()
 			for _, cb := range circuitBreakers {
 				sh.publishMetrics(cb)
-				sh.publishThreadPools(cb.executorPool)
+				sh.publishThreadPools(cb.ExecutorPool())
 			}
 			circuitBreakersMutex.RUnlock()
 		case <-sh.done:
@@ -87,16 +87,16 @@ func (sh *StreamHandler) loop() {
 	}
 }
 
-func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
+func (sh *StreamHandler) publishMetrics(cb CircuitBreakerInterface) error {
 	now := time.Now()
-	reqCount := cb.metrics.Requests().Sum(now)
-	errCount := cb.metrics.DefaultCollector().Errors().Sum(now)
-	errPct := cb.metrics.ErrorPercent(now)
+	reqCount := cb.Metrics().Requests().Sum(now)
+	errCount := cb.Metrics().DefaultCollector().Errors().Sum(now)
+	errPct := cb.Metrics().ErrorPercent(now)
 
 	eventBytes, err := json.Marshal(&streamCmdMetric{
 		Type:           "HystrixCommand",
-		Name:           cb.Name,
-		Group:          cb.Name,
+		Name:           cb.Name(),
+		Group:          cb.Name(),
 		Time:           currentTime(),
 		ReportingHosts: 1,
 
@@ -105,18 +105,18 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		ErrorPct:           uint32(errPct),
 		CircuitBreakerOpen: cb.IsOpen(),
 
-		RollingCountSuccess:            uint32(cb.metrics.DefaultCollector().Successes().Sum(now)),
-		RollingCountFailure:            uint32(cb.metrics.DefaultCollector().Failures().Sum(now)),
-		RollingCountThreadPoolRejected: uint32(cb.metrics.DefaultCollector().Rejects().Sum(now)),
-		RollingCountShortCircuited:     uint32(cb.metrics.DefaultCollector().ShortCircuits().Sum(now)),
-		RollingCountTimeout:            uint32(cb.metrics.DefaultCollector().Timeouts().Sum(now)),
-		RollingCountFallbackSuccess:    uint32(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(now)),
-		RollingCountFallbackFailure:    uint32(cb.metrics.DefaultCollector().FallbackFailures().Sum(now)),
+		RollingCountSuccess:            uint32(cb.Metrics().DefaultCollector().Successes().Sum(now)),
+		RollingCountFailure:            uint32(cb.Metrics().DefaultCollector().Failures().Sum(now)),
+		RollingCountThreadPoolRejected: uint32(cb.Metrics().DefaultCollector().Rejects().Sum(now)),
+		RollingCountShortCircuited:     uint32(cb.Metrics().DefaultCollector().ShortCircuits().Sum(now)),
+		RollingCountTimeout:            uint32(cb.Metrics().DefaultCollector().Timeouts().Sum(now)),
+		RollingCountFallbackSuccess:    uint32(cb.Metrics().DefaultCollector().FallbackSuccesses().Sum(now)),
+		RollingCountFallbackFailure:    uint32(cb.Metrics().DefaultCollector().FallbackFailures().Sum(now)),
 
-		LatencyTotal:       generateLatencyTimings(cb.metrics.DefaultCollector().TotalDuration()),
-		LatencyTotalMean:   cb.metrics.DefaultCollector().TotalDuration().Mean(),
-		LatencyExecute:     generateLatencyTimings(cb.metrics.DefaultCollector().RunDuration()),
-		LatencyExecuteMean: cb.metrics.DefaultCollector().RunDuration().Mean(),
+		LatencyTotal:       generateLatencyTimings(cb.Metrics().DefaultCollector().TotalDuration()),
+		LatencyTotalMean:   cb.Metrics().DefaultCollector().TotalDuration().Mean(),
+		LatencyExecute:     generateLatencyTimings(cb.Metrics().DefaultCollector().RunDuration()),
+		LatencyExecuteMean: cb.Metrics().DefaultCollector().RunDuration().Mean(),
 
 		// TODO: all hard-coded values should become configurable settings, per circuit
 
@@ -125,10 +125,10 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 
 		CircuitBreakerEnabled:                true,
 		CircuitBreakerForceClosed:            false,
-		CircuitBreakerForceOpen:              cb.forceOpen,
-		CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name).ErrorPercentThreshold),
-		CircuitBreakerSleepWindow:            uint32(getSettings(cb.Name).SleepWindow.Seconds() * 1000),
-		CircuitBreakerRequestVolumeThreshold: uint32(getSettings(cb.Name).RequestVolumeThreshold),
+		CircuitBreakerForceOpen:              cb.ForceOpen(),
+		CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name()).ErrorPercentThreshold),
+		CircuitBreakerSleepWindow:            uint32(getSettings(cb.Name()).SleepWindow.Seconds() * 1000),
+		CircuitBreakerRequestVolumeThreshold: uint32(getSettings(cb.Name()).RequestVolumeThreshold),
 	})
 	if err != nil {
 		return err
@@ -141,25 +141,25 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	return nil
 }
 
-func (sh *StreamHandler) publishThreadPools(pool *executorPool) error {
+func (sh *StreamHandler) publishThreadPools(pool ExecutorPoolInterface) error {
 	now := time.Now()
 
 	eventBytes, err := json.Marshal(&streamThreadPoolMetric{
 		Type:           "HystrixThreadPool",
-		Name:           pool.Name,
+		Name:           pool.Name(),
 		ReportingHosts: 1,
 
 		CurrentActiveCount:        uint32(pool.ActiveCount()),
 		CurrentTaskCount:          0,
 		CurrentCompletedTaskCount: 0,
 
-		RollingCountThreadsExecuted: uint32(pool.Metrics.Executed.Sum(now)),
-		RollingMaxActiveThreads:     uint32(pool.Metrics.MaxActiveRequests.Max(now)),
+		RollingCountThreadsExecuted: uint32(pool.Metrics().Executed.Sum(now)),
+		RollingMaxActiveThreads:     uint32(pool.Metrics().MaxActiveRequests.Max(now)),
 
-		CurrentPoolSize:        uint32(pool.Max),
-		CurrentCorePoolSize:    uint32(pool.Max),
-		CurrentLargestPoolSize: uint32(pool.Max),
-		CurrentMaximumPoolSize: uint32(pool.Max),
+		CurrentPoolSize:        uint32(pool.Max()),
+		CurrentCorePoolSize:    uint32(pool.Max()),
+		CurrentLargestPoolSize: uint32(pool.Max()),
+		CurrentMaximumPoolSize: uint32(pool.Max()),
 
 		RollingStatsWindow:          10000,
 		QueueSizeRejectionThreshold: 0,
