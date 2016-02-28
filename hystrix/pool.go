@@ -24,7 +24,7 @@ type ExecutorPoolInterface interface {
 // noOpExecutorPool have infinite tickets, it will not block client's requests
 type noOpExecutorPool struct {
 	name    string
-	count   int32
+	count   *int32
 	metrics *poolMetrics
 }
 
@@ -32,7 +32,7 @@ type noOpExecutorPool struct {
 func newNoOpExecutorPool(name string) *noOpExecutorPool {
 	p := &noOpExecutorPool{}
 	p.name = name
-	p.count = 0
+	p.count = new(int32)
 	p.metrics = newPoolMetrics(name)
 	return p
 }
@@ -47,7 +47,7 @@ var noOpTicket = &struct{}{}
 // Ticket will always return a buffered chan with 1 noOpTicket in it
 // It will close the chan so no more tickets being send to the chan
 func (p *noOpExecutorPool) Ticket() <-chan *struct{} {
-	atomic.AddInt32(&p.count, 1)
+	atomic.AddInt32(p.count, 1)
 
 	ticket := make(chan *struct{}, 1)
 	ticket <- noOpTicket
@@ -66,7 +66,7 @@ func (p *noOpExecutorPool) Return(ticket *struct{}) {
 	p.metrics.Updates <- poolMetricsUpdate{
 		activeCount: p.ActiveCount(),
 	}
-	atomic.AddInt32(&p.count, -1)
+	atomic.AddInt32(p.count, -1)
 }
 
 func (p *noOpExecutorPool) Metrics() *poolMetrics {
@@ -74,7 +74,7 @@ func (p *noOpExecutorPool) Metrics() *poolMetrics {
 }
 
 func (p *noOpExecutorPool) ActiveCount() int {
-	return int(p.count)
+	return int(atomic.LoadInt32(p.count))
 }
 
 // Max of noOpExecutorPool will return MaxInt32
