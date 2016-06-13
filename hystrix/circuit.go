@@ -181,7 +181,7 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		RunDuration: runDuration,
 	}:
 	default:
-		return CircuitError{Message: "metrics channel is at capacity"}
+		return CircuitError{Message: fmt.Sprintf("metrics channel (%v) is at capacity", circuit.Name)}
 	}
 
 	return nil
