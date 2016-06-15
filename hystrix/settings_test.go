@@ -46,3 +46,14 @@ func TestSleepWindowDefault(t *testing.T) {
 		})
 	})
 }
+
+func TestGetCircuitSettings(t *testing.T) {
+	Convey("when calling GetCircuitSettings", t, func() {
+		ConfigureCommand("test", CommandConfig{Timeout: 30000})
+
+		Convey("should read the same setting just added", func() {
+			So(GetCircuitSettings()["test"], ShouldEqual, getSettings("test"))
+			So(GetCircuitSettings()["test"].Timeout, ShouldEqual, time.Duration(30*time.Second))
+		})
+	})
+}
