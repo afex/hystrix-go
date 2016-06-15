@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-wget -q https://storage.googleapis.com/golang/go1.5rc1.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.5rc1.linux-amd64.tar.gz
+wget -q https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.6.2.linux-amd64.tar.gz
 
 apt-get update
 apt-get -y install git mercurial apache2-utils
