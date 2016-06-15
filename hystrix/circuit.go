@@ -171,7 +171,7 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 	}
 
 	if eventTypes[0] == "success" && circuit.open {
-		circuit.setClose()	
+		circuit.setClose()
 	}
 
 	select {
