@@ -63,6 +63,15 @@ func ConfigureCommand(name string, config CommandConfig) {
 	max := DefaultMaxConcurrent
 	if config.MaxConcurrentRequests != 0 {
 		max = config.MaxConcurrentRequests
+		defer func(){
+			settingsMutex.Unlock()
+			c, created, err := GetCircuit(name)
+			settingsMutex.Lock()
+			if err != nil || created {
+			} else {
+				c.ResizePool(max)
+			}
+		}()
 	}
 
 	volume := DefaultVolumeThreshold
