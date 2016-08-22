@@ -118,11 +118,9 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 }
 
 func TestMaxConcurrent(t *testing.T) {
-	Convey("if a command has max concurrency set to 2\n", t, func() {//Remove \n
+	Convey("if a command has max concurrency set to 2", t, func() {
 		defer Flush()
-		fmt.Printf("what is this?\n")
 		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 2})
-		println("Checkpoint 2")
 		resultChan := make(chan int)
 
 		run := func() error {
