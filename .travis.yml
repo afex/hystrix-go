@@ -1,5 +1,5 @@
-sudo: false
 language: go
+sudo: false
 script:
   - cd hystrix
   - go test -race
