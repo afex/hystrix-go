@@ -1,8 +1,8 @@
 hystrix-go
 ==========
 
-[![Build Status](https://travis-ci.org/afex/hystrix-go.png?branch=master)](https://travis-ci.org/afex/hystrix-go)
-[![GoDoc Documentation](http://godoc.org/github.com/afex/hystrix-go/hystrix?status.png)](https://godoc.org/github.com/afex/hystrix-go/hystrix)
+[![Build Status](https://travis-ci.org/tietang/hystrix-go.png?branch=master)](<https://travis-ci.org/tietang/hystrix-go>)
+[![GoDoc Documentation](http://godoc.org/github.com/afex/hystrix-go/hystrix?status.png)](<https://godoc.org/github.com/afex/hystrix-go/hystrix>)
 
 [Hystrix](https://github.com/Netflix/Hystrix) is a great project from Netflix.
 
