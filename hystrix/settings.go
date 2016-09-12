@@ -7,9 +7,9 @@ import (
 
 var (
 	// DefaultTimeout is how long to wait for command to complete, in milliseconds
-	DefaultTimeout = 1000
+	DefaultTimeout = 2000
 	// DefaultMaxConcurrent is how many commands of the same type can run at the same time
-	DefaultMaxConcurrent = 10
+	DefaultMaxConcurrent = 100
 	// DefaultVolumeThreshold is the minimum number of requests needed before a circuit can be tripped due to health
 	DefaultVolumeThreshold = 20
 	// DefaultSleepWindow is how long, in milliseconds, to wait after a circuit opens before testing for recovery
@@ -37,6 +37,38 @@ type CommandConfig struct {
 
 var circuitSettings map[string]*Settings
 var settingsMutex *sync.RWMutex
+var globalSettings = &Settings{
+	Timeout:                time.Duration(DefaultTimeout) * time.Millisecond,
+	MaxConcurrentRequests:  DefaultMaxConcurrent,
+	RequestVolumeThreshold: uint64(DefaultVolumeThreshold),
+	SleepWindow:            time.Duration(DefaultSleepWindow) * time.Millisecond,
+	ErrorPercentThreshold:  DefaultErrorPercentThreshold,
+}
+
+func ConfigureGlobal(config *CommandConfig) {
+	settingsMutex.Lock()
+	defer settingsMutex.Unlock()
+
+	if config.Timeout != 0 {
+		globalSettings.Timeout = time.Duration(config.Timeout) * time.Millisecond
+	}
+
+	if config.MaxConcurrentRequests != 0 {
+		globalSettings.MaxConcurrentRequests = config.MaxConcurrentRequests
+	}
+
+	if config.RequestVolumeThreshold != 0 {
+		globalSettings.RequestVolumeThreshold = uint64(config.RequestVolumeThreshold)
+	}
+
+	if config.SleepWindow != 0 {
+		globalSettings.SleepWindow = time.Duration(config.SleepWindow) * time.Millisecond
+	}
+
+	if config.ErrorPercentThreshold != 0 {
+		globalSettings.ErrorPercentThreshold = config.ErrorPercentThreshold
+	}
+}
 
 func init() {
 	circuitSettings = make(map[string]*Settings)
@@ -55,36 +87,36 @@ func ConfigureCommand(name string, config CommandConfig) {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
 
-	timeout := DefaultTimeout
+	timeout := globalSettings.Timeout
 	if config.Timeout != 0 {
-		timeout = config.Timeout
+		timeout = time.Duration(config.Timeout) * time.Millisecond
 	}
 
-	max := DefaultMaxConcurrent
+	max := globalSettings.MaxConcurrentRequests
 	if config.MaxConcurrentRequests != 0 {
 		max = config.MaxConcurrentRequests
 	}
 
-	volume := DefaultVolumeThreshold
+	volume := globalSettings.RequestVolumeThreshold
 	if config.RequestVolumeThreshold != 0 {
-		volume = config.RequestVolumeThreshold
+		volume = uint64(config.RequestVolumeThreshold)
 	}
 
-	sleep := DefaultSleepWindow
+	sleep := globalSettings.SleepWindow
 	if config.SleepWindow != 0 {
-		sleep = config.SleepWindow
+		sleep = time.Duration(config.SleepWindow) * time.Millisecond
 	}
 
-	errorPercent := DefaultErrorPercentThreshold
+	errorPercent := globalSettings.ErrorPercentThreshold
 	if config.ErrorPercentThreshold != 0 {
 		errorPercent = config.ErrorPercentThreshold
 	}
 
 	circuitSettings[name] = &Settings{
-		Timeout:                time.Duration(timeout) * time.Millisecond,
+		Timeout:                timeout,
 		MaxConcurrentRequests:  max,
-		RequestVolumeThreshold: uint64(volume),
-		SleepWindow:            time.Duration(sleep) * time.Millisecond,
+		RequestVolumeThreshold: volume,
+		SleepWindow:            sleep,
 		ErrorPercentThreshold:  errorPercent,
 	}
 }
