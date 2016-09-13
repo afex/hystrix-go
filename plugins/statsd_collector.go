@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
+	"github.com/tietang/hystrix-go/hystrix/metric_collector"
 	"github.com/cactus/go-statsd-client/statsd"
 )
 
