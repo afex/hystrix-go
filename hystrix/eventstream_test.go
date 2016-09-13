@@ -263,7 +263,7 @@ func TestThreadPoolStream(t *testing.T) {
 			})
 
 			Convey("the pool size should be 10", func() {
-				So(metric.CurrentPoolSize, ShouldEqual, 10)
+				So(metric.CurrentPoolSize, ShouldEqual, DefaultMaxConcurrent)
 			})
 		})
 	})

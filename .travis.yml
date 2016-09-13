@@ -8,9 +8,9 @@ install:
   - go get github.com/rcrowley/go-metrics
   - go get github.com/DataDog/datadog-go/statsd
 
-script:
-  - cd hystrix
-  - go test -race
+#script:
+#  - cd hystrix
+#  - go test -race
 go:
   - 1.5.4
   - 1.6.2
