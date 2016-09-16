@@ -170,14 +170,18 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		return fmt.Errorf("no event types sent for metrics")
 	}
 
-	if eventTypes[0] == "success" && circuit.IsOpen() {
+	if eventTypes[0] == "success" && circuit.open {
 		circuit.setClose()
 	}
 
-	circuit.metrics.Updates <- &commandExecution{
+	select {
+	case circuit.metrics.Updates <- &commandExecution{
 		Types:       eventTypes,
 		Start:       start,
 		RunDuration: runDuration,
+	}:
+	default:
+		return CircuitError{Message: fmt.Sprintf("metrics channel (%v) is at capacity", circuit.Name)}
 	}
 
 	return nil

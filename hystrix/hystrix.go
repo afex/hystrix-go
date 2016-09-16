@@ -2,6 +2,7 @@ package hystrix
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -121,7 +122,10 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			cmd.returnTicketLocked(cmd.ticket)
 			cmd.Unlock()
 
-			cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
+			err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
+			if err != nil {
+				log.Print(err)
+			}
 		}()
 
 		timer := time.NewTimer(getSettings(name).Timeout)
