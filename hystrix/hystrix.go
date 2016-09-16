@@ -29,6 +29,7 @@ type command struct {
 	start        time.Time
 	errChan      chan error
 	finished     chan bool
+	cleanedup    chan bool
 	fallbackOnce *sync.Once
 	circuit      *CircuitBreaker
 	run          runFunc
@@ -54,13 +55,14 @@ var (
 // new calls to it for you to give the dependent service time to repair.
 //
 // Define a fallback function if you want to define some code to execute during outages.
-func Go(name string, run runFunc, fallback fallbackFunc) chan error {
+func Go(name string, run runFunc, fallback fallbackFunc) (chan error, chan bool) {
 	cmd := &command{
 		run:          run,
 		fallback:     fallback,
 		start:        time.Now(),
 		errChan:      make(chan error, 1),
 		finished:     make(chan bool, 1),
+		cleanedup:    make(chan bool, 1),
 		fallbackOnce: &sync.Once{},
 	}
 
@@ -71,7 +73,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	circuit, _, err := GetCircuit(name)
 	if err != nil {
 		cmd.errChan <- err
-		return cmd.errChan
+		cmd.cleanedup <- true
+		return cmd.errChan, cmd.cleanedup
 	}
 	cmd.circuit = circuit
 
@@ -122,6 +125,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			cmd.returnTicketLocked(cmd.ticket)
 			cmd.Unlock()
 
+			cmd.cleanedup <- true
+
 			err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
 			if err != nil {
 				log.Print(err)
@@ -143,7 +148,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		}
 	}()
 
-	return cmd.errChan
+	return cmd.errChan, cmd.cleanedup
 }
 
 // Do runs your function in a synchronous manner, blocking until either your function succeeds
@@ -172,14 +177,16 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 	}
 
 	var errChan chan error
+	var cleanedup chan bool
 	if fallback == nil {
-		errChan = Go(name, r, nil)
+		errChan, cleanedup = Go(name, r, nil)
 	} else {
-		errChan = Go(name, r, f)
+		errChan, cleanedup = Go(name, r, f)
 	}
 
 	select {
 	case <-done:
+		<-cleanedup
 		return nil
 	case err := <-errChan:
 		return err
