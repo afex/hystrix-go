@@ -35,8 +35,10 @@ type CommandConfig struct {
 	ErrorPercentThreshold  int `json:"error_percent_threshold"`
 }
 
-var circuitSettings map[string]*Settings
-var settingsMutex *sync.RWMutex
+var (
+	circuitSettings map[string]*Settings
+	settingsMutex   *sync.RWMutex
+)
 
 func init() {
 	circuitSettings = make(map[string]*Settings)
@@ -52,9 +54,6 @@ func Configure(cmds map[string]CommandConfig) {
 
 // ConfigureCommand applies settings for a circuit
 func ConfigureCommand(name string, config CommandConfig) {
-	settingsMutex.Lock()
-	defer settingsMutex.Unlock()
-
 	timeout := DefaultTimeout
 	if config.Timeout != 0 {
 		timeout = config.Timeout
@@ -79,6 +78,9 @@ func ConfigureCommand(name string, config CommandConfig) {
 	if config.ErrorPercentThreshold != 0 {
 		errorPercent = config.ErrorPercentThreshold
 	}
+
+	settingsMutex.Lock()
+	defer settingsMutex.Unlock()
 
 	circuitSettings[name] = &Settings{
 		Timeout:                time.Duration(timeout) * time.Millisecond,

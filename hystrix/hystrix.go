@@ -28,7 +28,7 @@ type command struct {
 	ticket       *struct{}
 	start        time.Time
 	errChan      chan error
-	finished     chan bool
+	finished     chan struct{}
 	fallbackOnce *sync.Once
 	circuit      *CircuitBreaker
 	run          runFunc
@@ -58,11 +58,11 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		fallback:     fallback,
 		start:        time.Now(),
 		errChan:      make(chan error, 1),
-		finished:     make(chan bool, 1),
+		finished:     make(chan struct{}, 1),
 		fallbackOnce: &sync.Once{},
 	}
 
-	// dont have methods with explicit params and returns
+	// don't have methods with explicit params and returns
 	// let data come in and out naturally, like with any closure
 	// explicit error return to give place for us to kill switch the operation (fallback)
 
@@ -74,11 +74,11 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	cmd.circuit = circuit
 
 	go func() {
-		defer func() { cmd.finished <- true }()
+		defer func() { cmd.finished <- struct{}{} }()
 
 		// Circuits get opened when recent executions have shown to have a high error rate.
 		// Rejecting new executions allows backends to recover, and the circuit will allow
-		// new traffic when it feels a healthly state has returned.
+		// new traffic when it feels a healthy state has returned.
 		if !cmd.circuit.AllowRequest() {
 			cmd.errorWithFallback(ErrCircuitOpen)
 			return

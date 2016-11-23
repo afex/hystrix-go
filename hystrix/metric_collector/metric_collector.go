@@ -40,7 +40,7 @@ func (m *metricCollectorRegistry) Register(initMetricCollector func(string) Metr
 }
 
 // MetricCollector represents the contract that all collectors must fulfill to gather circuit statistics.
-// Implementations of this interface do not have to maintain locking around thier data stores so long as
+// Implementations of this interface do not have to maintain locking around their data stores so long as
 // they are not modified outside of the hystrix context.
 type MetricCollector interface {
 	// IncrementAttempts increments the number of updates.
