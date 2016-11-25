@@ -8,7 +8,7 @@ import (
 )
 
 func metricFailingPercent(p int) *metricExchange {
-	m := newMetricExchange("")
+	m := newMetricExchange("", 10*time.Second)
 	for i := 0; i < 100; i++ {
 		t := "success"
 		if i < p {

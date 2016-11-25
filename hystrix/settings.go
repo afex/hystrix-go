@@ -12,18 +12,23 @@ var (
 	DefaultMaxConcurrent = 10
 	// DefaultVolumeThreshold is the minimum number of requests needed before a circuit can be tripped due to health
 	DefaultVolumeThreshold = 20
+	// DefaultRollingWindow is how long, in seconds, to gather the metrics
+	DefaultRollingWindow = 10
 	// DefaultSleepWindow is how long, in milliseconds, to wait after a circuit opens before testing for recovery
 	DefaultSleepWindow = 5000
 	// DefaultErrorPercentThreshold causes circuits to open once the rolling measure of errors exceeds this percent of requests
 	DefaultErrorPercentThreshold = 50
 )
 
+// Settings represents the hystrix's configurations to use when checking whether it's time to create a short circuit or
+// recover the circuit.
 type Settings struct {
-	Timeout                time.Duration
-	MaxConcurrentRequests  int
-	RequestVolumeThreshold uint64
-	SleepWindow            time.Duration
-	ErrorPercentThreshold  int
+	Timeout                time.Duration // the command timeout
+	MaxConcurrentRequests  int           // max concurrent requests
+	RequestVolumeThreshold uint64        // the threshold of the requests within the rolling window
+	RollingWindow          time.Duration // the rolling window duration
+	SleepWindow            time.Duration // the sleep window duration
+	ErrorPercentThreshold  int           // the threshold of the error percentage
 }
 
 // CommandConfig is used to tune circuit settings at runtime
@@ -31,6 +36,7 @@ type CommandConfig struct {
 	Timeout                int `json:"timeout"`
 	MaxConcurrentRequests  int `json:"max_concurrent_requests"`
 	RequestVolumeThreshold int `json:"request_volume_threshold"`
+	RollingWindow          int `json:"rolling_window"`
 	SleepWindow            int `json:"sleep_window"`
 	ErrorPercentThreshold  int `json:"error_percent_threshold"`
 }
@@ -70,6 +76,11 @@ func ConfigureCommand(name string, config CommandConfig) {
 		volume = config.RequestVolumeThreshold
 	}
 
+	rolling := DefaultRollingWindow
+	if config.RollingWindow != 0 {
+		rolling = config.RollingWindow
+	}
+
 	sleep := DefaultSleepWindow
 	if config.SleepWindow != 0 {
 		sleep = config.SleepWindow
@@ -84,6 +95,7 @@ func ConfigureCommand(name string, config CommandConfig) {
 		Timeout:                time.Duration(timeout) * time.Millisecond,
 		MaxConcurrentRequests:  max,
 		RequestVolumeThreshold: uint64(volume),
+		RollingWindow:          time.Duration(rolling) * time.Second,
 		SleepWindow:            time.Duration(sleep) * time.Millisecond,
 		ErrorPercentThreshold:  errorPercent,
 	}

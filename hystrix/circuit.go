@@ -12,6 +12,7 @@ import (
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
 	Name                   string
+	Rolling                time.Duration
 	open                   bool
 	forceOpen              bool
 	mutex                  *sync.RWMutex
@@ -24,11 +25,15 @@ type CircuitBreaker struct {
 var (
 	circuitBreakersMutex *sync.RWMutex
 	circuitBreakers      map[string]*CircuitBreaker
+
+	// DefaultRolling represents the seconds to collect metrics
+	DefaultRolling time.Duration
 )
 
 func init() {
 	circuitBreakersMutex = &sync.RWMutex{}
 	circuitBreakers = make(map[string]*CircuitBreaker)
+	DefaultRolling = 10 * time.Second
 }
 
 // GetCircuit returns the circuit for the given command and whether this call created it.
@@ -45,7 +50,7 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 		if cb, ok := circuitBreakers[name]; ok {
 			return cb, false, nil
 		}
-		circuitBreakers[name] = newCircuitBreaker(name)
+		circuitBreakers[name] = newCircuitBreaker(name, DefaultRolling)
 	} else {
 		defer circuitBreakersMutex.RUnlock()
 	}
@@ -66,10 +71,11 @@ func Flush() {
 }
 
 // newCircuitBreaker creates a CircuitBreaker with associated Health
-func newCircuitBreaker(name string) *CircuitBreaker {
+func newCircuitBreaker(name string, rolling time.Duration) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
-	c.metrics = newMetricExchange(name)
+	c.Rolling = rolling
+	c.metrics = newMetricExchange(name, rolling)
 	c.executorPool = newExecutorPool(name)
 	c.mutex = &sync.RWMutex{}
 

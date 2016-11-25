@@ -120,7 +120,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 
 		// TODO: all hard-coded values should become configurable settings, per circuit
 
-		RollingStatsWindow:         10000,
+		RollingStatsWindow:         uint32(getSettings(cb.Name).RollingWindow.Seconds() * 1000),
 		ExecutionIsolationStrategy: "THREAD",
 
 		CircuitBreakerEnabled:                true,

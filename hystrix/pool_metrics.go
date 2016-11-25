@@ -3,6 +3,8 @@ package hystrix
 import (
 	"sync"
 
+	"time"
+
 	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
@@ -36,8 +38,8 @@ func (m *poolMetrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	m.MaxActiveRequests = rolling.NewNumber()
-	m.Executed = rolling.NewNumber()
+	m.MaxActiveRequests = rolling.NewNumber(10 * time.Second)
+	m.Executed = rolling.NewNumber(10 * time.Second)
 }
 
 func (m *poolMetrics) Monitor() {

@@ -10,7 +10,7 @@ import (
 func TestMax(t *testing.T) {
 
 	Convey("when adding values to a rolling number", t, func() {
-		n := NewNumber()
+		n := NewNumber(10*time.Second)
 		for _, x := range []float64{10, 11, 9} {
 			n.UpdateMax(x)
 			time.Sleep(1 * time.Second)
@@ -24,7 +24,7 @@ func TestMax(t *testing.T) {
 
 func TestAvg(t *testing.T) {
 	Convey("when adding values to a rolling number", t, func() {
-		n := NewNumber()
+		n := NewNumber(10*time.Second)
 		for _, x := range []float64{0.5, 1.5, 2.5, 3.5, 4.5} {
 			n.Increment(x)
 			time.Sleep(1 * time.Second)
@@ -37,7 +37,7 @@ func TestAvg(t *testing.T) {
 }
 
 func BenchmarkRollingNumberIncrement(b *testing.B) {
-	n := NewNumber()
+	n := NewNumber(10*time.Second)
 
 	b.ResetTimer()
 
@@ -47,7 +47,7 @@ func BenchmarkRollingNumberIncrement(b *testing.B) {
 }
 
 func BenchmarkRollingNumberUpdateMax(b *testing.B) {
-	n := NewNumber()
+	n := NewNumber(10*time.Second)
 
 	b.ResetTimer()
 
