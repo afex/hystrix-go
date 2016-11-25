@@ -27,13 +27,12 @@ var (
 	circuitBreakers      map[string]*CircuitBreaker
 
 	// DefaultRolling represents the seconds to collect metrics
-	DefaultRolling time.Duration
+	DefaultRolling = 10 * time.Second
 )
 
 func init() {
 	circuitBreakersMutex = &sync.RWMutex{}
 	circuitBreakers = make(map[string]*CircuitBreaker)
-	DefaultRolling = 10 * time.Second
 }
 
 // GetCircuit returns the circuit for the given command and whether this call created it.
