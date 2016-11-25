@@ -114,6 +114,7 @@ func getSettings(name string) *Settings {
 	return s
 }
 
+// GetCircuitSettings returns the copy of the circuit settings.
 func GetCircuitSettings() map[string]*Settings {
 	copy := make(map[string]*Settings)
 

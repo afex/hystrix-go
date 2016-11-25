@@ -124,7 +124,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		ExecutionIsolationStrategy: "THREAD",
 
 		CircuitBreakerEnabled:                true,
-		CircuitBreakerForceClosed:            false,
+		CircuitBreakerForceClosed:            cb.forceClosed,
 		CircuitBreakerForceOpen:              cb.forceOpen,
 		CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name).ErrorPercentThreshold),
 		CircuitBreakerSleepWindow:            uint32(getSettings(cb.Name).SleepWindow.Seconds() * 1000),

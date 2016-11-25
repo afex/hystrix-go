@@ -88,7 +88,7 @@ func (r *Number) Sum(now time.Time) float64 {
 	return sum
 }
 
-// Max returns the maximum value seen in the last `rolling`` seconds.
+// Max returns the maximum value seen in the last `rolling` seconds.
 func (r *Number) Max(now time.Time) float64 {
 	var max float64
 

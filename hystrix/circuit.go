@@ -15,6 +15,7 @@ type CircuitBreaker struct {
 	Rolling                time.Duration
 	open                   bool
 	forceOpen              bool
+	forceClosed            bool
 	mutex                  *sync.RWMutex
 	openedOrLastTestedTime int64
 
@@ -90,6 +91,24 @@ func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
 	}
 
 	circuit.forceOpen = toggle
+	if toggle {
+		circuit.forceClosed = !toggle
+	}
+	return nil
+}
+
+// toggleForceClosed allows manually preventing the fallback logic for all instances
+// of a given command.
+func (circuit *CircuitBreaker) toggleForceClosed(toggle bool) error {
+	circuit, _, err := GetCircuit(circuit.Name)
+	if err != nil {
+		return err
+	}
+
+	circuit.forceClosed = toggle
+	if toggle {
+		circuit.forceOpen = !toggle
+	}
 	return nil
 }
 
@@ -97,7 +116,7 @@ func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.mutex.RLock()
-	o := circuit.forceOpen || circuit.open
+	o := !circuit.forceClosed && (circuit.forceOpen || circuit.open)
 	circuit.mutex.RUnlock()
 
 	if o {

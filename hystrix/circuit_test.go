@@ -30,6 +30,50 @@ func TestGetCircuit(t *testing.T) {
 	})
 }
 
+func TestCircuitForceOpenAndClosed(t *testing.T) {
+	defer Flush()
+
+	Convey("when calling forceOpen", t, func() {
+		var err error
+		var cb *CircuitBreaker
+		cb, _, err = GetCircuit("forceOpenTest")
+		Convey("both circuit's forceOpen and forceClosed should be false after first initialization", func() {
+			So(err, ShouldBeNil)
+			So(cb.forceOpen, ShouldBeFalse)
+			So(cb.forceClosed, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+		})
+
+		Convey("circuit's forceClosed should be false when forceOpen is true", func() {
+			err := cb.toggleForceOpen(true)
+			So(err, ShouldBeNil)
+			So(cb.forceOpen, ShouldBeTrue)
+			So(cb.forceClosed, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeTrue)
+
+			err = cb.toggleForceOpen(false)
+			So(err, ShouldBeNil)
+			So(cb.forceOpen, ShouldBeFalse)
+			So(cb.forceClosed, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+		})
+
+		Convey("circuit's forceOpen should be false when forceClosed is true", func() {
+			err := cb.toggleForceClosed(true)
+			So(err, ShouldBeNil)
+			So(cb.forceClosed, ShouldBeTrue)
+			So(cb.forceOpen, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+
+			err = cb.toggleForceClosed(false)
+			So(err, ShouldBeNil)
+			So(cb.forceOpen, ShouldBeFalse)
+			So(cb.forceClosed, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+		})
+	})
+}
+
 func TestMultithreadedGetCircuit(t *testing.T) {
 	defer Flush()
 
