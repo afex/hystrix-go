@@ -30,6 +30,34 @@ func TestGetCircuit(t *testing.T) {
 	})
 }
 
+func TestCircuitEnabled(t *testing.T) {
+	defer Flush()
+
+	Convey("enable and disable the circuit", t, func() {
+		var err error
+		var cb *CircuitBreaker
+		cb, _, err = GetCircuit("circuitEnabledTest")
+		Convey("circuit's isOpen should be false after first initialization", func() {
+			So(err, ShouldBeNil)
+			So(cb.enabled, ShouldBeTrue)
+			So(cb.IsOpen(), ShouldBeFalse)
+		})
+
+		Convey("circuit's isOpen should be false when circuit is disabled and forceOpen is set", func() {
+			err = cb.toggleForceOpen(true)
+			So(err, ShouldBeNil)
+			So(cb.forceOpen, ShouldBeTrue)
+			So(cb.IsOpen(), ShouldBeTrue)
+
+			err = cb.disable()
+			So(err, ShouldBeNil)
+			So(cb.enabled, ShouldBeFalse)
+			So(cb.forceOpen, ShouldBeTrue)
+			So(cb.IsOpen(), ShouldBeFalse)
+		})
+	})
+}
+
 func TestCircuitForceOpenAndClosed(t *testing.T) {
 	defer Flush()
 

@@ -13,6 +13,7 @@ import (
 type CircuitBreaker struct {
 	Name                   string
 	Rolling                time.Duration
+	enabled                bool
 	open                   bool
 	forceOpen              bool
 	forceClosed            bool
@@ -75,11 +76,24 @@ func newCircuitBreaker(name string, rolling time.Duration) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
 	c.Rolling = rolling
+	c.enabled = true
+	c.forceOpen = false
+	c.forceClosed = false
 	c.metrics = newMetricExchange(name, rolling)
 	c.executorPool = newExecutorPool(name)
 	c.mutex = &sync.RWMutex{}
 
 	return c
+}
+
+func (circuit *CircuitBreaker) disable() error {
+	circuit.enabled = false
+	return nil
+}
+
+func (circuit *CircuitBreaker) enable() error {
+	circuit.enabled = true
+	return nil
 }
 
 // toggleForceOpen allows manually causing the fallback logic for all instances
@@ -116,7 +130,7 @@ func (circuit *CircuitBreaker) toggleForceClosed(toggle bool) error {
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.mutex.RLock()
-	o := !circuit.forceClosed && (circuit.forceOpen || circuit.open)
+	o := circuit.enabled && !circuit.forceClosed && (circuit.forceOpen || circuit.open)
 	circuit.mutex.RUnlock()
 
 	if o {

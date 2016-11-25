@@ -123,7 +123,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		RollingStatsWindow:         uint32(getSettings(cb.Name).RollingWindow.Seconds() * 1000),
 		ExecutionIsolationStrategy: "THREAD",
 
-		CircuitBreakerEnabled:                true,
+		CircuitBreakerEnabled:                cb.enabled,
 		CircuitBreakerForceClosed:            cb.forceClosed,
 		CircuitBreakerForceOpen:              cb.forceOpen,
 		CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name).ErrorPercentThreshold),
