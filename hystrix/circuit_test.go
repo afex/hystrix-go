@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/afex/hystrix-go/hystrix/config"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -30,34 +31,6 @@ func TestGetCircuit(t *testing.T) {
 	})
 }
 
-func TestCircuitEnabled(t *testing.T) {
-	defer Flush()
-
-	Convey("enable and disable the circuit", t, func() {
-		var err error
-		var cb *CircuitBreaker
-		cb, _, err = GetCircuit("circuitEnabledTest")
-		Convey("circuit's isOpen should be false after first initialization", func() {
-			So(err, ShouldBeNil)
-			So(cb.enabled, ShouldBeTrue)
-			So(cb.IsOpen(), ShouldBeFalse)
-		})
-
-		Convey("circuit's isOpen should be false when circuit is disabled and forceOpen is set", func() {
-			err = cb.toggleForceOpen(true)
-			So(err, ShouldBeNil)
-			So(cb.forceOpen, ShouldBeTrue)
-			So(cb.IsOpen(), ShouldBeTrue)
-
-			err = cb.disable()
-			So(err, ShouldBeNil)
-			So(cb.enabled, ShouldBeFalse)
-			So(cb.forceOpen, ShouldBeTrue)
-			So(cb.IsOpen(), ShouldBeFalse)
-		})
-	})
-}
-
 func TestCircuitForceOpenAndClosed(t *testing.T) {
 	defer Flush()
 
@@ -67,36 +40,36 @@ func TestCircuitForceOpenAndClosed(t *testing.T) {
 		cb, _, err = GetCircuit("forceOpenTest")
 		Convey("both circuit's forceOpen and forceClosed should be false after first initialization", func() {
 			So(err, ShouldBeNil)
-			So(cb.forceOpen, ShouldBeFalse)
-			So(cb.forceClosed, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeFalse)
 			So(cb.IsOpen(), ShouldBeFalse)
 		})
 
 		Convey("circuit's forceClosed should be false when forceOpen is true", func() {
-			err := cb.toggleForceOpen(true)
+			err := cb.ToggleForceOpen(true)
 			So(err, ShouldBeNil)
-			So(cb.forceOpen, ShouldBeTrue)
-			So(cb.forceClosed, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeTrue)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeFalse)
 			So(cb.IsOpen(), ShouldBeTrue)
 
-			err = cb.toggleForceOpen(false)
+			err = cb.ToggleForceOpen(false)
 			So(err, ShouldBeNil)
-			So(cb.forceOpen, ShouldBeFalse)
-			So(cb.forceClosed, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeFalse)
 			So(cb.IsOpen(), ShouldBeFalse)
 		})
 
 		Convey("circuit's forceOpen should be false when forceClosed is true", func() {
-			err := cb.toggleForceClosed(true)
+			err := cb.ToggleForceClosed(true)
 			So(err, ShouldBeNil)
-			So(cb.forceClosed, ShouldBeTrue)
-			So(cb.forceOpen, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeTrue)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeFalse)
 			So(cb.IsOpen(), ShouldBeFalse)
 
-			err = cb.toggleForceClosed(false)
+			err = cb.ToggleForceClosed(false)
 			So(err, ShouldBeNil)
-			So(cb.forceOpen, ShouldBeFalse)
-			So(cb.forceClosed, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeFalse)
 			So(cb.IsOpen(), ShouldBeFalse)
 		})
 	})
@@ -144,7 +117,7 @@ func TestReportEventOpenThenClose(t *testing.T) {
 	Convey("when a circuit is closed", t, func() {
 		defer Flush()
 
-		ConfigureCommand("", CommandConfig{ErrorPercentThreshold: 50})
+		config.ConfigureCommand("", config.CommandConfig{ErrorPercentThreshold: 50})
 
 		cb, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)

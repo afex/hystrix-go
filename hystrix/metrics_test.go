@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/afex/hystrix-go/hystrix/config"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func metricFailingPercent(p int) *metricExchange {
-	m := newMetricExchange("", 10*time.Second)
+	m := newMetricExchange("")
 	for i := 0; i < 100; i++ {
 		t := "success"
 		if i < p {
@@ -34,7 +35,7 @@ func TestErrorPercent(t *testing.T) {
 		})
 
 		Convey("and a error threshold set to 39", func() {
-			ConfigureCommand("", CommandConfig{ErrorPercentThreshold: 39})
+			config.ConfigureCommand("", config.CommandConfig{ErrorPercentThreshold: 39})
 
 			Convey("the metrics should be unhealthy", func() {
 				So(m.IsHealthy(now), ShouldBeFalse)

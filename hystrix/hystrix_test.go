@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"errors"
+
+	"github.com/afex/hystrix-go/hystrix/config"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -67,7 +70,7 @@ func TestFallback(t *testing.T) {
 func TestTimeout(t *testing.T) {
 	Convey("with a command which times out, and whose fallback sends to a channel", t, func() {
 		defer Flush()
-		ConfigureCommand("", CommandConfig{Timeout: 100})
+		config.ConfigureCommand("", config.CommandConfig{Timeout: 100})
 
 		resultChan := make(chan int)
 		errChan := Go("", func() error {
@@ -93,7 +96,7 @@ func TestTimeout(t *testing.T) {
 func TestTimeoutEmptyFallback(t *testing.T) {
 	Convey("with a command which times out, and has no fallback", t, func() {
 		defer Flush()
-		ConfigureCommand("", CommandConfig{Timeout: 100})
+		config.ConfigureCommand("", config.CommandConfig{Timeout: 100})
 
 		resultChan := make(chan int)
 		errChan := Go("", func() error {
@@ -117,10 +120,43 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 	})
 }
 
+func TestWhenCircuitBreakerDisabled(t *testing.T) {
+	Convey("with a circuit breaker which is disabled, and has no fallback", t, func() {
+		defer Flush()
+		config.ConfigureCommand("circuitbreaker_disabled", config.CommandConfig{Enabled: "false"})
+		_, ok, err := GetCircuit("circuitbreaker_disabled")
+		So(ok, ShouldBeTrue)
+		So(err, ShouldBeNil)
+		So(config.GetSettings("circuitbreaker_disabled").Enabled, ShouldBeFalse)
+
+		resultChan := make(chan int)
+		theError := errors.New("exception")
+		errChan := Go("circuitbreaker_disabled", func() error {
+			return theError
+		}, func(err error) error {
+			resultChan <- 2
+			return nil
+		})
+
+		Convey("a timeout error should be returned", func() {
+			So(<-errChan, ShouldResemble, theError)
+
+			Convey("metrics are not recorded", func() {
+				time.Sleep(10 * time.Millisecond)
+				cb, _, _ := GetCircuit("circuitbreaker_disabled")
+				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 0)
+				So(cb.metrics.DefaultCollector().FallbackFailures().Sum(time.Now()), ShouldEqual, 0)
+			})
+		})
+	})
+}
+
 func TestMaxConcurrent(t *testing.T) {
 	Convey("if a command has max concurrency set to 2", t, func() {
 		defer Flush()
-		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 2})
+		config.ConfigureCommand("", config.CommandConfig{MaxConcurrentRequests: 2})
 		resultChan := make(chan int)
 
 		run := func() error {
@@ -161,7 +197,7 @@ func TestForceOpenCircuit(t *testing.T) {
 		cb, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
 
-		cb.toggleForceOpen(true)
+		cb.ToggleForceOpen(true)
 
 		errChan := Go("", func() error {
 			return nil
@@ -183,7 +219,7 @@ func TestForceOpenCircuit(t *testing.T) {
 func TestNilFallbackRunError(t *testing.T) {
 	Convey("when your run function returns an error and you have no fallback", t, func() {
 		defer Flush()
-		errChan := Go("", func() error {
+		errChan := Go("TestNilFallbackRunError", func() error {
 			return fmt.Errorf("run_error")
 		}, nil)
 
@@ -198,7 +234,7 @@ func TestNilFallbackRunError(t *testing.T) {
 func TestFailedFallback(t *testing.T) {
 	Convey("when your run and fallback functions return an error", t, func() {
 		defer Flush()
-		errChan := Go("", func() error {
+		errChan := Go("TestFailedFallback", func() error {
 			return fmt.Errorf("run_error")
 		}, func(err error) error {
 			return fmt.Errorf("fallback_error")
@@ -215,13 +251,13 @@ func TestFailedFallback(t *testing.T) {
 func TestCloseCircuitAfterSuccess(t *testing.T) {
 	Convey("when a circuit is open", t, func() {
 		defer Flush()
-		cb, _, err := GetCircuit("")
+		cb, _, err := GetCircuit("TestCloseCircuitAfterSuccess")
 		So(err, ShouldEqual, nil)
 
 		cb.setOpen()
 
 		Convey("commands immediately following should short-circuit", func() {
-			errChan := Go("", func() error {
+			errChan := Go("TestCloseCircuitAfterSuccess", func() error {
 				return nil
 			}, nil)
 
@@ -232,7 +268,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 			time.Sleep(6 * time.Second)
 
 			done := make(chan bool, 1)
-			Go("", func() error {
+			Go("TestCloseCircuitAfterSuccess", func() error {
 				done <- true
 				return nil
 			}, nil)
@@ -249,7 +285,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 func TestFailAfterTimeout(t *testing.T) {
 	Convey("when a slow command fails after the timeout fires", t, func() {
 		defer Flush()
-		ConfigureCommand("", CommandConfig{Timeout: 10})
+		config.ConfigureCommand("", config.CommandConfig{Timeout: 10})
 
 		out := make(chan struct{}, 2)
 		errChan := Go("", func() error {
@@ -277,7 +313,7 @@ func TestSlowFallbackOpenCircuit(t *testing.T) {
 	Convey("with an open circuit and a slow fallback", t, func() {
 		defer Flush()
 
-		ConfigureCommand("", CommandConfig{Timeout: 10})
+		config.ConfigureCommand("", config.CommandConfig{Timeout: 10})
 
 		cb, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)
@@ -310,7 +346,7 @@ func TestSlowFallbackOpenCircuit(t *testing.T) {
 func TestFallbackAfterRejected(t *testing.T) {
 	Convey("with a circuit whose pool is full", t, func() {
 		defer Flush()
-		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 1})
+		config.ConfigureCommand("", config.CommandConfig{MaxConcurrentRequests: 1})
 		cb, _, err := GetCircuit("")
 		if err != nil {
 			t.Fatal(err)
@@ -343,7 +379,7 @@ func TestReturnTicket(t *testing.T) {
 	Convey("with a run command that doesn't return", t, func() {
 		defer Flush()
 
-		ConfigureCommand("", CommandConfig{Timeout: 10})
+		config.ConfigureCommand("", config.CommandConfig{Timeout: 10})
 
 		errChan := Go("", func() error {
 			c := make(chan struct{})
@@ -424,7 +460,7 @@ func TestDo(t *testing.T) {
 	Convey("with a command which times out", t, func() {
 		defer Flush()
 
-		ConfigureCommand("", CommandConfig{Timeout: 10})
+		config.ConfigureCommand("", config.CommandConfig{Timeout: 10})
 
 		err := Do("", func() error {
 			time.Sleep(100 * time.Millisecond)

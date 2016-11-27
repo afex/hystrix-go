@@ -6,17 +6,15 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/afex/hystrix-go/hystrix/config"
 )
 
 // CircuitBreaker is created for each ExecutorPool to track whether requests
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
 	Name                   string
-	Rolling                time.Duration
-	enabled                bool
 	open                   bool
-	forceOpen              bool
-	forceClosed            bool
 	mutex                  *sync.RWMutex
 	openedOrLastTestedTime int64
 
@@ -51,7 +49,7 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 		if cb, ok := circuitBreakers[name]; ok {
 			return cb, false, nil
 		}
-		circuitBreakers[name] = newCircuitBreaker(name, DefaultRolling)
+		circuitBreakers[name] = newCircuitBreaker(name)
 	} else {
 		defer circuitBreakersMutex.RUnlock()
 	}
@@ -72,57 +70,37 @@ func Flush() {
 }
 
 // newCircuitBreaker creates a CircuitBreaker with associated Health
-func newCircuitBreaker(name string, rolling time.Duration) *CircuitBreaker {
+func newCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
-	c.Rolling = rolling
-	c.enabled = true
-	c.forceOpen = false
-	c.forceClosed = false
-	c.metrics = newMetricExchange(name, rolling)
+	c.metrics = newMetricExchange(name)
 	c.executorPool = newExecutorPool(name)
 	c.mutex = &sync.RWMutex{}
 
 	return c
 }
 
-func (circuit *CircuitBreaker) disable() error {
-	circuit.enabled = false
-	return nil
-}
-
-func (circuit *CircuitBreaker) enable() error {
-	circuit.enabled = true
-	return nil
-}
-
-// toggleForceOpen allows manually causing the fallback logic for all instances
+// ToggleForceOpen allows manually causing the fallback logic for all instances
 // of a given command.
-func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
+func (circuit *CircuitBreaker) ToggleForceOpen(toggle bool) error {
 	circuit, _, err := GetCircuit(circuit.Name)
 	if err != nil {
 		return err
 	}
 
-	circuit.forceOpen = toggle
-	if toggle {
-		circuit.forceClosed = !toggle
-	}
+	config.GetSettings(circuit.Name).ForceOpen = toggle
 	return nil
 }
 
-// toggleForceClosed allows manually preventing the fallback logic for all instances
+// ToggleForceClosed allows manually preventing the fallback logic for all instances
 // of a given command.
-func (circuit *CircuitBreaker) toggleForceClosed(toggle bool) error {
+func (circuit *CircuitBreaker) ToggleForceClosed(toggle bool) error {
 	circuit, _, err := GetCircuit(circuit.Name)
 	if err != nil {
 		return err
 	}
 
-	circuit.forceClosed = toggle
-	if toggle {
-		circuit.forceOpen = !toggle
-	}
+	config.GetSettings(circuit.Name).ForceClosed = toggle
 	return nil
 }
 
@@ -130,14 +108,15 @@ func (circuit *CircuitBreaker) toggleForceClosed(toggle bool) error {
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.mutex.RLock()
-	o := circuit.enabled && !circuit.forceClosed && (circuit.forceOpen || circuit.open)
+	settings := config.GetSettings(circuit.Name)
+	o := !settings.ForceClosed && (settings.ForceOpen || circuit.open)
 	circuit.mutex.RUnlock()
 
 	if o {
 		return true
 	}
 
-	if uint64(circuit.metrics.Requests().Sum(time.Now())) < getSettings(circuit.Name).RequestVolumeThreshold {
+	if uint64(circuit.metrics.Requests().Sum(time.Now())) < settings.RequestVolumeThreshold {
 		return false
 	}
 
@@ -163,7 +142,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 
 	now := time.Now().UnixNano()
 	openedOrLastTestedTime := atomic.LoadInt64(&circuit.openedOrLastTestedTime)
-	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
+	if circuit.open && now > openedOrLastTestedTime+config.GetSettings(circuit.Name).SleepWindow.Nanoseconds() {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)

@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/afex/hystrix-go/hystrix/config"
 	"github.com/afex/hystrix-go/hystrix/metric_collector"
 	"github.com/afex/hystrix-go/hystrix/rolling"
 )
@@ -22,13 +23,13 @@ type metricExchange struct {
 	metricCollectors []metricCollector.MetricCollector
 }
 
-func newMetricExchange(name string, rolling time.Duration) *metricExchange {
+func newMetricExchange(name string) *metricExchange {
 	m := &metricExchange{}
 	m.Name = name
 
 	m.Updates = make(chan *commandExecution, 2000)
 	m.Mutex = &sync.RWMutex{}
-	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name, rolling)
+	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()
 
 	go m.Monitor()
@@ -147,5 +148,5 @@ func (m *metricExchange) ErrorPercent(now time.Time) int {
 }
 
 func (m *metricExchange) IsHealthy(now time.Time) bool {
-	return m.ErrorPercent(now) < getSettings(m.Name).ErrorPercentThreshold
+	return m.ErrorPercent(now) < config.GetSettings(m.Name).ErrorPercentThreshold
 }

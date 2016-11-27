@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/afex/hystrix-go/hystrix/config"
 )
 
 type runFunc func() error
@@ -71,6 +73,14 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		cmd.errChan <- err
 		return cmd.errChan
 	}
+
+	if !config.GetSettings(name).Enabled {
+		if runErr := run(); runErr != nil {
+			cmd.errChan <- runErr
+			return cmd.errChan
+		}
+	}
+
 	cmd.circuit = circuit
 
 	go func() {
@@ -126,7 +136,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			}
 		}()
 
-		timer := time.NewTimer(getSettings(name).Timeout)
+		timer := time.NewTimer(config.GetSettings(name).Timeout)
 		defer timer.Stop()
 
 		select {

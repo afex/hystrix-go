@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/afex/hystrix-go/hystrix/config"
 	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
@@ -33,10 +34,12 @@ type DefaultMetricCollector struct {
 	runDuration       *rolling.Timing
 }
 
-func newDefaultMetricCollector(name string, rolling time.Duration) MetricCollector {
+func newDefaultMetricCollector(name string) MetricCollector {
 	m := &DefaultMetricCollector{}
 	m.mutex = &sync.RWMutex{}
-	m.rolling = rolling
+
+	settings := config.GetSettings(name)
+	m.rolling = settings.MetricsRollingStatisticalWindow
 	m.Reset()
 	return m
 }

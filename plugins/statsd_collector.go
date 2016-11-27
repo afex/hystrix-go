@@ -84,7 +84,7 @@ func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorC
 // NewStatsdCollector creates a collector for a specific circuit. The
 // prefix given to this circuit will be {config.Prefix}.{circuit_name}.{metric}.
 // Circuits with "/" in their names will have them replaced with ".".
-func (s *StatsdCollectorClient) NewStatsdCollector(name string, rolling time.Duration) metricCollector.MetricCollector {
+func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.MetricCollector {
 	if s.client == nil {
 		log.Fatalf("Statsd client must be initialized before circuits are created.")
 	}
