@@ -25,9 +25,6 @@ type CircuitBreaker struct {
 var (
 	circuitBreakersMutex *sync.RWMutex
 	circuitBreakers      map[string]*CircuitBreaker
-
-	// DefaultRolling represents the seconds to collect metrics
-	DefaultRolling = 10 * time.Second
 )
 
 func init() {
