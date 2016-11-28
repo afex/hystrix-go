@@ -4,7 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/songrgg/hystrix-go/hystrix/config"
+	"github.com/songrgg/hystrix-go/hystrix/rolling"
 )
 
 // DefaultMetricCollector holds information about the circuit state.
@@ -15,6 +16,8 @@ import (
 // Metric Collectors do not need Mutexes as they are updated by circuits within a locked context.
 type DefaultMetricCollector struct {
 	mutex *sync.RWMutex
+
+	rolling time.Duration
 
 	numRequests *rolling.Number
 	errors      *rolling.Number
@@ -34,6 +37,9 @@ type DefaultMetricCollector struct {
 func newDefaultMetricCollector(name string) MetricCollector {
 	m := &DefaultMetricCollector{}
 	m.mutex = &sync.RWMutex{}
+
+	settings := config.GetSettings(name)
+	m.rolling = settings.MetricsRollingStatisticalWindow
 	m.Reset()
 	return m
 }
@@ -198,15 +204,15 @@ func (d *DefaultMetricCollector) Reset() {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	d.numRequests = rolling.NewNumber()
-	d.errors = rolling.NewNumber()
-	d.successes = rolling.NewNumber()
-	d.rejects = rolling.NewNumber()
-	d.shortCircuits = rolling.NewNumber()
-	d.failures = rolling.NewNumber()
-	d.timeouts = rolling.NewNumber()
-	d.fallbackSuccesses = rolling.NewNumber()
-	d.fallbackFailures = rolling.NewNumber()
+	d.numRequests = rolling.NewNumber(d.rolling)
+	d.errors = rolling.NewNumber(d.rolling)
+	d.successes = rolling.NewNumber(d.rolling)
+	d.rejects = rolling.NewNumber(d.rolling)
+	d.shortCircuits = rolling.NewNumber(d.rolling)
+	d.failures = rolling.NewNumber(d.rolling)
+	d.timeouts = rolling.NewNumber(d.rolling)
+	d.fallbackSuccesses = rolling.NewNumber(d.rolling)
+	d.fallbackFailures = rolling.NewNumber(d.rolling)
 	d.totalDuration = rolling.NewTiming()
 	d.runDuration = rolling.NewTiming()
 }

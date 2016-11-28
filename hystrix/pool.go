@@ -1,5 +1,7 @@
 package hystrix
 
+import "github.com/songrgg/hystrix-go/hystrix/config"
+
 type executorPool struct {
 	Name    string
 	Metrics *poolMetrics
@@ -11,7 +13,7 @@ func newExecutorPool(name string) *executorPool {
 	p := &executorPool{}
 	p.Name = name
 	p.Metrics = newPoolMetrics(name)
-	p.Max = getSettings(name).MaxConcurrentRequests
+	p.Max = config.GetSettings(name).MaxConcurrentRequests
 
 	p.Tickets = make(chan *struct{}, p.Max)
 	for i := 0; i < p.Max; i++ {

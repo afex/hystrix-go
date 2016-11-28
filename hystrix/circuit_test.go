@@ -7,6 +7,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/songrgg/hystrix-go/hystrix/config"
 )
 
 func TestGetCircuit(t *testing.T) {
@@ -26,6 +27,50 @@ func TestGetCircuit(t *testing.T) {
 			_, created, err = GetCircuit("foo")
 			So(err, ShouldBeNil)
 			So(created, ShouldEqual, false)
+		})
+	})
+}
+
+func TestCircuitForceOpenAndClosed(t *testing.T) {
+	defer Flush()
+
+	Convey("when calling forceOpen", t, func() {
+		var err error
+		var cb *CircuitBreaker
+		cb, _, err = GetCircuit("forceOpenTest")
+		Convey("both circuit's forceOpen and forceClosed should be false after first initialization", func() {
+			So(err, ShouldBeNil)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+		})
+
+		Convey("circuit's forceClosed should be false when forceOpen is true", func() {
+			err := cb.ToggleForceOpen(true)
+			So(err, ShouldBeNil)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeTrue)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeTrue)
+
+			err = cb.ToggleForceOpen(false)
+			So(err, ShouldBeNil)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+		})
+
+		Convey("circuit's forceOpen should be false when forceClosed is true", func() {
+			err := cb.ToggleForceClosed(true)
+			So(err, ShouldBeNil)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeTrue)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+
+			err = cb.ToggleForceClosed(false)
+			So(err, ShouldBeNil)
+			So(config.GetSettings(cb.Name).ForceOpen, ShouldBeFalse)
+			So(config.GetSettings(cb.Name).ForceClosed, ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
 		})
 	})
 }
@@ -72,7 +117,7 @@ func TestReportEventOpenThenClose(t *testing.T) {
 	Convey("when a circuit is closed", t, func() {
 		defer Flush()
 
-		ConfigureCommand("", CommandConfig{ErrorPercentThreshold: 50})
+		config.ConfigureCommand("", config.CommandConfig{ErrorPercentThreshold: 50})
 
 		cb, _, err := GetCircuit("")
 		So(err, ShouldEqual, nil)

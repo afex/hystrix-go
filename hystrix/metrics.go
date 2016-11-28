@@ -4,8 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
-	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/songrgg/hystrix-go/hystrix/config"
+	"github.com/songrgg/hystrix-go/hystrix/metric_collector"
+	"github.com/songrgg/hystrix-go/hystrix/rolling"
 )
 
 type commandExecution struct {
@@ -147,5 +148,5 @@ func (m *metricExchange) ErrorPercent(now time.Time) int {
 }
 
 func (m *metricExchange) IsHealthy(now time.Time) bool {
-	return m.ErrorPercent(now) < getSettings(m.Name).ErrorPercentThreshold
+	return m.ErrorPercent(now) < config.GetSettings(m.Name).ErrorPercentThreshold
 }

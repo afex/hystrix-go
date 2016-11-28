@@ -7,7 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/songrgg/hystrix-go/hystrix/config"
+	"github.com/songrgg/hystrix-go/hystrix/rolling"
 )
 
 const (
@@ -92,6 +93,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	reqCount := cb.metrics.Requests().Sum(now)
 	errCount := cb.metrics.DefaultCollector().Errors().Sum(now)
 	errPct := cb.metrics.ErrorPercent(now)
+	settings := config.GetSettings(cb.Name)
 
 	eventBytes, err := json.Marshal(&streamCmdMetric{
 		Type:           "HystrixCommand",
@@ -120,15 +122,15 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 
 		// TODO: all hard-coded values should become configurable settings, per circuit
 
-		RollingStatsWindow:         10000,
+		RollingStatsWindow:         uint32(settings.MetricsRollingStatisticalWindow.Seconds() * 1000),
 		ExecutionIsolationStrategy: "THREAD",
 
-		CircuitBreakerEnabled:                true,
-		CircuitBreakerForceClosed:            false,
-		CircuitBreakerForceOpen:              cb.forceOpen,
-		CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name).ErrorPercentThreshold),
-		CircuitBreakerSleepWindow:            uint32(getSettings(cb.Name).SleepWindow.Seconds() * 1000),
-		CircuitBreakerRequestVolumeThreshold: uint32(getSettings(cb.Name).RequestVolumeThreshold),
+		CircuitBreakerEnabled:                settings.Enabled,
+		CircuitBreakerForceClosed:            settings.ForceClosed,
+		CircuitBreakerForceOpen:              settings.ForceOpen,
+		CircuitBreakerErrorThresholdPercent:  uint32(settings.ErrorPercentThreshold),
+		CircuitBreakerSleepWindow:            uint32(settings.SleepWindow.Seconds() * 1000),
+		CircuitBreakerRequestVolumeThreshold: uint32(settings.RequestVolumeThreshold),
 	})
 	if err != nil {
 		return err

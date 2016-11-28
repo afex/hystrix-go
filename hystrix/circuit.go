@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/songrgg/hystrix-go/hystrix/config"
 )
 
 // CircuitBreaker is created for each ExecutorPool to track whether requests
@@ -13,7 +15,6 @@ import (
 type CircuitBreaker struct {
 	Name                   string
 	open                   bool
-	forceOpen              bool
 	mutex                  *sync.RWMutex
 	openedOrLastTestedTime int64
 
@@ -76,15 +77,27 @@ func newCircuitBreaker(name string) *CircuitBreaker {
 	return c
 }
 
-// toggleForceOpen allows manually causing the fallback logic for all instances
+// ToggleForceOpen allows manually causing the fallback logic for all instances
 // of a given command.
-func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
+func (circuit *CircuitBreaker) ToggleForceOpen(toggle bool) error {
 	circuit, _, err := GetCircuit(circuit.Name)
 	if err != nil {
 		return err
 	}
 
-	circuit.forceOpen = toggle
+	config.GetSettings(circuit.Name).ForceOpen = toggle
+	return nil
+}
+
+// ToggleForceClosed allows manually preventing the fallback logic for all instances
+// of a given command.
+func (circuit *CircuitBreaker) ToggleForceClosed(toggle bool) error {
+	circuit, _, err := GetCircuit(circuit.Name)
+	if err != nil {
+		return err
+	}
+
+	config.GetSettings(circuit.Name).ForceClosed = toggle
 	return nil
 }
 
@@ -92,14 +105,15 @@ func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
 	circuit.mutex.RLock()
-	o := circuit.forceOpen || circuit.open
+	settings := config.GetSettings(circuit.Name)
+	o := !settings.ForceClosed && (settings.ForceOpen || circuit.open)
 	circuit.mutex.RUnlock()
 
 	if o {
 		return true
 	}
 
-	if uint64(circuit.metrics.Requests().Sum(time.Now())) < getSettings(circuit.Name).RequestVolumeThreshold {
+	if uint64(circuit.metrics.Requests().Sum(time.Now())) < settings.RequestVolumeThreshold {
 		return false
 	}
 
@@ -125,7 +139,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 
 	now := time.Now().UnixNano()
 	openedOrLastTestedTime := atomic.LoadInt64(&circuit.openedOrLastTestedTime)
-	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
+	if circuit.open && now > openedOrLastTestedTime+config.GetSettings(circuit.Name).SleepWindow.Nanoseconds() {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
