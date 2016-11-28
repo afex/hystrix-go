@@ -1,6 +1,6 @@
 package hystrix
 
-import "github.com/afex/hystrix-go/hystrix/config"
+import "github.com/songrgg/hystrix-go/hystrix/config"
 
 type executorPool struct {
 	Name    string

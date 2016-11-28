@@ -5,7 +5,7 @@ import (
 
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/songrgg/hystrix-go/hystrix/rolling"
 )
 
 type poolMetrics struct {

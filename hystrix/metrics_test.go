@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/config"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/songrgg/hystrix-go/hystrix/config"
 )
 
 func metricFailingPercent(p int) *metricExchange {

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/config"
+	"github.com/songrgg/hystrix-go/hystrix/config"
 )
 
 type runFunc func() error
