@@ -179,6 +179,9 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		Types:       eventTypes,
 		Start:       start,
 		RunDuration: runDuration,
+
+		CurrentActiveCount:        circuit.executorPool.ActiveCount(),
+		CurrentMaximumActiveCount: int(circuit.executorPool.Metrics.MaxActiveRequests.Max(time.Now())),
 	}:
 	default:
 		return CircuitError{Message: fmt.Sprintf("metrics channel (%v) is at capacity", circuit.Name)}

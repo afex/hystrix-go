@@ -28,6 +28,8 @@ type StatsdCollector struct {
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
 	runDurationPrefix       string
+	activeCountPrefix       string
+	maxActiveCountPrefix    string
 	sampleRate              float32
 }
 
@@ -188,6 +190,18 @@ func (g *StatsdCollector) IncrementFallbackSuccesses() {
 // This registers as a counter in the Statsd collector.
 func (g *StatsdCollector) IncrementFallbackFailures() {
 	g.incrementCounterMetric(g.fallbackFailuresPrefix)
+}
+
+// UpdateActiveCount updates the number of active threads in the pool
+// This registers as a gauge in the graphite collector
+func (g *StatsdCollector) UpdateActiveCount(activeCount int) {
+	g.setGauge(g.activeCountPrefix, int64(activeCount))
+}
+
+// UpdateMaxActiveCount updates the maximum number of active threads in the pool
+// This registers as a gauge in the graphite collector
+func (g *StatsdCollector) UpdateMaxActiveCount(maxActiveCount int) {
+	g.setGauge(g.activeCountPrefix, int64(maxActiveCount))
 }
 
 // UpdateTotalDuration updates the internal counter of how long we've run for.

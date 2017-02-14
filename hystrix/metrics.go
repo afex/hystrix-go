@@ -12,6 +12,8 @@ type commandExecution struct {
 	Types       []string      `json:"types"`
 	Start       time.Time     `json:"start_time"`
 	RunDuration time.Duration `json:"run_duration"`
+	CurrentActiveCount        int           `json:"active_count"`
+	CurrentMaximumActiveCount int           `json:"max_active_count"`
 }
 
 type metricExchange struct {
@@ -108,6 +110,9 @@ func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCo
 
 	collector.UpdateTotalDuration(totalDuration)
 	collector.UpdateRunDuration(update.RunDuration)
+
+	collector.UpdateActiveCount(update.CurrentActiveCount)
+	collector.UpdateMaxActiveCount(update.CurrentMaximumActiveCount)
 
 	wg.Done()
 }

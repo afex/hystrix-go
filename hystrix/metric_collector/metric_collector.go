@@ -63,6 +63,10 @@ type MetricCollector interface {
 	IncrementFallbackSuccesses()
 	// IncrementFallbackFailures increments the number of failures that occurred during the execution of the fallback function.
 	IncrementFallbackFailures()
+	// UpdateActiveCount updates the number of active threads in the pool in the latest time bucket
+	UpdateActiveCount(currentActiveCount int)
+	// UpdateMaxActiveCount updates the number of maximum active threads count in the pool in the latest time bucket
+	UpdateMaxActiveCount(maxActiveCount int)
 	// UpdateTotalDuration updates the internal counter of how long we've run for.
 	UpdateTotalDuration(timeSinceStart time.Duration)
 	// UpdateRunDuration updates the internal counter of how long the last run took.
