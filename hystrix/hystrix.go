@@ -121,7 +121,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			cmd.Lock()
 			cmd.circuit.executorPool.Return(cmd.ticket)
 			activeCount := cmd.circuit.executorPool.ActiveCount()
-			maxActiveCount := cmd.circuit.executorPool.Metrics.MaxActiveRequests.Max(time.Now()))
+			maxActiveCount := cmd.circuit.executorPool.Metrics.MaxActiveRequests.Max(time.Now())
 			cmd.Unlock()
 
 			err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration,activeCount,int(maxActiveCount))
