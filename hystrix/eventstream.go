@@ -58,7 +58,7 @@ func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	for {
 		select {
 		case <-notify:
-			// client is gone
+		// client is gone
 			return
 		case event := <-events:
 			_, err := rw.Write(event)
@@ -238,37 +238,37 @@ func generateLatencyTimings(r *rolling.Timing) streamCmdLatency {
 }
 
 type streamCmdMetric struct {
-	Type           string `json:"type"`
-	Name           string `json:"name"`
-	Group          string `json:"group"`
-	Time           int64  `json:"currentTime"`
-	ReportingHosts uint32 `json:"reportingHosts"`
+	Type                                             string `json:"type"`
+	Name                                             string `json:"name"`
+	Group                                            string `json:"group"`
+	Time                                             int64  `json:"currentTime"`
+	ReportingHosts                                   uint32 `json:"reportingHosts"`
 
 	// Health
-	RequestCount       uint32 `json:"requestCount"`
-	ErrorCount         uint32 `json:"errorCount"`
-	ErrorPct           uint32 `json:"errorPercentage"`
-	CircuitBreakerOpen bool   `json:"isCircuitBreakerOpen"`
+	RequestCount                                     uint32 `json:"requestCount"`
+	ErrorCount                                       uint32 `json:"errorCount"`
+	ErrorPct                                         uint32 `json:"errorPercentage"`
+	CircuitBreakerOpen                               bool   `json:"isCircuitBreakerOpen"`
 
-	RollingCountCollapsedRequests  uint32 `json:"rollingCountCollapsedRequests"`
-	RollingCountExceptionsThrown   uint32 `json:"rollingCountExceptionsThrown"`
-	RollingCountFailure            uint32 `json:"rollingCountFailure"`
-	RollingCountFallbackFailure    uint32 `json:"rollingCountFallbackFailure"`
-	RollingCountFallbackRejection  uint32 `json:"rollingCountFallbackRejection"`
-	RollingCountFallbackSuccess    uint32 `json:"rollingCountFallbackSuccess"`
-	RollingCountResponsesFromCache uint32 `json:"rollingCountResponsesFromCache"`
-	RollingCountSemaphoreRejected  uint32 `json:"rollingCountSemaphoreRejected"`
-	RollingCountShortCircuited     uint32 `json:"rollingCountShortCircuited"`
-	RollingCountSuccess            uint32 `json:"rollingCountSuccess"`
-	RollingCountThreadPoolRejected uint32 `json:"rollingCountThreadPoolRejected"`
-	RollingCountTimeout            uint32 `json:"rollingCountTimeout"`
+	RollingCountCollapsedRequests                    uint32 `json:"rollingCountCollapsedRequests"`
+	RollingCountExceptionsThrown                     uint32 `json:"rollingCountExceptionsThrown"`
+	RollingCountFailure                              uint32 `json:"rollingCountFailure"`
+	RollingCountFallbackFailure                      uint32 `json:"rollingCountFallbackFailure"`
+	RollingCountFallbackRejection                    uint32 `json:"rollingCountFallbackRejection"`
+	RollingCountFallbackSuccess                      uint32 `json:"rollingCountFallbackSuccess"`
+	RollingCountResponsesFromCache                   uint32 `json:"rollingCountResponsesFromCache"`
+	RollingCountSemaphoreRejected                    uint32 `json:"rollingCountSemaphoreRejected"`
+	RollingCountShortCircuited                       uint32 `json:"rollingCountShortCircuited"`
+	RollingCountSuccess                              uint32 `json:"rollingCountSuccess"`
+	RollingCountThreadPoolRejected                   uint32 `json:"rollingCountThreadPoolRejected"`
+	RollingCountTimeout                              uint32 `json:"rollingCountTimeout"`
 
-	CurrentConcurrentExecutionCount uint32 `json:"currentConcurrentExecutionCount"`
+	CurrentConcurrentExecutionCount                  uint32 `json:"currentConcurrentExecutionCount"`
 
-	LatencyExecuteMean uint32           `json:"latencyExecute_mean"`
-	LatencyExecute     streamCmdLatency `json:"latencyExecute"`
-	LatencyTotalMean   uint32           `json:"latencyTotal_mean"`
-	LatencyTotal       streamCmdLatency `json:"latencyTotal"`
+	LatencyExecuteMean                               uint32           `json:"latencyExecute_mean"`
+	LatencyExecute                                   streamCmdLatency `json:"latencyExecute"`
+	LatencyTotalMean                                 uint32           `json:"latencyTotal_mean"`
+	LatencyTotal                                     streamCmdLatency `json:"latencyTotal"`
 
 	// Properties
 	CircuitBreakerRequestVolumeThreshold             uint32 `json:"propertyValue_circuitBreakerRequestVolumeThreshold"`
@@ -301,18 +301,18 @@ type streamCmdLatency struct {
 }
 
 type streamThreadPoolMetric struct {
-	Type           string `json:"type"`
-	Name           string `json:"name"`
-	ReportingHosts uint32 `json:"reportingHosts"`
+	Type                        string `json:"type"`
+	Name                        string `json:"name"`
+	ReportingHosts              uint32 `json:"reportingHosts"`
 
-	CurrentActiveCount        uint32 `json:"currentActiveCount"`
-	CurrentCompletedTaskCount uint32 `json:"currentCompletedTaskCount"`
-	CurrentCorePoolSize       uint32 `json:"currentCorePoolSize"`
-	CurrentLargestPoolSize    uint32 `json:"currentLargestPoolSize"`
-	CurrentMaximumPoolSize    uint32 `json:"currentMaximumPoolSize"`
-	CurrentPoolSize           uint32 `json:"currentPoolSize"`
-	CurrentQueueSize          uint32 `json:"currentQueueSize"`
-	CurrentTaskCount          uint32 `json:"currentTaskCount"`
+	CurrentActiveCount          uint32 `json:"currentActiveCount"`
+	CurrentCompletedTaskCount   uint32 `json:"currentCompletedTaskCount"`
+	CurrentCorePoolSize         uint32 `json:"currentCorePoolSize"`
+	CurrentLargestPoolSize      uint32 `json:"currentLargestPoolSize"`
+	CurrentMaximumPoolSize      uint32 `json:"currentMaximumPoolSize"`
+	CurrentPoolSize             uint32 `json:"currentPoolSize"`
+	CurrentQueueSize            uint32 `json:"currentQueueSize"`
+	CurrentTaskCount            uint32 `json:"currentTaskCount"`
 
 	RollingMaxActiveThreads     uint32 `json:"rollingMaxActiveThreads"`
 	RollingCountThreadsExecuted uint32 `json:"rollingCountThreadsExecuted"`

@@ -11,9 +11,15 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
-var makeTimerFunc = func() interface{} { return metrics.NewTimer() }
-var makeCounterFunc = func() interface{} { return metrics.NewCounter() }
-var makeGaugeFunc = func() interface{} { return metrics.NewGauge() }
+var makeTimerFunc = func() interface{} {
+	return metrics.NewTimer()
+}
+var makeCounterFunc = func() interface{} {
+	return metrics.NewCounter()
+}
+var makeGaugeFunc = func() interface{} {
+	return metrics.NewGauge()
+}
 
 // GraphiteCollector fulfills the metricCollector interface allowing users to ship circuit
 // stats to a graphite backend. To use users must call InitializeGraphiteCollector before
@@ -42,7 +48,7 @@ type GraphiteCollectorConfig struct {
 	// GraphiteAddr is the tcp address of the graphite server
 	GraphiteAddr *net.TCPAddr
 	// Prefix is the prefix that will be prepended to all metrics sent from this collector.
-	Prefix string
+	Prefix       string
 	// TickInterval spcifies the period that this collector will send metrics to the server.
 	TickInterval time.Duration
 }

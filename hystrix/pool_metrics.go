@@ -7,8 +7,8 @@ import (
 )
 
 type poolMetrics struct {
-	Mutex   *sync.RWMutex
-	Updates chan poolMetricsUpdate
+	Mutex             *sync.RWMutex
+	Updates           chan poolMetricsUpdate
 
 	Name              string
 	MaxActiveRequests *rolling.Number

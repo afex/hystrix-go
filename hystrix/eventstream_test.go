@@ -45,7 +45,7 @@ func sleepingCommand(t *testing.T, name string, duration time.Duration) {
 
 	select {
 	case _ = <-done:
-		// do nothing
+	// do nothing
 	case err := <-errChan:
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func failingCommand(t *testing.T, name string, duration time.Duration) {
 	case _ = <-done:
 		t.Fatal("should not have succeeded")
 	case _ = <-errChan:
-		// do nothing
+	// do nothing
 	}
 }
 
@@ -153,8 +153,8 @@ func TestEventStream(t *testing.T) {
 		defer server.stopTestServer()
 
 		Convey("after 2 successful commands", func() {
-			sleepingCommand(t, "eventstream", 1*time.Millisecond)
-			sleepingCommand(t, "eventstream", 1*time.Millisecond)
+			sleepingCommand(t, "eventstream", 1 * time.Millisecond)
+			sleepingCommand(t, "eventstream", 1 * time.Millisecond)
 
 			Convey("request count should be 2", func() {
 				event := grabFirstCommandFromStream(t, server.URL)
@@ -165,9 +165,9 @@ func TestEventStream(t *testing.T) {
 		})
 
 		Convey("after 1 successful command and 2 unsuccessful commands", func() {
-			sleepingCommand(t, "errorpercent", 1*time.Millisecond)
-			failingCommand(t, "errorpercent", 1*time.Millisecond)
-			failingCommand(t, "errorpercent", 1*time.Millisecond)
+			sleepingCommand(t, "errorpercent", 1 * time.Millisecond)
+			failingCommand(t, "errorpercent", 1 * time.Millisecond)
+			failingCommand(t, "errorpercent", 1 * time.Millisecond)
 
 			Convey("the error precentage should be 67", func() {
 				metric := grabFirstCommandFromStream(t, server.URL)
@@ -183,7 +183,7 @@ func TestClientCancelEventStream(t *testing.T) {
 		server := startTestServer()
 		defer server.stopTestServer()
 
-		sleepingCommand(t, "eventstream", 1*time.Millisecond)
+		sleepingCommand(t, "eventstream", 1 * time.Millisecond)
 
 		Convey("after a client connects", func() {
 			req, err := http.NewRequest("GET", server.URL, nil)
@@ -209,11 +209,11 @@ func TestClientCancelEventStream(t *testing.T) {
 				for {
 					select {
 					case <-wait:
-						//wait for master goroutine to break us out
+					//wait for master goroutine to break us out
 						tr.CancelRequest(req)
 						return
 					default:
-						//read something
+					//read something
 						_, err = res.Body.Read(buf)
 						if err != nil {
 							t.Fatal(err)
@@ -255,7 +255,7 @@ func TestThreadPoolStream(t *testing.T) {
 		defer server.stopTestServer()
 
 		Convey("after a successful command", func() {
-			sleepingCommand(t, "threadpool", 1*time.Millisecond)
+			sleepingCommand(t, "threadpool", 1 * time.Millisecond)
 			metric := grabFirstThreadPoolFromStream(t, server.URL)
 
 			Convey("the rolling count of executions should increment", func() {

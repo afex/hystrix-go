@@ -14,19 +14,19 @@ import (
 //
 // Metric Collectors do not need Mutexes as they are updated by circuits within a locked context.
 type DefaultMetricCollector struct {
-	mutex *sync.RWMutex
+	mutex             *sync.RWMutex
 
-	numRequests *rolling.Number
-	errors      *rolling.Number
+	numRequests       *rolling.Number
+	errors            *rolling.Number
 
-	successes     *rolling.Number
-	failures      *rolling.Number
-	rejects       *rolling.Number
-	shortCircuits *rolling.Number
-	timeouts      *rolling.Number
+	successes         *rolling.Number
+	failures          *rolling.Number
+	rejects           *rolling.Number
+	shortCircuits     *rolling.Number
+	timeouts          *rolling.Number
 
-	activeCount    *rolling.Number
-	maxActiveCount *rolling.Number
+	activeCount       *rolling.Number
+	maxActiveCount    *rolling.Number
 
 	fallbackSuccesses *rolling.Number
 	fallbackFailures  *rolling.Number

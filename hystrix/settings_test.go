@@ -22,7 +22,7 @@ func TestConfigureTimeout(t *testing.T) {
 		ConfigureCommand("", CommandConfig{Timeout: 10000})
 
 		Convey("reading the timeout should be the same", func() {
-			So(getSettings("").Timeout, ShouldEqual, time.Duration(10*time.Second))
+			So(getSettings("").Timeout, ShouldEqual, time.Duration(10 * time.Second))
 		})
 	})
 }
@@ -42,7 +42,7 @@ func TestSleepWindowDefault(t *testing.T) {
 		ConfigureCommand("", CommandConfig{})
 
 		Convey("the sleep window should be 5 seconds", func() {
-			So(getSettings("").SleepWindow, ShouldEqual, time.Duration(5*time.Second))
+			So(getSettings("").SleepWindow, ShouldEqual, time.Duration(5 * time.Second))
 		})
 	})
 }
@@ -53,7 +53,7 @@ func TestGetCircuitSettings(t *testing.T) {
 
 		Convey("should read the same setting just added", func() {
 			So(GetCircuitSettings()["test"], ShouldEqual, getSettings("test"))
-			So(GetCircuitSettings()["test"].Timeout, ShouldEqual, time.Duration(30*time.Second))
+			So(GetCircuitSettings()["test"].Timeout, ShouldEqual, time.Duration(30 * time.Second))
 		})
 	})
 }
