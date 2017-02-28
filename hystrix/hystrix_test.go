@@ -13,7 +13,7 @@ func TestSuccess(t *testing.T) {
 		defer Flush()
 
 		resultChan := make(chan int)
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			resultChan <- 1
 			return nil
 		}, nil)
@@ -38,7 +38,7 @@ func TestFallback(t *testing.T) {
 		defer Flush()
 
 		resultChan := make(chan int)
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			return fmt.Errorf("error")
 		}, func(err error) error {
 			if err.Error() == "error" {
@@ -70,7 +70,7 @@ func TestTimeout(t *testing.T) {
 		ConfigureCommand("", CommandConfig{Timeout: 100})
 
 		resultChan := make(chan int)
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			time.Sleep(1 * time.Second)
 			resultChan <- 1
 			return nil
@@ -96,7 +96,7 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 		ConfigureCommand("", CommandConfig{Timeout: 100})
 
 		resultChan := make(chan int)
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			time.Sleep(1 * time.Second)
 			resultChan <- 1
 			return nil
@@ -133,7 +133,7 @@ func TestMaxConcurrent(t *testing.T) {
 			var good, bad int
 
 			for i := 0; i < 3; i++ {
-				errChan := Go("", run, nil)
+				errChan, _ := Go("", run, nil)
 				time.Sleep(10 * time.Millisecond)
 
 				select {
@@ -163,7 +163,7 @@ func TestForceOpenCircuit(t *testing.T) {
 
 		cb.toggleForceOpen(true)
 
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			return nil
 		}, nil)
 
@@ -183,7 +183,7 @@ func TestForceOpenCircuit(t *testing.T) {
 func TestNilFallbackRunError(t *testing.T) {
 	Convey("when your run function returns an error and you have no fallback", t, func() {
 		defer Flush()
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			return fmt.Errorf("run_error")
 		}, nil)
 
@@ -198,7 +198,7 @@ func TestNilFallbackRunError(t *testing.T) {
 func TestFailedFallback(t *testing.T) {
 	Convey("when your run and fallback functions return an error", t, func() {
 		defer Flush()
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			return fmt.Errorf("run_error")
 		}, func(err error) error {
 			return fmt.Errorf("fallback_error")
@@ -221,7 +221,7 @@ func TestCloseCircuitAfterSuccess(t *testing.T) {
 		cb.setOpen()
 
 		Convey("commands immediately following should short-circuit", func() {
-			errChan := Go("", func() error {
+			errChan, _ := Go("", func() error {
 				return nil
 			}, nil)
 
@@ -252,7 +252,7 @@ func TestFailAfterTimeout(t *testing.T) {
 		ConfigureCommand("", CommandConfig{Timeout: 10})
 
 		out := make(chan struct{}, 2)
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			time.Sleep(50 * time.Millisecond)
 			return fmt.Errorf("foo")
 		}, func(err error) error {
@@ -345,7 +345,7 @@ func TestReturnTicket(t *testing.T) {
 
 		ConfigureCommand("", CommandConfig{Timeout: 10})
 
-		errChan := Go("", func() error {
+		errChan, _ := Go("", func() error {
 			c := make(chan struct{})
 			<-c // should block
 			return nil

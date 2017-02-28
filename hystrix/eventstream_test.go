@@ -37,7 +37,7 @@ func startTestServer() *eventStreamTestServer {
 
 func sleepingCommand(t *testing.T, name string, duration time.Duration) {
 	done := make(chan bool)
-	errChan := Go(name, func() error {
+	errChan, _:= Go(name, func() error {
 		time.Sleep(duration)
 		done <- true
 		return nil
@@ -53,7 +53,7 @@ func sleepingCommand(t *testing.T, name string, duration time.Duration) {
 
 func failingCommand(t *testing.T, name string, duration time.Duration) {
 	done := make(chan bool)
-	errChan := Go(name, func() error {
+	errChan, _ := Go(name, func() error {
 		time.Sleep(duration)
 		return fmt.Errorf("fail")
 	}, nil)
