@@ -6,6 +6,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"errors"
 )
 
 func TestSuccess(t *testing.T) {
@@ -362,6 +363,31 @@ func TestReturnTicket(t *testing.T) {
 	})
 }
 
+
+func TestDisableCircuit(t *testing.T) {
+	Convey("when a circuit is closed", t, func() {
+		defer Flush()
+
+		ConfigureCommand("", CommandConfig{ErrorPercentThreshold: 50, Enabled: false})
+
+		cb, _, err := GetCircuit("")
+		So(err, ShouldEqual, nil)
+		So(cb.IsOpen(), ShouldBeFalse)
+
+		Convey("but the metrics are unhealthy, it remains open", func() {
+			cb.metrics = metricFailingPercent(100)
+			So(cb.metrics.IsHealthy(time.Now()), ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+
+			Convey("and a success is reported, it continues open", func() {
+				err = cb.ReportEvent([]string{"success"}, time.Now(), 0)
+				So(err, ShouldEqual, nil)
+				So(cb.IsOpen(), ShouldBeFalse)
+			})
+		})
+	})
+}
+
 func TestDo(t *testing.T) {
 	Convey("with a command which succeeds", t, func() {
 		defer Flush()
@@ -435,4 +461,24 @@ func TestDo(t *testing.T) {
 			So(err.Error(), ShouldEqual, "hystrix: timeout")
 		})
 	})
+
+	Convey("with a command with circuit disabled", t, func() {
+		defer Flush()
+
+		ConfigureCommand("", CommandConfig{Enabled: false , RequestVolumeThreshold: 1})
+
+		err := Do("", func() error {
+
+			time.Sleep(100 * time.Millisecond)
+			return errors.New("Test Error")
+		}, nil)
+
+		Convey("the error is returned and circuit is still closed", func() {
+			So(err.Error(), ShouldEqual, "Test Error")
+			cb, _, _ := GetCircuit("")
+			So(cb.IsOpen(),ShouldBeTrue)
+		})
+	})
+
+
 }

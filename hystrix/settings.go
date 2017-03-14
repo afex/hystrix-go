@@ -16,6 +16,8 @@ var (
 	DefaultSleepWindow = 5000
 	// DefaultErrorPercentThreshold causes circuits to open once the rolling measure of errors exceeds this percent of requests
 	DefaultErrorPercentThreshold = 50
+	//DefaultEnabled makes the circuit to be able to be closed
+	DefaultEnabled = true
 )
 
 type Settings struct {
@@ -24,6 +26,7 @@ type Settings struct {
 	RequestVolumeThreshold uint64
 	SleepWindow            time.Duration
 	ErrorPercentThreshold  int
+	Enabled                bool
 }
 
 // CommandConfig is used to tune circuit settings at runtime
@@ -33,6 +36,7 @@ type CommandConfig struct {
 	RequestVolumeThreshold int `json:"request_volume_threshold"`
 	SleepWindow            int `json:"sleep_window"`
 	ErrorPercentThreshold  int `json:"error_percent_threshold"`
+	Enabled                bool `json:"circuit_enabled"`
 }
 
 var circuitSettings map[string]*Settings
@@ -80,12 +84,18 @@ func ConfigureCommand(name string, config CommandConfig) {
 		errorPercent = config.ErrorPercentThreshold
 	}
 
+	enabled := DefaultEnabled
+	if config.Enabled != DefaultEnabled {
+		enabled = config.Enabled
+	}
+
 	circuitSettings[name] = &Settings{
 		Timeout:                time.Duration(timeout) * time.Millisecond,
 		MaxConcurrentRequests:  max,
 		RequestVolumeThreshold: uint64(volume),
 		SleepWindow:            time.Duration(sleep) * time.Millisecond,
 		ErrorPercentThreshold:  errorPercent,
+		Enabled:                enabled,
 	}
 }
 

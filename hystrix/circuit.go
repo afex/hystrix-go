@@ -91,6 +91,10 @@ func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
 // IsOpen is called before any Command execution to check whether or
 // not it should be attempted. An "open" circuit means it is disabled.
 func (circuit *CircuitBreaker) IsOpen() bool {
+	if (!getSettings(circuit.Name).Enabled) {
+		return false
+	}
+
 	circuit.mutex.RLock()
 	o := circuit.forceOpen || circuit.open
 	circuit.mutex.RUnlock()
@@ -137,6 +141,10 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 }
 
 func (circuit *CircuitBreaker) setOpen() {
+	if (!getSettings(circuit.Name).Enabled) {
+		return
+	}
+
 	circuit.mutex.Lock()
 	defer circuit.mutex.Unlock()
 
@@ -151,6 +159,10 @@ func (circuit *CircuitBreaker) setOpen() {
 }
 
 func (circuit *CircuitBreaker) setClose() {
+	if (!getSettings(circuit.Name).Enabled) {
+		return
+	}
+	
 	circuit.mutex.Lock()
 	defer circuit.mutex.Unlock()
 

@@ -94,3 +94,27 @@ func TestReportEventOpenThenClose(t *testing.T) {
 		})
 	})
 }
+
+func TestReportEventOpenWithDisabledCircuitThenStillOpen(t *testing.T) {
+	Convey("when a circuit is disabled", t, func() {
+		defer Flush()
+
+		ConfigureCommand("", CommandConfig{ErrorPercentThreshold: 50, Enabled: false})
+
+		cb, _, err := GetCircuit("")
+		So(err, ShouldEqual, nil)
+		So(cb.IsOpen(), ShouldBeFalse)
+
+		Convey("but the metrics are unhealthy, it remains open", func() {
+			cb.metrics = metricFailingPercent(100)
+			So(cb.metrics.IsHealthy(time.Now()), ShouldBeFalse)
+			So(cb.IsOpen(), ShouldBeFalse)
+
+			Convey("and a success is reported, it continues open", func() {
+				err = cb.ReportEvent([]string{"success"}, time.Now(), 0)
+				So(err, ShouldEqual, nil)
+				So(cb.IsOpen(), ShouldBeFalse)
+			})
+		})
+	})
+}
