@@ -6,6 +6,7 @@ import (
 
 	"github.com/afex/hystrix-go/hystrix/metric_collector"
 	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/hystrix-go/hystrix/metric_collector"
 )
 
 type commandExecution struct {
@@ -124,6 +125,10 @@ func (m *metricExchange) Reset() {
 	for _, collector := range m.metricCollectors {
 		collector.Reset()
 	}
+}
+
+func (m *metricExchange) CloseUpdates() {
+	close(m.Updates)
 }
 
 func (m *metricExchange) Requests() *rolling.Number {

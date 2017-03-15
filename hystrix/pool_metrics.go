@@ -41,6 +41,10 @@ func (m *poolMetrics) Reset() {
 	m.Executed = rolling.NewNumber()
 }
 
+func (m *poolMetrics) CloseUpdates() {
+	close(m.Updates)
+}
+
 func (m *poolMetrics) GetMaxActiveRequests() float64 {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
