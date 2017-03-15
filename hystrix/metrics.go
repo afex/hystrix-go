@@ -121,6 +121,10 @@ func (m *metricExchange) Reset() {
 	}
 }
 
+func (m *metricExchange) CloseUpdates() {
+	close(m.Updates)
+}
+
 func (m *metricExchange) Requests() *rolling.Number {
 	m.Mutex.RLock()
 	defer m.Mutex.RUnlock()
