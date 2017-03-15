@@ -17,8 +17,8 @@ type CircuitBreaker struct {
 	mutex                  *sync.RWMutex
 	openedOrLastTestedTime int64
 
-	executorPool *executorPool
-	metrics      *metricExchange
+	executorPool           *executorPool
+	metrics                *metricExchange
 }
 
 var (
@@ -60,7 +60,9 @@ func Flush() {
 
 	for name, cb := range circuitBreakers {
 		cb.metrics.Reset()
+		cb.metrics.CloseUpdates()
 		cb.executorPool.Metrics.Reset()
+		cb.executorPool.Metrics.CloseUpdates()
 		delete(circuitBreakers, name)
 	}
 }
@@ -125,7 +127,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 
 	now := time.Now().UnixNano()
 	openedOrLastTestedTime := atomic.LoadInt64(&circuit.openedOrLastTestedTime)
-	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
+	if circuit.open && now > openedOrLastTestedTime + getSettings(circuit.Name).SleepWindow.Nanoseconds() {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
@@ -165,7 +167,7 @@ func (circuit *CircuitBreaker) setClose() {
 }
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
-func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration) error {
+func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration, activeCount, maxActiveCount int) error {
 	if len(eventTypes) == 0 {
 		return fmt.Errorf("no event types sent for metrics")
 	}
@@ -179,6 +181,9 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		Types:       eventTypes,
 		Start:       start,
 		RunDuration: runDuration,
+
+		CurrentActiveCount:        activeCount,
+		CurrentMaximumActiveCount: maxActiveCount,
 	}:
 	default:
 		return CircuitError{Message: fmt.Sprintf("metrics channel (%v) is at capacity", circuit.Name)}

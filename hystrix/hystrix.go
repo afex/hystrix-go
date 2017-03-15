@@ -74,7 +74,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	cmd.circuit = circuit
 
 	go func() {
-		defer func() { cmd.finished <- true }()
+		defer func() {
+			cmd.finished <- true
+		}()
 
 		// Circuits get opened when recent executions have shown to have a high error rate.
 		// Rejecting new executions allows backends to recover, and the circuit will allow
@@ -120,7 +122,10 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			cmd.circuit.executorPool.Return(cmd.ticket)
 			cmd.Unlock()
 
-			err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
+			activeCount := cmd.circuit.executorPool.ActiveCount()
+			maxActiveCount := cmd.circuit.executorPool.Metrics.GetMaxActiveRequests()
+
+			err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration,activeCount,int(maxActiveCount))
 			if err != nil {
 				log.Print(err)
 			}

@@ -19,8 +19,8 @@ import (
 
 const (
 	deltaWindow = 10
-	minDelay    = 35
-	maxDelay    = 55
+	minDelay = 35
+	maxDelay = 55
 )
 
 var (
@@ -78,7 +78,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	done := make(chan struct{}, 1)
 	errChan := hystrix.Go("test", func() error {
 		delta := rand.Intn(deltaWindow)
-		time.Sleep(time.Duration(delay+delta) * time.Millisecond)
+		time.Sleep(time.Duration(delay + delta) * time.Millisecond)
 		done <- struct{}{}
 		return nil
 	}, func(err error) error {

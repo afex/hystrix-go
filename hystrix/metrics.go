@@ -6,18 +6,21 @@ import (
 
 	"github.com/afex/hystrix-go/hystrix/metric_collector"
 	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/hystrix-go/hystrix/metric_collector"
 )
 
 type commandExecution struct {
-	Types       []string      `json:"types"`
-	Start       time.Time     `json:"start_time"`
-	RunDuration time.Duration `json:"run_duration"`
+	Types                     []string      `json:"types"`
+	Start                     time.Time     `json:"start_time"`
+	RunDuration               time.Duration `json:"run_duration"`
+	CurrentActiveCount        int           `json:"active_count"`
+	CurrentMaximumActiveCount int           `json:"max_active_count"`
 }
 
 type metricExchange struct {
-	Name    string
-	Updates chan *commandExecution
-	Mutex   *sync.RWMutex
+	Name             string
+	Updates          chan *commandExecution
+	Mutex            *sync.RWMutex
 
 	metricCollectors []metricCollector.MetricCollector
 }
@@ -109,6 +112,9 @@ func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCo
 	collector.UpdateTotalDuration(totalDuration)
 	collector.UpdateRunDuration(update.RunDuration)
 
+	collector.UpdateActiveCount(update.CurrentActiveCount)
+	collector.UpdateMaxActiveCount(update.CurrentMaximumActiveCount)
+
 	wg.Done()
 }
 
@@ -119,6 +125,10 @@ func (m *metricExchange) Reset() {
 	for _, collector := range m.metricCollectors {
 		collector.Reset()
 	}
+}
+
+func (m *metricExchange) CloseUpdates() {
+	close(m.Updates)
 }
 
 func (m *metricExchange) Requests() *rolling.Number {

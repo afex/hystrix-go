@@ -11,8 +11,15 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
-var makeTimerFunc = func() interface{} { return metrics.NewTimer() }
-var makeCounterFunc = func() interface{} { return metrics.NewCounter() }
+var makeTimerFunc = func() interface{} {
+	return metrics.NewTimer()
+}
+var makeCounterFunc = func() interface{} {
+	return metrics.NewCounter()
+}
+var makeGaugeFunc = func() interface{} {
+	return metrics.NewGauge()
+}
 
 // GraphiteCollector fulfills the metricCollector interface allowing users to ship circuit
 // stats to a graphite backend. To use users must call InitializeGraphiteCollector before
@@ -32,6 +39,8 @@ type GraphiteCollector struct {
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
 	runDurationPrefix       string
+	activeCountPrefix       string
+	maxActiveCountPrefix    string
 }
 
 // GraphiteCollectorConfig provides configuration that the graphite client will need.
@@ -39,7 +48,7 @@ type GraphiteCollectorConfig struct {
 	// GraphiteAddr is the tcp address of the graphite server
 	GraphiteAddr *net.TCPAddr
 	// Prefix is the prefix that will be prepended to all metrics sent from this collector.
-	Prefix string
+	Prefix       string
 	// TickInterval spcifies the period that this collector will send metrics to the server.
 	TickInterval time.Duration
 }
@@ -69,6 +78,8 @@ func NewGraphiteCollector(name string) metricCollector.MetricCollector {
 		fallbackFailuresPrefix:  name + ".fallbackFailures",
 		totalDurationPrefix:     name + ".totalDuration",
 		runDurationPrefix:       name + ".runDuration",
+		activeCountPrefix:       name + ".activeCount",
+		maxActiveCountPrefix:    name + ".maxActiveCount",
 	}
 }
 
@@ -87,6 +98,15 @@ func (g *GraphiteCollector) updateTimerMetric(prefix string, dur time.Duration) 
 	}
 	c.Update(dur)
 }
+
+func (g *GraphiteCollector) updateGaugeMetric(prefix string, value int) {
+	c, ok := metrics.GetOrRegister(prefix, makeGaugeFunc()).(metrics.Gauge)
+	if !ok {
+		return
+	}
+	c.Update(int64(value))
+}
+
 
 // IncrementAttempts increments the number of calls to this circuit.
 // This registers as a counter in the graphite collector.
@@ -144,6 +164,18 @@ func (g *GraphiteCollector) IncrementFallbackSuccesses() {
 // This registers as a counter in the graphite collector.
 func (g *GraphiteCollector) IncrementFallbackFailures() {
 	g.incrementCounterMetric(g.fallbackFailuresPrefix)
+}
+
+// UpdateActiveCount updates the number of active threads in the pool
+// This registers as a gauge in the graphite collector
+func (g *GraphiteCollector) UpdateActiveCount(activeCount int) {
+	g.updateGaugeMetric(g.activeCountPrefix, activeCount)
+}
+
+// UpdateActiveCount updates the maximum number of active threads in the pool
+// This registers as a gauge in the graphite collector
+func (g *GraphiteCollector) UpdateMaxActiveCount(maxActiveCount int) {
+	g.updateGaugeMetric(g.maxActiveCountPrefix, maxActiveCount)
 }
 
 // UpdateTotalDuration updates the internal counter of how long we've run for.

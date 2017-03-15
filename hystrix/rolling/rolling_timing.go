@@ -11,8 +11,8 @@ import (
 // The Durations are kept in an array to allow for a variety of
 // statistics to be calculated from the source data.
 type Timing struct {
-	Buckets map[int64]*timingBucket
-	Mutex   *sync.RWMutex
+	Buckets               map[int64]*timingBucket
+	Mutex                 *sync.RWMutex
 
 	CachedSortedDurations []time.Duration
 	LastCachedTime        int64
@@ -33,9 +33,15 @@ func NewTiming() *Timing {
 
 type byDuration []time.Duration
 
-func (c byDuration) Len() int           { return len(c) }
-func (c byDuration) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
-func (c byDuration) Less(i, j int) bool { return c[i] < c[j] }
+func (c byDuration) Len() int {
+	return len(c)
+}
+func (c byDuration) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+func (c byDuration) Less(i, j int) bool {
+	return c[i] < c[j]
+}
 
 // SortedDurations returns an array of time.Duration sorted from shortest
 // to longest that have occurred in the last 60 seconds.
@@ -44,7 +50,7 @@ func (r *Timing) SortedDurations() []time.Duration {
 	t := r.LastCachedTime
 	r.Mutex.RUnlock()
 
-	if t+time.Duration(1*time.Second).Nanoseconds() > time.Now().UnixNano() {
+	if t + time.Duration(1 * time.Second).Nanoseconds() > time.Now().UnixNano() {
 		// don't recalculate if current cache is still fresh
 		return r.CachedSortedDurations
 	}
@@ -57,7 +63,7 @@ func (r *Timing) SortedDurations() []time.Duration {
 
 	for timestamp, b := range r.Buckets {
 		// TODO: configurable rolling window
-		if timestamp >= now.Unix()-60 {
+		if timestamp >= now.Unix() - 60 {
 			for _, d := range b.Durations {
 				durations = append(durations, d)
 			}
@@ -94,7 +100,7 @@ func (r *Timing) removeOldBuckets() {
 
 	for timestamp := range r.Buckets {
 		// TODO: configurable rolling window
-		if timestamp <= now.Unix()-60 {
+		if timestamp <= now.Unix() - 60 {
 			delete(r.Buckets, timestamp)
 		}
 	}
@@ -144,5 +150,5 @@ func (r *Timing) Mean() uint32 {
 		return 0
 	}
 
-	return uint32(sum.Nanoseconds()/length) / 1000000
+	return uint32(sum.Nanoseconds() / length) / 1000000
 }

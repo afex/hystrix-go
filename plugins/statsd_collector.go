@@ -28,6 +28,8 @@ type StatsdCollector struct {
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
 	runDurationPrefix       string
+	activeCountPrefix       string
+	maxActiveCountPrefix    string
 	sampleRate              float32
 }
 
@@ -38,8 +40,8 @@ type StatsdCollectorClient struct {
 
 // https://github.com/etsy/statsd/blob/master/docs/metric_types.md#multi-metric-packets
 const (
-	WANStatsdFlushBytes     = 512
-	LANStatsdFlushBytes     = 1432
+	WANStatsdFlushBytes = 512
+	LANStatsdFlushBytes = 1432
 	GigabitStatsdFlushBytes = 8932
 )
 
@@ -48,7 +50,7 @@ type StatsdCollectorConfig struct {
 	// StatsdAddr is the tcp address of the Statsd server
 	StatsdAddr string
 	// Prefix is the prefix that will be prepended to all metrics sent from this collector.
-	Prefix string
+	Prefix     string
 	// StatsdSampleRate sets statsd sampling. If 0, defaults to 1.0. (no sampling)
 	SampleRate float32
 	// FlushBytes sets message size for statsd packets. If 0, defaults to LANFlushSize.
@@ -70,7 +72,7 @@ func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorC
 		sampleRate = 1
 	}
 
-	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, 1*time.Second, flushBytes)
+	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, 1 * time.Second, flushBytes)
 	if err != nil {
 		log.Printf("Could not initiale buffered client: %s. Falling back to a Noop Statsd client", err)
 		c, _ = statsd.NewNoopClient()
@@ -188,6 +190,18 @@ func (g *StatsdCollector) IncrementFallbackSuccesses() {
 // This registers as a counter in the Statsd collector.
 func (g *StatsdCollector) IncrementFallbackFailures() {
 	g.incrementCounterMetric(g.fallbackFailuresPrefix)
+}
+
+// UpdateActiveCount updates the number of active threads in the pool
+// This registers as a gauge in the graphite collector
+func (g *StatsdCollector) UpdateActiveCount(activeCount int) {
+	g.setGauge(g.activeCountPrefix, int64(activeCount))
+}
+
+// UpdateMaxActiveCount updates the maximum number of active threads in the pool
+// This registers as a gauge in the graphite collector
+func (g *StatsdCollector) UpdateMaxActiveCount(maxActiveCount int) {
+	g.setGauge(g.activeCountPrefix, int64(maxActiveCount))
 }
 
 // UpdateTotalDuration updates the internal counter of how long we've run for.

@@ -84,7 +84,7 @@ func TestReportEventOpenThenClose(t *testing.T) {
 			So(cb.metrics.IsHealthy(time.Now()), ShouldBeFalse)
 
 			Convey("and a success is reported", func() {
-				err = cb.ReportEvent([]string{"success"}, time.Now(), 0)
+				err = cb.ReportEvent([]string{"success"}, time.Now(), 0,0,0)
 				So(err, ShouldEqual, nil)
 
 				Convey("the circuit does not open then close", func() {

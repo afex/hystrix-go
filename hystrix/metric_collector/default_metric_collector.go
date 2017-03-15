@@ -14,16 +14,19 @@ import (
 //
 // Metric Collectors do not need Mutexes as they are updated by circuits within a locked context.
 type DefaultMetricCollector struct {
-	mutex *sync.RWMutex
+	mutex             *sync.RWMutex
 
-	numRequests *rolling.Number
-	errors      *rolling.Number
+	numRequests       *rolling.Number
+	errors            *rolling.Number
 
-	successes     *rolling.Number
-	failures      *rolling.Number
-	rejects       *rolling.Number
-	shortCircuits *rolling.Number
-	timeouts      *rolling.Number
+	successes         *rolling.Number
+	failures          *rolling.Number
+	rejects           *rolling.Number
+	shortCircuits     *rolling.Number
+	timeouts          *rolling.Number
+
+	activeCount       *rolling.Number
+	maxActiveCount    *rolling.Number
 
 	fallbackSuccesses *rolling.Number
 	fallbackFailures  *rolling.Number
@@ -99,6 +102,20 @@ func (d *DefaultMetricCollector) FallbackFailures() *rolling.Number {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	return d.fallbackFailures
+}
+
+// ActiveCount returns the rolling number of active thread count
+func (d *DefaultMetricCollector) ActiveCount() *rolling.Number {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	return d.activeCount
+}
+
+// MaxActiveCount returns the rolling number of maximum active thread count
+func (d *DefaultMetricCollector) MaxActiveCount() *rolling.Number {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	return d.maxActiveCount
 }
 
 // TotalDuration returns the rolling total duration
@@ -179,6 +196,20 @@ func (d *DefaultMetricCollector) IncrementFallbackFailures() {
 	d.fallbackFailures.Increment(1)
 }
 
+// UpdateActiveCount updates the number of active threads in the pool in the latest time bucket
+func (d *DefaultMetricCollector) UpdateActiveCount(currentActiveCount int) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	d.activeCount.Increment(float64(currentActiveCount))
+}
+
+// UpdateMaxActiveCount updates the number of maximum active threads count in the pool in the latest time bucket
+func (d *DefaultMetricCollector) UpdateMaxActiveCount(maxActiveCount int) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	d.maxActiveCount.Increment(float64(maxActiveCount))
+}
+
 // UpdateTotalDuration updates the total amount of time this circuit has been running.
 func (d *DefaultMetricCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
 	d.mutex.RLock()
@@ -209,4 +240,6 @@ func (d *DefaultMetricCollector) Reset() {
 	d.fallbackFailures = rolling.NewNumber()
 	d.totalDuration = rolling.NewTiming()
 	d.runDuration = rolling.NewTiming()
+	d.activeCount = rolling.NewNumber()
+	d.maxActiveCount = rolling.NewNumber()
 }

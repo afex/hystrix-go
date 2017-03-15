@@ -15,18 +15,20 @@ import (
 // own implemenation of DatadogClient
 const (
 	// DM = Datadog Metric
-	DM_CircuitOpen       = "hystrix.circuitOpen"
-	DM_Attempts          = "hystrix.attempts"
-	DM_Errors            = "hystrix.errors"
-	DM_Successes         = "hystrix.successes"
-	DM_Failures          = "hystrix.failures"
-	DM_Rejects           = "hystrix.rejects"
-	DM_ShortCircuits     = "hystrix.shortCircuits"
-	DM_Timeouts          = "hystrix.timeouts"
+	DM_CircuitOpen = "hystrix.circuitOpen"
+	DM_Attempts = "hystrix.attempts"
+	DM_Errors = "hystrix.errors"
+	DM_Successes = "hystrix.successes"
+	DM_Failures = "hystrix.failures"
+	DM_Rejects = "hystrix.rejects"
+	DM_ShortCircuits = "hystrix.shortCircuits"
+	DM_Timeouts = "hystrix.timeouts"
 	DM_FallbackSuccesses = "hystrix.fallbackSuccesses"
-	DM_FallbackFailures  = "hystrix.fallbackFailures"
-	DM_TotalDuration     = "hystrix.totalDuration"
-	DM_RunDuration       = "hystrix.runDuration"
+	DM_FallbackFailures = "hystrix.fallbackFailures"
+	DM_TotalDuration = "hystrix.totalDuration"
+	DM_RunDuration = "hystrix.runDuration"
+	DM_ActiveCount = "hystrix.activeCount"
+	DM_MaxActiveCount = "hystrix.maxActiveCount"
 )
 
 type (
@@ -166,6 +168,16 @@ func (dc *DatadogCollector) IncrementFallbackSuccesses() {
 // during the execution of the fallback function.
 func (dc *DatadogCollector) IncrementFallbackFailures() {
 	dc.client.Count(DM_FallbackFailures, 1, dc.tags, 1.0)
+}
+
+// UpdateActiveCount updates the number of active threads in the execution pool
+func (dc *DatadogCollector) UpdateActiveCount(activeCount int) {
+	dc.client.Gauge(DM_ActiveCount, float64(activeCount), dc.tags, 1.0)
+}
+
+// UpdateMaxActiveCount updates the maximum number of active threads in the execution pool
+func (dc *DatadogCollector) UpdateMaxActiveCount(maxActiveCount int) {
+	dc.client.Gauge(DM_MaxActiveCount, float64(maxActiveCount), dc.tags, 1.0)
 }
 
 // UpdateTotalDuration updates the internal counter of how long we've run for.

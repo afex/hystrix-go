@@ -4,11 +4,12 @@ import (
 	"sync"
 
 	"github.com/afex/hystrix-go/hystrix/rolling"
+	"time"
 )
 
 type poolMetrics struct {
-	Mutex   *sync.RWMutex
-	Updates chan poolMetricsUpdate
+	Mutex             *sync.RWMutex
+	Updates           chan poolMetricsUpdate
 
 	Name              string
 	MaxActiveRequests *rolling.Number
@@ -38,6 +39,17 @@ func (m *poolMetrics) Reset() {
 
 	m.MaxActiveRequests = rolling.NewNumber()
 	m.Executed = rolling.NewNumber()
+}
+
+func (m *poolMetrics) CloseUpdates() {
+	close(m.Updates)
+}
+
+func (m *poolMetrics) GetMaxActiveRequests() float64 {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	return m.MaxActiveRequests.Max(time.Now())
 }
 
 func (m *poolMetrics) Monitor() {

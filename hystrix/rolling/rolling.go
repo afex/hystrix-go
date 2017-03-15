@@ -80,7 +80,7 @@ func (r *Number) Sum(now time.Time) float64 {
 
 	for timestamp, bucket := range r.Buckets {
 		// TODO: configurable rolling window
-		if timestamp >= now.Unix()-10 {
+		if timestamp >= now.Unix() - 10 {
 			sum += bucket.Value
 		}
 	}
@@ -97,7 +97,7 @@ func (r *Number) Max(now time.Time) float64 {
 
 	for timestamp, bucket := range r.Buckets {
 		// TODO: configurable rolling window
-		if timestamp >= now.Unix()-10 {
+		if timestamp >= now.Unix() - 10 {
 			if bucket.Value > max {
 				max = bucket.Value
 			}
