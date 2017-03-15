@@ -122,6 +122,8 @@ func (m *metricExchange) Reset() {
 }
 
 func (m *metricExchange) CloseUpdates() {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
 	close(m.Updates)
 }
 
