@@ -97,7 +97,7 @@ func NewPrometheusCollector(reg prometheus.Registerer, duration_buckets []float6
 		totalDuration: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: PROMETHEUS_NAMESPACE,
 			Name:      "total_duration_seconds",
-			Help:      "The total runtime in seconds.",
+			Help:      "The total runtime of this command in seconds.",
 		}, []string{"command"}),
 		runDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: PROMETHEUS_NAMESPACE,
@@ -141,11 +141,26 @@ type cmdCollector struct {
 	metrics     *PrometheusCollector
 }
 
+func (hc *cmdCollector) initCounters() {
+	hc.metrics.attempts.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.errors.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.successes.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.failures.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.rejects.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.shortCircuits.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.timeouts.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.fallbackSuccesses.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.fallbackFailures.WithLabelValues(hc.commandName).Add(0.0)
+	hc.metrics.totalDuration.WithLabelValues(hc.commandName).Set(0.0)
+}
+
 func (hm *PrometheusCollector) Collector(name string) metricCollector.MetricCollector {
-	return &cmdCollector{
+	hc := &cmdCollector{
 		commandName: name,
 		metrics:     hm,
 	}
+	hc.initCounters()
+	return hc
 }
 
 // IncrementAttempts increments the number of updates.
