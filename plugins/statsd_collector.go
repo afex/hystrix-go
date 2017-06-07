@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tietang/hystrix-go/hystrix/metric_collector"
 	"github.com/cactus/go-statsd-client/statsd"
+	"github.com/tietang/hystrix-go/hystrix/metric_collector"
 )
 
 // StatsdCollector fulfills the metricCollector interface allowing users to ship circuit
