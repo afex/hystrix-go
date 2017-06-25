@@ -72,6 +72,12 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		return cmd.errChan
 	}
 	cmd.circuit = circuit
+	returnTicket := func() {
+		cmd.Lock()
+		cmd.circuit.executorPool.Return(cmd.ticket)
+		cmd.ticket = nil
+		cmd.Unlock()
+	}
 
 	go func() {
 		defer func() { cmd.finished <- true }()
@@ -93,6 +99,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		select {
 		case cmd.ticket = <-circuit.executorPool.Tickets:
 			cmd.Unlock()
+			defer returnTicket()
 		default:
 			cmd.Unlock()
 			cmd.errorWithFallback(ErrMaxConcurrency)
@@ -116,10 +123,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 	go func() {
 		defer func() {
-			cmd.Lock()
-			cmd.circuit.executorPool.Return(cmd.ticket)
-			cmd.Unlock()
-
+			returnTicket()
 			err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
 			if err != nil {
 				log.Print(err)
