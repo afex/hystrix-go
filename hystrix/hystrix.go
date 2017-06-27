@@ -71,9 +71,21 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	cmd.circuit = circuit
 	ticketCond := sync.NewCond(cmd)
 	ticketChecked := false
+	// When the caller extracts error from returned errChan, it's assumed that
+	// the ticket's been returned to executorPool. Therefore, returnTicket() can
+	// not run after cmd.errorWithFallback().
+	returnTicket := func() {
+		cmd.Lock()
+		// Avoid releasing before a ticket is acquired.
+		for !ticketChecked {
+			ticketCond.Wait()
+		}
+		cmd.circuit.executorPool.Return(cmd.ticket)
+		cmd.Unlock()
+	}
 	// Shared by the following two goroutines. It ensures only the faster
 	// goroutine runs errWithFallback() and reportAllEvent().
-	runOnce := &sync.Once{}
+	returnOnce := &sync.Once{}
 	reportAllEvent := func() {
 		err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
 		if err != nil {
@@ -93,7 +105,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			ticketChecked = true
 			ticketCond.Signal()
 			cmd.Unlock()
-			runOnce.Do(func() {
+			returnOnce.Do(func() {
+				returnTicket()
 				cmd.errorWithFallback(ErrCircuitOpen)
 				reportAllEvent()
 			})
@@ -115,7 +128,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			ticketChecked = true
 			ticketCond.Signal()
 			cmd.Unlock()
-			runOnce.Do(func() {
+			returnOnce.Do(func() {
+				returnTicket()
 				cmd.errorWithFallback(ErrMaxConcurrency)
 				reportAllEvent()
 			})
@@ -124,9 +138,10 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 		runStart := time.Now()
 		runErr := run()
-		runOnce.Do(func() {
+		returnOnce.Do(func() {
 			defer reportAllEvent()
 			cmd.runDuration = time.Since(runStart)
+			returnTicket()
 			if runErr != nil {
 				cmd.errorWithFallback(runErr)
 				return
@@ -136,24 +151,15 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	}()
 
 	go func() {
-		defer func() {
-			cmd.Lock()
-			// Avoid releasing before a ticket is acquired.
-			for !ticketChecked {
-				ticketCond.Wait()
-			}
-			cmd.circuit.executorPool.Return(cmd.ticket)
-			cmd.Unlock()
-		}()
-
 		timer := time.NewTimer(getSettings(name).Timeout)
 		defer timer.Stop()
 
 		select {
 		case <-cmd.finished:
-			// runOnce has been executed in another goroutine
+			// returnOnce has been executed in another goroutine
 		case <-timer.C:
-			runOnce.Do(func() {
+			returnOnce.Do(func() {
+				returnTicket()
 				cmd.errorWithFallback(ErrTimeout)
 				reportAllEvent()
 			})
