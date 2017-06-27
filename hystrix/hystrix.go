@@ -69,12 +69,8 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		return cmd.errChan
 	}
 	cmd.circuit = circuit
-	returnTicket := func() {
-		cmd.Lock()
-		cmd.circuit.executorPool.Return(cmd.ticket)
-		cmd.ticket = nil
-		cmd.Unlock()
-	}
+	ticketCond := sync.NewCond(cmd)
+	ticketChecked := false
 	// Shared by the following two goroutines. It ensures only the faster
 	// goroutine runs errWithFallback() and reportAllEvent().
 	runOnce := &sync.Once{}
@@ -92,6 +88,11 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if !cmd.circuit.AllowRequest() {
+			cmd.Lock()
+			// It's safe for another goroutine to go ahead releasing a nil ticket.
+			ticketChecked = true
+			ticketCond.Signal()
+			cmd.Unlock()
 			runOnce.Do(func() {
 				cmd.errorWithFallback(ErrCircuitOpen)
 				reportAllEvent()
@@ -107,9 +108,12 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		cmd.Lock()
 		select {
 		case cmd.ticket = <-circuit.executorPool.Tickets:
+			ticketChecked = true
+			ticketCond.Signal()
 			cmd.Unlock()
-			defer returnTicket()
 		default:
+			ticketChecked = true
+			ticketCond.Signal()
 			cmd.Unlock()
 			runOnce.Do(func() {
 				cmd.errorWithFallback(ErrMaxConcurrency)
@@ -132,14 +136,22 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	}()
 
 	go func() {
-		defer returnTicket()
+		defer func() {
+			cmd.Lock()
+			// Avoid releasing before a ticket is acquired.
+			for !ticketChecked {
+				ticketCond.Wait()
+			}
+			cmd.circuit.executorPool.Return(cmd.ticket)
+			cmd.Unlock()
+		}()
 
 		timer := time.NewTimer(getSettings(name).Timeout)
 		defer timer.Stop()
 
 		select {
 		case <-cmd.finished:
-			// runnOnce has been executed in another goroutine
+			// runOnce has been executed in another goroutine
 		case <-timer.C:
 			runOnce.Do(func() {
 				cmd.errorWithFallback(ErrTimeout)
