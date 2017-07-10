@@ -35,25 +35,21 @@ type CommandConfig struct {
 	ErrorPercentThreshold  int `json:"error_percent_threshold"`
 }
 
-var circuitSettings map[string]*Settings
-var settingsMutex *sync.RWMutex
-
-func init() {
-	circuitSettings = make(map[string]*Settings)
-	settingsMutex = &sync.RWMutex{}
+type SettingsCollection struct {
+	Settings      map[string]*Settings
+	SettingsMutex *sync.RWMutex
 }
 
-// Configure applies settings for a set of circuits
-func Configure(cmds map[string]CommandConfig) {
-	for k, v := range cmds {
-		ConfigureCommand(k, v)
+func NewSettingsCollection() *SettingsCollection {
+	return &SettingsCollection{
+		Settings:      make(map[string]*Settings),
+		SettingsMutex: &sync.RWMutex{},
 	}
 }
 
-// ConfigureCommand applies settings for a circuit
-func ConfigureCommand(name string, config CommandConfig) {
-	settingsMutex.Lock()
-	defer settingsMutex.Unlock()
+func (c *SettingsCollection) ConfigureCommand(name string, config CommandConfig) {
+	c.SettingsMutex.Lock()
+	defer c.SettingsMutex.Unlock()
 
 	timeout := DefaultTimeout
 	if config.Timeout != 0 {
@@ -80,7 +76,7 @@ func ConfigureCommand(name string, config CommandConfig) {
 		errorPercent = config.ErrorPercentThreshold
 	}
 
-	circuitSettings[name] = &Settings{
+	c.Settings[name] = &Settings{
 		Timeout:                time.Duration(timeout) * time.Millisecond,
 		MaxConcurrentRequests:  max,
 		RequestVolumeThreshold: uint64(volume),
@@ -89,27 +85,27 @@ func ConfigureCommand(name string, config CommandConfig) {
 	}
 }
 
-func getSettings(name string) *Settings {
-	settingsMutex.RLock()
-	s, exists := circuitSettings[name]
-	settingsMutex.RUnlock()
+func (c *SettingsCollection) GetCircuitSettings() map[string]*Settings {
+	copy := make(map[string]*Settings)
+
+	c.SettingsMutex.RLock()
+	for key, val := range c.Settings {
+		copy[key] = val
+	}
+	c.SettingsMutex.RUnlock()
+
+	return copy
+}
+
+func (c *SettingsCollection) getSettings(name string) *Settings {
+	c.SettingsMutex.RLock()
+	s, exists := c.Settings[name]
+	c.SettingsMutex.RUnlock()
 
 	if !exists {
-		ConfigureCommand(name, CommandConfig{})
-		s = getSettings(name)
+		c.ConfigureCommand(name, CommandConfig{})
+		s = c.getSettings(name)
 	}
 
 	return s
-}
-
-func GetCircuitSettings() map[string]*Settings {
-	copy := make(map[string]*Settings)
-
-	settingsMutex.RLock()
-	for key, val := range circuitSettings {
-		copy[key] = val
-	}
-	settingsMutex.RUnlock()
-
-	return copy
 }

@@ -16,7 +16,9 @@ const (
 
 // NewStreamHandler returns a server capable of exposing dashboard metrics via HTTP.
 func NewStreamHandler() *StreamHandler {
-	return &StreamHandler{}
+	return &StreamHandler{
+		circuits: defaultCircuits,
+	}
 }
 
 // StreamHandler publishes metrics for each command and each pool once a second to all connected HTTP client.
@@ -24,6 +26,7 @@ type StreamHandler struct {
 	requests map[*http.Request]chan []byte
 	mu       sync.RWMutex
 	done     chan struct{}
+	circuits *Circuits
 }
 
 // Start begins watching the in-memory circuit breakers for metrics
@@ -75,12 +78,12 @@ func (sh *StreamHandler) loop() {
 	for {
 		select {
 		case <-tick:
-			circuitBreakersMutex.RLock()
-			for _, cb := range circuitBreakers {
+			sh.circuits.BreakersMutex.RLock()
+			for _, cb := range sh.circuits.Breakers {
 				sh.publishMetrics(cb)
 				sh.publishThreadPools(cb.executorPool)
 			}
-			circuitBreakersMutex.RUnlock()
+			sh.circuits.BreakersMutex.RUnlock()
 		case <-sh.done:
 			return
 		}
@@ -126,9 +129,9 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 		CircuitBreakerEnabled:                true,
 		CircuitBreakerForceClosed:            false,
 		CircuitBreakerForceOpen:              cb.forceOpen,
-		CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name).ErrorPercentThreshold),
-		CircuitBreakerSleepWindow:            uint32(getSettings(cb.Name).SleepWindow.Seconds() * 1000),
-		CircuitBreakerRequestVolumeThreshold: uint32(getSettings(cb.Name).RequestVolumeThreshold),
+		CircuitBreakerErrorThresholdPercent:  uint32(sh.circuits.getSettings(cb.Name).ErrorPercentThreshold),
+		CircuitBreakerSleepWindow:            uint32(sh.circuits.getSettings(cb.Name).SleepWindow.Seconds() * 1000),
+		CircuitBreakerRequestVolumeThreshold: uint32(sh.circuits.getSettings(cb.Name).RequestVolumeThreshold),
 	})
 	if err != nil {
 		return err

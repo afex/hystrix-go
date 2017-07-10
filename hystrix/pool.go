@@ -7,11 +7,11 @@ type executorPool struct {
 	Tickets chan *struct{}
 }
 
-func newExecutorPool(name string) *executorPool {
+func newExecutorPool(name string, maxConcurrentRequests int) *executorPool {
 	p := &executorPool{}
 	p.Name = name
 	p.Metrics = newPoolMetrics(name)
-	p.Max = getSettings(name).MaxConcurrentRequests
+	p.Max = maxConcurrentRequests
 
 	p.Tickets = make(chan *struct{}, p.Max)
 	for i := 0; i < p.Max; i++ {
