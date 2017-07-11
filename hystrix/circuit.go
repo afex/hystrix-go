@@ -22,17 +22,50 @@ type CircuitBreaker struct {
 	settings     *SettingsCollection
 }
 
+// GetCircuit returns the circuit for the given command and whether this call created it.
+func (c *Circuits) GetCircuit(name string) (*CircuitBreaker, bool, error) {
+	c.BreakersMutex.RLock()
+	_, ok := c.Breakers[name]
+	if !ok {
+		c.BreakersMutex.RUnlock()
+		c.BreakersMutex.Lock()
+		defer c.BreakersMutex.Unlock()
+		// because we released the rlock before we obtained the exclusive lock,
+		// we need to double check that some other thread didn't beat us to
+		// creation.
+		if cb, ok := c.Breakers[name]; ok {
+			return cb, false, nil
+		}
+		c.Breakers[name] = newCircuitBreaker(name, c.Settings)
+	} else {
+		defer c.BreakersMutex.RUnlock()
+	}
+
+	return c.Breakers[name], !ok, nil
+}
+
+// Flush purges all circuit and metric information from memory.
+func (c *Circuits) Flush() {
+	c.BreakersMutex.Lock()
+	defer c.BreakersMutex.Unlock()
+
+	for name, cb := range c.Breakers {
+		cb.metrics.Reset()
+		cb.executorPool.Metrics.Reset()
+		delete(c.Breakers, name)
+	}
+}
+
 // newCircuitBreaker creates a CircuitBreaker with associated Health
 func newCircuitBreaker(name string, settingsCollection *SettingsCollection) *CircuitBreaker {
+	c := &CircuitBreaker{}
+	c.Name = name
+	c.metrics = newMetricExchange(name, settingsCollection)
+	c.executorPool = newExecutorPool(name, settingsCollection.getSettings(name).MaxConcurrentRequests)
+	c.mutex = &sync.RWMutex{}
+	c.settings = settingsCollection
 
-	maxConcurrentRequests := settingsCollection.getSettings(name).MaxConcurrentRequests
-	return &CircuitBreaker{
-		Name:         name,
-		metrics:      newMetricExchange(name, settingsCollection),
-		executorPool: newExecutorPool(name, maxConcurrentRequests),
-		mutex:        &sync.RWMutex{},
-		settings:     settingsCollection,
-	}
+	return c
 }
 
 // IsOpen is called before any Command execution to check whether or

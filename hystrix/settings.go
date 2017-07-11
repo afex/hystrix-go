@@ -85,18 +85,6 @@ func (c *SettingsCollection) ConfigureCommand(name string, config CommandConfig)
 	}
 }
 
-func (c *SettingsCollection) GetCircuitSettings() map[string]*Settings {
-	copy := make(map[string]*Settings)
-
-	c.SettingsMutex.RLock()
-	for key, val := range c.Settings {
-		copy[key] = val
-	}
-	c.SettingsMutex.RUnlock()
-
-	return copy
-}
-
 func (c *SettingsCollection) getSettings(name string) *Settings {
 	c.SettingsMutex.RLock()
 	s, exists := c.Settings[name]
@@ -109,3 +97,16 @@ func (c *SettingsCollection) getSettings(name string) *Settings {
 
 	return s
 }
+
+func (c *SettingsCollection) GetCircuitSettings() map[string]*Settings {
+	copy := make(map[string]*Settings)
+
+	c.SettingsMutex.RLock()
+	for key, val := range c.Settings {
+		copy[key] = val
+	}
+	c.SettingsMutex.RUnlock()
+
+	return copy
+}
+
