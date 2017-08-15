@@ -82,7 +82,7 @@ func TestReportEventOpenThenClose(t *testing.T) {
 		openedTime := cb.openedOrLastTestedTime
 
 		Convey("but the metrics are unhealthy", func() {
-			cb.metrics = metricFailingPercent(100)
+			cb.metrics = metricFailingPercent(100, defaultCircuits.Settings)
 			So(cb.metrics.IsHealthy(time.Now()), ShouldBeFalse)
 
 			Convey("and a success is reported", func() {

@@ -19,73 +19,53 @@ type CircuitBreaker struct {
 
 	executorPool *executorPool
 	metrics      *metricExchange
-}
-
-var (
-	circuitBreakersMutex *sync.RWMutex
-	circuitBreakers      map[string]*CircuitBreaker
-)
-
-func init() {
-	circuitBreakersMutex = &sync.RWMutex{}
-	circuitBreakers = make(map[string]*CircuitBreaker)
+	settings     *SettingsCollection
 }
 
 // GetCircuit returns the circuit for the given command and whether this call created it.
-func GetCircuit(name string) (*CircuitBreaker, bool, error) {
-	circuitBreakersMutex.RLock()
-	_, ok := circuitBreakers[name]
+func (c *Circuits) GetCircuit(name string) (*CircuitBreaker, bool, error) {
+	c.BreakersMutex.RLock()
+	_, ok := c.Breakers[name]
 	if !ok {
-		circuitBreakersMutex.RUnlock()
-		circuitBreakersMutex.Lock()
-		defer circuitBreakersMutex.Unlock()
+		c.BreakersMutex.RUnlock()
+		c.BreakersMutex.Lock()
+		defer c.BreakersMutex.Unlock()
 		// because we released the rlock before we obtained the exclusive lock,
 		// we need to double check that some other thread didn't beat us to
 		// creation.
-		if cb, ok := circuitBreakers[name]; ok {
+		if cb, ok := c.Breakers[name]; ok {
 			return cb, false, nil
 		}
-		circuitBreakers[name] = newCircuitBreaker(name)
+		c.Breakers[name] = newCircuitBreaker(name, c.Settings)
 	} else {
-		defer circuitBreakersMutex.RUnlock()
+		defer c.BreakersMutex.RUnlock()
 	}
 
-	return circuitBreakers[name], !ok, nil
+	return c.Breakers[name], !ok, nil
 }
 
 // Flush purges all circuit and metric information from memory.
-func Flush() {
-	circuitBreakersMutex.Lock()
-	defer circuitBreakersMutex.Unlock()
+func (c *Circuits) Flush() {
+	c.BreakersMutex.Lock()
+	defer c.BreakersMutex.Unlock()
 
-	for name, cb := range circuitBreakers {
+	for name, cb := range c.Breakers {
 		cb.metrics.Reset()
 		cb.executorPool.Metrics.Reset()
-		delete(circuitBreakers, name)
+		delete(c.Breakers, name)
 	}
 }
 
 // newCircuitBreaker creates a CircuitBreaker with associated Health
-func newCircuitBreaker(name string) *CircuitBreaker {
+func newCircuitBreaker(name string, settingsCollection *SettingsCollection) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
-	c.metrics = newMetricExchange(name)
-	c.executorPool = newExecutorPool(name)
+	c.metrics = newMetricExchange(name, settingsCollection)
+	c.executorPool = newExecutorPool(name, settingsCollection.getSettings(name).MaxConcurrentRequests)
 	c.mutex = &sync.RWMutex{}
+	c.settings = settingsCollection
 
 	return c
-}
-
-// toggleForceOpen allows manually causing the fallback logic for all instances
-// of a given command.
-func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
-	circuit, _, err := GetCircuit(circuit.Name)
-	if err != nil {
-		return err
-	}
-
-	circuit.forceOpen = toggle
-	return nil
 }
 
 // IsOpen is called before any Command execution to check whether or
@@ -99,7 +79,7 @@ func (circuit *CircuitBreaker) IsOpen() bool {
 		return true
 	}
 
-	if uint64(circuit.metrics.Requests().Sum(time.Now())) < getSettings(circuit.Name).RequestVolumeThreshold {
+	if uint64(circuit.metrics.Requests().Sum(time.Now())) < circuit.getSettings().RequestVolumeThreshold {
 		return false
 	}
 
@@ -125,7 +105,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 
 	now := time.Now().UnixNano()
 	openedOrLastTestedTime := atomic.LoadInt64(&circuit.openedOrLastTestedTime)
-	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
+	if circuit.open && now > openedOrLastTestedTime+circuit.getSettings().SleepWindow.Nanoseconds() {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
@@ -162,6 +142,10 @@ func (circuit *CircuitBreaker) setClose() {
 
 	circuit.open = false
 	circuit.metrics.Reset()
+}
+
+func (circuit *CircuitBreaker) getSettings() *Settings {
+	return circuit.settings.getSettings(circuit.Name)
 }
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.

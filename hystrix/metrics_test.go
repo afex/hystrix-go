@@ -7,8 +7,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func metricFailingPercent(p int) *metricExchange {
-	m := newMetricExchange("")
+func metricFailingPercent(p int, settings *SettingsCollection) *metricExchange {
+	m := newMetricExchange("", settings)
 	for i := 0; i < 100; i++ {
 		t := "success"
 		if i < p {
@@ -25,21 +25,26 @@ func metricFailingPercent(p int) *metricExchange {
 
 func TestErrorPercent(t *testing.T) {
 	Convey("with a metric failing 40 percent of the time", t, func() {
-		m := metricFailingPercent(40)
+
+		failingPercent := 40
 		now := time.Now()
 
 		Convey("ErrorPercent() should return 40", func() {
+			m := metricFailingPercent(failingPercent, NewSettingsCollection())
 			p := m.ErrorPercent(now)
-			So(p, ShouldEqual, 40)
+			So(p, ShouldEqual, failingPercent)
 		})
 
 		Convey("and a error threshold set to 39", func() {
-			ConfigureCommand("", CommandConfig{ErrorPercentThreshold: 39})
+
+			settings := NewSettingsCollection()
+			settings.ConfigureCommand("", CommandConfig{ErrorPercentThreshold: failingPercent - 1})
+
+			m := metricFailingPercent(failingPercent, settings)
 
 			Convey("the metrics should be unhealthy", func() {
 				So(m.IsHealthy(now), ShouldBeFalse)
 			})
-
 		})
 	})
 }

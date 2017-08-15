@@ -20,14 +20,16 @@ type metricExchange struct {
 	Mutex   *sync.RWMutex
 
 	metricCollectors []metricCollector.MetricCollector
+	settings         *SettingsCollection
 }
 
-func newMetricExchange(name string) *metricExchange {
+func newMetricExchange(name string, settings *SettingsCollection) *metricExchange {
 	m := &metricExchange{}
 	m.Name = name
 
 	m.Updates = make(chan *commandExecution, 2000)
 	m.Mutex = &sync.RWMutex{}
+	m.settings = settings
 	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()
 
@@ -147,5 +149,5 @@ func (m *metricExchange) ErrorPercent(now time.Time) int {
 }
 
 func (m *metricExchange) IsHealthy(now time.Time) bool {
-	return m.ErrorPercent(now) < getSettings(m.Name).ErrorPercentThreshold
+	return m.ErrorPercent(now) < m.settings.getSettings(m.Name).ErrorPercentThreshold
 }

@@ -154,32 +154,6 @@ func TestMaxConcurrent(t *testing.T) {
 	})
 }
 
-func TestForceOpenCircuit(t *testing.T) {
-	Convey("when a command with a forced open circuit is run", t, func() {
-		defer Flush()
-
-		cb, _, err := GetCircuit("")
-		So(err, ShouldEqual, nil)
-
-		cb.toggleForceOpen(true)
-
-		errChan := Go("", func() error {
-			return nil
-		}, nil)
-
-		Convey("a 'circuit open' error is returned", func() {
-			So(<-errChan, ShouldResemble, ErrCircuitOpen)
-
-			Convey("metrics are recorded", func() {
-				time.Sleep(10 * time.Millisecond)
-				cb, _, _ := GetCircuit("")
-				So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
-				So(cb.metrics.DefaultCollector().ShortCircuits().Sum(time.Now()), ShouldEqual, 1)
-			})
-		})
-	})
-}
-
 func TestNilFallbackRunError(t *testing.T) {
 	Convey("when your run function returns an error and you have no fallback", t, func() {
 		defer Flush()

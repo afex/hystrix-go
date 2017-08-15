@@ -45,14 +45,20 @@ var (
 	ErrCircuitOpen = CircuitError{Message: "circuit open"}
 	// ErrTimeout occurs when the provided function takes too long to execute.
 	ErrTimeout = CircuitError{Message: "timeout"}
+
+	defaultCircuits *Circuits
 )
+
+func init() {
+	defaultCircuits = NewCircuits()
+}
 
 // Go runs your function while tracking the health of previous calls to it.
 // If your function begins slowing down or failing repeatedly, we will block
 // new calls to it for you to give the dependent service time to repair.
 //
 // Define a fallback function if you want to define some code to execute during outages.
-func Go(name string, run runFunc, fallback fallbackFunc) chan error {
+func (c *Circuits) Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	cmd := &command{
 		run:          run,
 		fallback:     fallback,
@@ -66,7 +72,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	// let data come in and out naturally, like with any closure
 	// explicit error return to give place for us to kill switch the operation (fallback)
 
-	circuit, _, err := GetCircuit(name)
+	circuit, _, err := c.GetCircuit(name)
 	if err != nil {
 		cmd.errChan <- err
 		return cmd.errChan
@@ -126,7 +132,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			}
 		}()
 
-		timer := time.NewTimer(getSettings(name).Timeout)
+		timer := time.NewTimer(c.getSettings(name).Timeout)
 		defer timer.Stop()
 
 		select {
@@ -146,7 +152,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 
 // Do runs your function in a synchronous manner, blocking until either your function succeeds
 // or an error is returned, including hystrix circuit errors
-func Do(name string, run runFunc, fallback fallbackFunc) error {
+func (c *Circuits) Do(name string, run runFunc, fallback fallbackFunc) error {
 	done := make(chan struct{}, 1)
 
 	r := func() error {
@@ -171,9 +177,9 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 
 	var errChan chan error
 	if fallback == nil {
-		errChan = Go(name, r, nil)
+		errChan = c.Go(name, r, nil)
 	} else {
-		errChan = Go(name, r, f)
+		errChan = c.Go(name, r, f)
 	}
 
 	select {
@@ -235,4 +241,51 @@ func (c *command) tryFallback(err error) error {
 	c.reportEvent("fallback-success")
 
 	return nil
+}
+
+func (c *Circuits) getSettings(name string) *Settings {
+	return c.Settings.getSettings(name)
+}
+
+// Go runs your function while tracking the health of previous calls to it.
+// If your function begins slowing down or failing repeatedly, we will block
+// new calls to it for you to give the dependent service time to repair.
+//
+// Define a fallback function if you want to define some code to execute during outages.
+func Go(name string, run runFunc, fallback fallbackFunc) chan error {
+	return defaultCircuits.Go(name, run, fallback)
+}
+
+// Do runs your function in a synchronous manner, blocking until either your function succeeds
+// or an error is returned, including hystrix circuit errors
+func Do(name string, run runFunc, fallback fallbackFunc) error {
+	return defaultCircuits.Do(name, run, fallback)
+}
+
+// GetCircuit returns the circuit for the given command and whether this call created it.
+func GetCircuit(name string) (*CircuitBreaker, bool, error) {
+	return defaultCircuits.GetCircuit(name)
+}
+
+// Flush purges all circuit and metric information from memory.
+func Flush() {
+	defaultCircuits.Flush()
+}
+
+// Configure applies settings for a set of circuits
+func Configure(cmds map[string]CommandConfig) {
+	defaultCircuits.Configure(cmds)
+}
+
+// ConfigureCommand applies settings for a circuit
+func ConfigureCommand(name string, config CommandConfig) {
+	defaultCircuits.ConfigureCommand(name, config)
+}
+
+func GetCircuitSettings() map[string]*Settings {
+	return defaultCircuits.GetCircuitSettings()
+}
+
+func getSettings(name string) *Settings {
+	return defaultCircuits.getSettings(name)
 }
