@@ -32,6 +32,12 @@ func newPoolMetrics(name string) *poolMetrics {
 	return m
 }
 
+func (m *poolMetrics) CloseUpdates() {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+	close(m.Updates)
+}
+
 func (m *poolMetrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
