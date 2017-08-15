@@ -170,7 +170,10 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		return fmt.Errorf("no event types sent for metrics")
 	}
 
-	if eventTypes[0] == "success" && circuit.open {
+	circuit.mutex.RLock()
+	o := circuit.open
+	circuit.mutex.RUnlock()
+	if eventTypes[0] == "success" && o {
 		circuit.setClose()
 	}
 
