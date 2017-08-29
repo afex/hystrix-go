@@ -29,13 +29,11 @@ type command struct {
 	start        time.Time
 	errChan      chan error
 	finished     chan bool
-	fallbackOnce *sync.Once
 	circuit      *CircuitBreaker
 	run          runFunc
 	fallback     fallbackFunc
 	runDuration  time.Duration
 	events       []string
-	timedOut     bool
 }
 
 var (
@@ -59,7 +57,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		start:        time.Now(),
 		errChan:      make(chan error, 1),
 		finished:     make(chan bool, 1),
-		fallbackOnce: &sync.Once{},
 	}
 
 	// dont have methods with explicit params and returns
@@ -72,6 +69,29 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		return cmd.errChan
 	}
 	cmd.circuit = circuit
+	ticketCond := sync.NewCond(cmd)
+	ticketChecked := false
+	// When the caller extracts error from returned errChan, it's assumed that
+	// the ticket's been returned to executorPool. Therefore, returnTicket() can
+	// not run after cmd.errorWithFallback().
+	returnTicket := func() {
+		cmd.Lock()
+		// Avoid releasing before a ticket is acquired.
+		for !ticketChecked {
+			ticketCond.Wait()
+		}
+		cmd.circuit.executorPool.Return(cmd.ticket)
+		cmd.Unlock()
+	}
+	// Shared by the following two goroutines. It ensures only the faster
+	// goroutine runs errWithFallback() and reportAllEvent().
+	returnOnce := &sync.Once{}
+	reportAllEvent := func() {
+		err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
+		if err != nil {
+			log.Print(err)
+		}
+	}
 
 	go func() {
 		defer func() { cmd.finished <- true }()
@@ -80,7 +100,16 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		// Rejecting new executions allows backends to recover, and the circuit will allow
 		// new traffic when it feels a healthly state has returned.
 		if !cmd.circuit.AllowRequest() {
-			cmd.errorWithFallback(ErrCircuitOpen)
+			cmd.Lock()
+			// It's safe for another goroutine to go ahead releasing a nil ticket.
+			ticketChecked = true
+			ticketCond.Signal()
+			cmd.Unlock()
+			returnOnce.Do(func() {
+				returnTicket()
+				cmd.errorWithFallback(ErrCircuitOpen)
+				reportAllEvent()
+			})
 			return
 		}
 
@@ -92,51 +121,48 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		cmd.Lock()
 		select {
 		case cmd.ticket = <-circuit.executorPool.Tickets:
+			ticketChecked = true
+			ticketCond.Signal()
 			cmd.Unlock()
 		default:
+			ticketChecked = true
+			ticketCond.Signal()
 			cmd.Unlock()
-			cmd.errorWithFallback(ErrMaxConcurrency)
+			returnOnce.Do(func() {
+				returnTicket()
+				cmd.errorWithFallback(ErrMaxConcurrency)
+				reportAllEvent()
+			})
 			return
 		}
 
 		runStart := time.Now()
 		runErr := run()
-
-		if !cmd.isTimedOut() {
+		returnOnce.Do(func() {
+			defer reportAllEvent()
 			cmd.runDuration = time.Since(runStart)
-
+			returnTicket()
 			if runErr != nil {
 				cmd.errorWithFallback(runErr)
 				return
 			}
-
 			cmd.reportEvent("success")
-		}
+		})
 	}()
 
 	go func() {
-		defer func() {
-			cmd.Lock()
-			cmd.circuit.executorPool.Return(cmd.ticket)
-			cmd.Unlock()
-
-			err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
-			if err != nil {
-				log.Print(err)
-			}
-		}()
-
 		timer := time.NewTimer(getSettings(name).Timeout)
 		defer timer.Stop()
 
 		select {
 		case <-cmd.finished:
+			// returnOnce has been executed in another goroutine
 		case <-timer.C:
-			cmd.Lock()
-			cmd.timedOut = true
-			cmd.Unlock()
-
-			cmd.errorWithFallback(ErrTimeout)
+			returnOnce.Do(func() {
+				returnTicket()
+				cmd.errorWithFallback(ErrTimeout)
+				reportAllEvent()
+			})
 			return
 		}
 	}()
@@ -191,33 +217,22 @@ func (c *command) reportEvent(eventType string) {
 	c.events = append(c.events, eventType)
 }
 
-func (c *command) isTimedOut() bool {
-	c.Lock()
-	defer c.Unlock()
-
-	return c.timedOut
-}
-
 // errorWithFallback triggers the fallback while reporting the appropriate metric events.
-// If called multiple times for a single command, only the first will execute to insure
-// accurate metrics and prevent the fallback from executing more than once.
 func (c *command) errorWithFallback(err error) {
-	c.fallbackOnce.Do(func() {
-		eventType := "failure"
-		if err == ErrCircuitOpen {
-			eventType = "short-circuit"
-		} else if err == ErrMaxConcurrency {
-			eventType = "rejected"
-		} else if err == ErrTimeout {
-			eventType = "timeout"
-		}
+	eventType := "failure"
+	if err == ErrCircuitOpen {
+		eventType = "short-circuit"
+	} else if err == ErrMaxConcurrency {
+		eventType = "rejected"
+	} else if err == ErrTimeout {
+		eventType = "timeout"
+	}
 
-		c.reportEvent(eventType)
-		fallbackErr := c.tryFallback(err)
-		if fallbackErr != nil {
-			c.errChan <- fallbackErr
-		}
-	})
+	c.reportEvent(eventType)
+	fallbackErr := c.tryFallback(err)
+	if fallbackErr != nil {
+		c.errChan <- fallbackErr
+	}
 }
 
 func (c *command) tryFallback(err error) error {
