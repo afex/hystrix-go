@@ -12,7 +12,7 @@ import (
 // It is used for for all internal hystrix operations
 // including circuit health checks and metrics sent to the hystrix dashboard.
 //
-// Metric Collectors do not need Mutexes as they are updated by circuits within a locked context.
+// Metric collectors do not need Mutexes as they are updated by circuits within a locked context.
 type DefaultMetricCollector struct {
 	mutex *sync.RWMutex
 

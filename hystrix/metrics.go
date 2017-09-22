@@ -39,7 +39,7 @@ func newMetricExchange(name string) *metricExchange {
 // The Default Collector function will panic if collectors are not setup to specification.
 func (m *metricExchange) DefaultCollector() *metricCollector.DefaultMetricCollector {
 	if len(m.metricCollectors) < 1 {
-		panic("No Metric Collectors Registered.")
+		panic("No Metric collectors Registered.")
 	}
 	collection, ok := m.metricCollectors[0].(*metricCollector.DefaultMetricCollector)
 	if !ok {
