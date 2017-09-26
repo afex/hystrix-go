@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vermapratyush/hystrix-go/hystrix/rolling"
+	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
 // DefaultMetricCollector holds information about the circuit state.
