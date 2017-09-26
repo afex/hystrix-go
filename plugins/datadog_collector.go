@@ -15,18 +15,19 @@ import (
 // own implemenation of DatadogClient
 const (
 	// DM = Datadog Metric
-	DM_CircuitOpen       = "hystrix.circuitOpen"
-	DM_Attempts          = "hystrix.attempts"
-	DM_Errors            = "hystrix.errors"
-	DM_Successes         = "hystrix.successes"
-	DM_Failures          = "hystrix.failures"
-	DM_Rejects           = "hystrix.rejects"
-	DM_ShortCircuits     = "hystrix.shortCircuits"
-	DM_Timeouts          = "hystrix.timeouts"
-	DM_FallbackSuccesses = "hystrix.fallbackSuccesses"
-	DM_FallbackFailures  = "hystrix.fallbackFailures"
-	DM_TotalDuration     = "hystrix.totalDuration"
-	DM_RunDuration       = "hystrix.runDuration"
+	dmCircuitOpen       = "hystrix.circuitOpen"
+	dmAttempts          = "hystrix.attempts"
+	dmQueueLength       = "hystrix.queueLength"
+	dmErrors            = "hystrix.errors"
+	dmSuccesses         = "hystrix.successes"
+	dmFailures          = "hystrix.failures"
+	dmRejects           = "hystrix.rejects"
+	dmShortCircuits     = "hystrix.shortCircuits"
+	dmTimeouts          = "hystrix.timeouts"
+	dmFallbackSuccesses = "hystrix.fallbackSuccesses"
+	dmFallbackFailures  = "hystrix.fallbackFailures"
+	dmTotalDuration     = "hystrix.totalDuration"
+	dmRunDuration       = "hystrix.runDuration"
 )
 
 type (
@@ -117,67 +118,72 @@ func NewDatadogCollectorWithClient(client DatadogClient) func(string) metricColl
 
 // IncrementAttempts increments the number of calls to this circuit.
 func (dc *DatadogCollector) IncrementAttempts() {
-	dc.client.Count(DM_Attempts, 1, dc.tags, 1.0)
+	_ = dc.client.Count(dmAttempts, 1, dc.tags, 1.0)
+}
+
+// IncrementQueueSize increments the number of elements in the queue.
+func (dc *DatadogCollector) IncrementQueueSize() {
+	_ = dc.client.Count(dmQueueLength, 1, dc.tags, 1.0)
 }
 
 // IncrementErrors increments the number of unsuccessful attempts.
 // Attempts minus Errors will equal successes within a time range.
 // Errors are any result from an attempt that is not a success.
 func (dc *DatadogCollector) IncrementErrors() {
-	dc.client.Count(DM_Errors, 1, dc.tags, 1.0)
+	_ = dc.client.Count(dmErrors, 1, dc.tags, 1.0)
 }
 
 // IncrementSuccesses increments the number of requests that succeed.
 func (dc *DatadogCollector) IncrementSuccesses() {
-	dc.client.Gauge(DM_CircuitOpen, 0, dc.tags, 1.0)
-	dc.client.Count(DM_Successes, 1, dc.tags, 1.0)
+	_ = dc.client.Gauge(dmCircuitOpen, 0, dc.tags, 1.0)
+	_ = dc.client.Count(dmSuccesses, 1, dc.tags, 1.0)
 }
 
 // IncrementFailures increments the number of requests that fail.
 func (dc *DatadogCollector) IncrementFailures() {
-	dc.client.Count(DM_Failures, 1, dc.tags, 1.0)
+	_ = dc.client.Count(dmFailures, 1, dc.tags, 1.0)
 }
 
 // IncrementRejects increments the number of requests that are rejected.
 func (dc *DatadogCollector) IncrementRejects() {
-	dc.client.Count(DM_Rejects, 1, dc.tags, 1.0)
+	_ = dc.client.Count(dmRejects, 1, dc.tags, 1.0)
 }
 
 // IncrementShortCircuits increments the number of requests that short circuited
 // due to the circuit being open.
 func (dc *DatadogCollector) IncrementShortCircuits() {
-	dc.client.Gauge(DM_CircuitOpen, 1, dc.tags, 1.0)
-	dc.client.Count(DM_ShortCircuits, 1, dc.tags, 1.0)
+	_ = dc.client.Gauge(dmCircuitOpen, 1, dc.tags, 1.0)
+	_ = dc.client.Count(dmShortCircuits, 1, dc.tags, 1.0)
 }
 
 // IncrementTimeouts increments the number of timeouts that occurred in the
 // circuit breaker.
 func (dc *DatadogCollector) IncrementTimeouts() {
-	dc.client.Count(DM_Timeouts, 1, dc.tags, 1.0)
+	_ = dc.client.Count(dmTimeouts, 1, dc.tags, 1.0)
 }
 
 // IncrementFallbackSuccesses increments the number of successes that occurred
 // during the execution of the fallback function.
 func (dc *DatadogCollector) IncrementFallbackSuccesses() {
-	dc.client.Count(DM_FallbackSuccesses, 1, dc.tags, 1.0)
+	_ = dc.client.Count(dmFallbackSuccesses, 1, dc.tags, 1.0)
 }
 
 // IncrementFallbackFailures increments the number of failures that occurred
 // during the execution of the fallback function.
 func (dc *DatadogCollector) IncrementFallbackFailures() {
-	dc.client.Count(DM_FallbackFailures, 1, dc.tags, 1.0)
+	_ = dc.client.Count(dmFallbackFailures, 1, dc.tags, 1.0)
 }
 
 // UpdateTotalDuration updates the internal counter of how long we've run for.
 func (dc *DatadogCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
 	ms := float64(timeSinceStart.Nanoseconds() / 1000000)
-	dc.client.TimeInMilliseconds(DM_TotalDuration, ms, dc.tags, 1.0)
+	_ = dc.client.TimeInMilliseconds(dmTotalDuration, ms, dc.tags, 1.0)
 }
 
 // UpdateRunDuration updates the internal counter of how long the last run took.
 func (dc *DatadogCollector) UpdateRunDuration(runDuration time.Duration) {
 	ms := float64(runDuration.Nanoseconds() / 1000000)
-	dc.client.TimeInMilliseconds(DM_RunDuration, ms, dc.tags, 1.0)
+	_ = dc.client.TimeInMilliseconds(dmRunDuration, ms, dc.tags, 1.0)
 }
 
 // Reset is a noop operation in this collector.
