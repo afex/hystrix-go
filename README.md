@@ -87,9 +87,10 @@ During application boot, you can call ```hystrix.ConfigureCommand()``` to tweak 
 
 ```go
 hystrix.ConfigureCommand("my_command", hystrix.CommandConfig{
-	Timeout:               1000,
-	MaxConcurrentRequests: 100,
-	ErrorPercentThreshold: 25,
+	Timeout:                     1000,
+	MaxConcurrentRequests:       100,
+	ErrorPercentThreshold:       25,
+	QueueSizeRejectionThreshold: 100,
 })
 ```
 

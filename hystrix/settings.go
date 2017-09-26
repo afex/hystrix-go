@@ -32,11 +32,12 @@ type Settings struct {
 
 // CommandConfig is used to tune circuit settings at runtime
 type CommandConfig struct {
-	Timeout                     int `json:"timeout"`
-	MaxConcurrentRequests       int `json:"max_concurrent_requests"`
-	RequestVolumeThreshold      int `json:"request_volume_threshold"`
-	SleepWindow                 int `json:"sleep_window"`
-	ErrorPercentThreshold       int `json:"error_percent_threshold"`
+	Timeout                int `json:"timeout"`
+	MaxConcurrentRequests  int `json:"max_concurrent_requests"`
+	RequestVolumeThreshold int `json:"request_volume_threshold"`
+	SleepWindow            int `json:"sleep_window"`
+	ErrorPercentThreshold  int `json:"error_percent_threshold"`
+	// for more details refer - https://github.com/Netflix/Hystrix/wiki/Configuration#maxqueuesize
 	QueueSizeRejectionThreshold int `json:"queue_size_rejection_threshold"`
 }
 
