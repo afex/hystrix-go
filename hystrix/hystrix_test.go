@@ -342,30 +342,6 @@ func TestFallbackAfterRejected(t *testing.T) {
 	})
 }
 
-func TestReturnTicket_QuickCheck(t *testing.T) {
-	compareTicket := func() bool {
-		defer Flush()
-		ConfigureCommand("", CommandConfig{Timeout: 2})
-		errChan := Go("", func() error {
-			c := make(chan struct{})
-			<-c // should block
-			return nil
-		}, nil)
-		err := <-errChan
-		So(err, ShouldResemble, ErrTimeout)
-		cb, _, err := GetCircuit("")
-		So(err, ShouldBeNil)
-		return cb.executorPool.ActiveCount() == 0
-	}
-
-	Convey("with a run command that doesn't return", t, func() {
-		Convey("checking many times that after Go(), the ticket returns to the pool after the timeout", func() {
-			err := quick.Check(compareTicket, nil)
-			So(err, ShouldBeNil)
-		})
-	})
-}
-
 func TestReturnTicket(t *testing.T) {
 	Convey("with a run command that doesn't return", t, func() {
 		defer Flush()
