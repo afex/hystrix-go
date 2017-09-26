@@ -16,23 +16,28 @@ var (
 	DefaultSleepWindow = 5000
 	// DefaultErrorPercentThreshold causes circuits to open once the rolling measure of errors exceeds this percent of requests
 	DefaultErrorPercentThreshold = 50
+	// DefaultQueueSizeRejectionThreshold reject requests when the queue size exceeds the given limit
+	DefaultQueueSizeRejectionThreshold = DefaultMaxConcurrent * 5
 )
 
+// Settings Setting for the hystrixCommand
 type Settings struct {
-	Timeout                time.Duration
-	MaxConcurrentRequests  int
-	RequestVolumeThreshold uint64
-	SleepWindow            time.Duration
-	ErrorPercentThreshold  int
+	Timeout                     time.Duration
+	MaxConcurrentRequests       int
+	RequestVolumeThreshold      uint64
+	SleepWindow                 time.Duration
+	ErrorPercentThreshold       int
+	QueueSizeRejectionThreshold int
 }
 
 // CommandConfig is used to tune circuit settings at runtime
 type CommandConfig struct {
-	Timeout                int `json:"timeout"`
-	MaxConcurrentRequests  int `json:"max_concurrent_requests"`
-	RequestVolumeThreshold int `json:"request_volume_threshold"`
-	SleepWindow            int `json:"sleep_window"`
-	ErrorPercentThreshold  int `json:"error_percent_threshold"`
+	Timeout                     int `json:"timeout"`
+	MaxConcurrentRequests       int `json:"max_concurrent_requests"`
+	RequestVolumeThreshold      int `json:"request_volume_threshold"`
+	SleepWindow                 int `json:"sleep_window"`
+	ErrorPercentThreshold       int `json:"error_percent_threshold"`
+	QueueSizeRejectionThreshold int `json:"queue_size_rejection_threshold"`
 }
 
 var circuitSettings map[string]*Settings
@@ -80,12 +85,18 @@ func ConfigureCommand(name string, config CommandConfig) {
 		errorPercent = config.ErrorPercentThreshold
 	}
 
+	queueSizeRejectionThreshold := DefaultQueueSizeRejectionThreshold
+	if config.QueueSizeRejectionThreshold != 0 {
+		queueSizeRejectionThreshold = config.QueueSizeRejectionThreshold
+	}
+
 	circuitSettings[name] = &Settings{
-		Timeout:                time.Duration(timeout) * time.Millisecond,
-		MaxConcurrentRequests:  max,
-		RequestVolumeThreshold: uint64(volume),
-		SleepWindow:            time.Duration(sleep) * time.Millisecond,
-		ErrorPercentThreshold:  errorPercent,
+		Timeout:                     time.Duration(timeout) * time.Millisecond,
+		MaxConcurrentRequests:       max,
+		RequestVolumeThreshold:      uint64(volume),
+		SleepWindow:                 time.Duration(sleep) * time.Millisecond,
+		ErrorPercentThreshold:       errorPercent,
+		QueueSizeRejectionThreshold: queueSizeRejectionThreshold,
 	}
 }
 
@@ -102,6 +113,7 @@ func getSettings(name string) *Settings {
 	return s
 }
 
+// GetCircuitSettings Returns a copy of the hystrix circuit map
 func GetCircuitSettings() map[string]*Settings {
 	copy := make(map[string]*Settings)
 

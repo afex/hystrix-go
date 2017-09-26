@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/vermapratyush/hystrix-go/hystrix/rolling"
 )
 
 // DefaultMetricCollector holds information about the circuit state.
@@ -20,6 +20,7 @@ type DefaultMetricCollector struct {
 	errors      *rolling.Number
 
 	successes     *rolling.Number
+	queueSize     *rolling.Number
 	failures      *rolling.Number
 	rejects       *rolling.Number
 	shortCircuits *rolling.Number
@@ -38,11 +39,26 @@ func newDefaultMetricCollector(name string) MetricCollector {
 	return m
 }
 
+// New Create a new instance, note difference in signature
+func New(name string) *DefaultMetricCollector {
+	m := &DefaultMetricCollector{}
+	m.mutex = &sync.RWMutex{}
+	m.Reset()
+	return m
+}
+
 // NumRequests returns the rolling number of requests
 func (d *DefaultMetricCollector) NumRequests() *rolling.Number {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	return d.numRequests
+}
+
+// QueueSize returns the rolling number of queue length
+func (d *DefaultMetricCollector) QueueSize() *rolling.Number {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	return d.queueSize
 }
 
 // Errors returns the rolling number of errors
@@ -120,6 +136,13 @@ func (d *DefaultMetricCollector) IncrementAttempts() {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	d.numRequests.Increment(1)
+}
+
+// IncrementQueueSize increments the number of elements in the queue.
+func (d *DefaultMetricCollector) IncrementQueueSize() {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	d.queueSize.Increment(1)
 }
 
 // IncrementErrors increments the number of errors seen in the latest time bucket.
@@ -202,6 +225,7 @@ func (d *DefaultMetricCollector) Reset() {
 	d.errors = rolling.NewNumber()
 	d.successes = rolling.NewNumber()
 	d.rejects = rolling.NewNumber()
+	d.queueSize = rolling.NewNumber()
 	d.shortCircuits = rolling.NewNumber()
 	d.failures = rolling.NewNumber()
 	d.timeouts = rolling.NewNumber()

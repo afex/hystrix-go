@@ -118,7 +118,9 @@ func streamMetrics(t *testing.T, url string) (chan string, chan bool) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer res.Body.Close()
+		defer func() {
+			_ = res.Body.Close()
+		}()
 
 		buf := []byte{0}
 		data := ""
@@ -150,7 +152,9 @@ func streamMetrics(t *testing.T, url string) (chan string, chan bool) {
 func TestEventStream(t *testing.T) {
 	Convey("given a running event stream", t, func() {
 		server := startTestServer()
-		defer server.stopTestServer()
+		defer func() {
+			_ = server.stopTestServer()
+		}()
 
 		Convey("after 2 successful commands", func() {
 			sleepingCommand(t, "eventstream", 1*time.Millisecond)
@@ -181,7 +185,9 @@ func TestEventStream(t *testing.T) {
 func TestClientCancelEventStream(t *testing.T) {
 	Convey("given a running event stream", t, func() {
 		server := startTestServer()
-		defer server.stopTestServer()
+		defer func() {
+			_ = server.stopTestServer()
+		}()
 
 		sleepingCommand(t, "eventstream", 1*time.Millisecond)
 
@@ -204,7 +210,9 @@ func TestClientCancelEventStream(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer res.Body.Close()
+				defer func() {
+					_ = res.Body.Close()
+				}()
 
 				for {
 					select {
@@ -252,7 +260,9 @@ func TestClientCancelEventStream(t *testing.T) {
 func TestThreadPoolStream(t *testing.T) {
 	Convey("given a running event stream", t, func() {
 		server := startTestServer()
-		defer server.stopTestServer()
+		defer func() {
+			_ = server.stopTestServer()
+		}()
 
 		Convey("after a successful command", func() {
 			sleepingCommand(t, "threadpool", 1*time.Millisecond)

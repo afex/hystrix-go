@@ -45,6 +45,8 @@ func (m *metricCollectorRegistry) Register(initMetricCollector func(string) Metr
 type MetricCollector interface {
 	// IncrementAttempts increments the number of updates.
 	IncrementAttempts()
+	// IncrementQueueSize increments the number of elements in the queue.
+	IncrementQueueSize()
 	// IncrementErrors increments the number of unsuccessful attempts.
 	// Attempts minus Errors will equal successes within a time range.
 	// Errors are any result from an attempt that is not a success.

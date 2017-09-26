@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
-	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/vermapratyush/hystrix-go/hystrix/metric_collector"
+	"github.com/vermapratyush/hystrix-go/hystrix/rolling"
 )
 
 type commandExecution struct {
@@ -95,6 +95,9 @@ func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCo
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
+	if update.Types[0] == "queued" {
+		collector.IncrementQueueSize()
+	}
 
 	if len(update.Types) > 1 {
 		// fallback metrics
@@ -140,7 +143,7 @@ func (m *metricExchange) ErrorPercent(now time.Time) int {
 	errs := m.DefaultCollector().Errors().Sum(now)
 
 	if reqs > 0 {
-		errPct = (float64(errs) / float64(reqs)) * 100
+		errPct = (errs / reqs) * 100.0
 	}
 
 	return int(errPct + 0.5)
