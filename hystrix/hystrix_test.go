@@ -122,39 +122,35 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 func TestMaxConcurrent(t *testing.T) {
 	Convey("if a command has max concurrency set to 2", t, func() {
 		defer Flush()
-		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 2, QueueSizeRejectionThreshold: 1, Timeout: 1000})
+		ConfigureCommand("", CommandConfig{MaxConcurrentRequests: 2, QueueSizeRejectionThreshold: 1, Timeout: 10000})
 		resultChan := make(chan int)
 
 		run := func() error {
-			time.Sleep(900 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			resultChan <- 1
 			return nil
 		}
 
 		Convey("and 3 of those commands try to execute at the same time", func() {
 			var good, bad int
-			execution := int32(0)
-			checkpoint := make(chan struct{})
-			for i := 0; i < 3; i++ {
-				go func() {
-					err := Do("", run, nil)
+
+			for i := 0; i < 4; i++ {
+				errChan := Go("", run, nil)
+				time.Sleep(10 * time.Millisecond)
+
+				select {
+				case err := <-errChan:
 					if err == ErrMaxConcurrency {
 						bad++
-					} else {
-						good++
 					}
-					atomic.AddInt32(&execution, 1)
-					if atomic.LoadInt32(&execution) == 3 {
-						close(checkpoint)
-					}
-				}()
-				time.Sleep(10 * time.Millisecond)
+				default:
+					good++
+				}
 			}
 
 			Convey("one will return a 'max concurrency' error", func() {
-				<-checkpoint
-				So(good, ShouldEqual, 2)
 				So(bad, ShouldEqual, 1)
+				So(good, ShouldEqual, 3)
 			})
 		})
 	})
