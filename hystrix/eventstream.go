@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/vermapratyush/hystrix-go/hystrix/rolling"
 )
 
 const (
@@ -77,8 +77,8 @@ func (sh *StreamHandler) loop() {
 		case <-tick:
 			circuitBreakersMutex.RLock()
 			for _, cb := range circuitBreakers {
-				sh.publishMetrics(cb)
-				sh.publishThreadPools(cb.executorPool)
+				_ = sh.publishMetrics(cb)
+				_ = sh.publishThreadPools(cb.executorPool)
 			}
 			circuitBreakersMutex.RUnlock()
 		case <-sh.done:
@@ -94,41 +94,44 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	errPct := cb.metrics.ErrorPercent(now)
 
 	eventBytes, err := json.Marshal(&streamCmdMetric{
-		Type:           "HystrixCommand",
-		Name:           cb.Name,
-		Group:          cb.Name,
-		Time:           currentTime(),
-		ReportingHosts: 1,
-
-		RequestCount:       uint32(reqCount),
-		ErrorCount:         uint32(errCount),
-		ErrorPct:           uint32(errPct),
-		CircuitBreakerOpen: cb.IsOpen(),
-
-		RollingCountSuccess:            uint32(cb.metrics.DefaultCollector().Successes().Sum(now)),
-		RollingCountFailure:            uint32(cb.metrics.DefaultCollector().Failures().Sum(now)),
-		RollingCountThreadPoolRejected: uint32(cb.metrics.DefaultCollector().Rejects().Sum(now)),
-		RollingCountShortCircuited:     uint32(cb.metrics.DefaultCollector().ShortCircuits().Sum(now)),
-		RollingCountTimeout:            uint32(cb.metrics.DefaultCollector().Timeouts().Sum(now)),
-		RollingCountFallbackSuccess:    uint32(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(now)),
-		RollingCountFallbackFailure:    uint32(cb.metrics.DefaultCollector().FallbackFailures().Sum(now)),
-
+		Type:               "HystrixCommand",
+		Name:               cb.Name,
+		Group:              cb.Name,
+		Time:               currentTime(),
+		ReportingHosts:     1,
 		LatencyTotal:       generateLatencyTimings(cb.metrics.DefaultCollector().TotalDuration()),
 		LatencyTotalMean:   cb.metrics.DefaultCollector().TotalDuration().Mean(),
 		LatencyExecute:     generateLatencyTimings(cb.metrics.DefaultCollector().RunDuration()),
 		LatencyExecuteMean: cb.metrics.DefaultCollector().RunDuration().Mean(),
 
-		// TODO: all hard-coded values should become configurable settings, per circuit
+		streamCmdHealthMetric: streamCmdHealthMetric{
+			RequestCount:       uint32(reqCount),
+			ErrorCount:         uint32(errCount),
+			ErrorPct:           uint32(errPct),
+			CircuitBreakerOpen: cb.IsOpen(),
+		},
 
-		RollingStatsWindow:         10000,
-		ExecutionIsolationStrategy: "THREAD",
+		streamCmdRollingCountMetric: streamCmdRollingCountMetric{
 
-		CircuitBreakerEnabled:                true,
-		CircuitBreakerForceClosed:            false,
-		CircuitBreakerForceOpen:              cb.forceOpen,
-		CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name).ErrorPercentThreshold),
-		CircuitBreakerSleepWindow:            uint32(getSettings(cb.Name).SleepWindow.Seconds() * 1000),
-		CircuitBreakerRequestVolumeThreshold: uint32(getSettings(cb.Name).RequestVolumeThreshold),
+			RollingCountSuccess:            uint32(cb.metrics.DefaultCollector().Successes().Sum(now)),
+			RollingCountFailure:            uint32(cb.metrics.DefaultCollector().Failures().Sum(now)),
+			RollingCountThreadPoolRejected: uint32(cb.metrics.DefaultCollector().Rejects().Sum(now)),
+			RollingCountShortCircuited:     uint32(cb.metrics.DefaultCollector().ShortCircuits().Sum(now)),
+			RollingCountTimeout:            uint32(cb.metrics.DefaultCollector().Timeouts().Sum(now)),
+			RollingCountFallbackSuccess:    uint32(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(now)),
+			RollingCountFallbackFailure:    uint32(cb.metrics.DefaultCollector().FallbackFailures().Sum(now)),
+		},
+		steamCmdPropertiesMetric: steamCmdPropertiesMetric{
+			// TODO: all hard-coded values should become configurable settings, per circuit
+			RollingStatsWindow:                   10000,
+			ExecutionIsolationStrategy:           "THREAD",
+			CircuitBreakerEnabled:                true,
+			CircuitBreakerForceClosed:            false,
+			CircuitBreakerForceOpen:              cb.forceOpen,
+			CircuitBreakerErrorThresholdPercent:  uint32(getSettings(cb.Name).ErrorPercentThreshold),
+			CircuitBreakerSleepWindow:            uint32(getSettings(cb.Name).SleepWindow.Seconds() * 1000),
+			CircuitBreakerRequestVolumeThreshold: uint32(getSettings(cb.Name).RequestVolumeThreshold),
+		},
 	})
 	if err != nil {
 		return err
@@ -141,7 +144,7 @@ func (sh *StreamHandler) publishMetrics(cb *CircuitBreaker) error {
 	return nil
 }
 
-func (sh *StreamHandler) publishThreadPools(pool *executorPool) error {
+func (sh *StreamHandler) publishThreadPools(pool *bufferedExecutorPool) error {
 	now := time.Now()
 
 	eventBytes, err := json.Marshal(&streamThreadPoolMetric{
@@ -162,13 +165,13 @@ func (sh *StreamHandler) publishThreadPools(pool *executorPool) error {
 		CurrentMaximumPoolSize: uint32(pool.Max),
 
 		RollingStatsWindow:          10000,
-		QueueSizeRejectionThreshold: 0,
-		CurrentQueueSize:            0,
+		QueueSizeRejectionThreshold: uint32(pool.QueueSizeRejectionThreshold),
+		CurrentQueueSize:            uint32(pool.WaitingCount()),
 	})
 	if err != nil {
 		return err
 	}
-	err = sh.writeToRequests(eventBytes)
+	_ = sh.writeToRequests(eventBytes)
 
 	return nil
 }
@@ -238,18 +241,30 @@ func generateLatencyTimings(r *rolling.Timing) streamCmdLatency {
 }
 
 type streamCmdMetric struct {
-	Type           string `json:"type"`
-	Name           string `json:"name"`
-	Group          string `json:"group"`
-	Time           int64  `json:"currentTime"`
-	ReportingHosts uint32 `json:"reportingHosts"`
+	streamCmdHealthMetric
+	streamCmdRollingCountMetric
+	steamCmdPropertiesMetric
+	Type                            string           `json:"type"`
+	Name                            string           `json:"name"`
+	Group                           string           `json:"group"`
+	Time                            int64            `json:"currentTime"`
+	ReportingHosts                  uint32           `json:"reportingHosts"`
+	CurrentConcurrentExecutionCount uint32           `json:"currentConcurrentExecutionCount"`
+	LatencyExecuteMean              uint32           `json:"latencyExecute_mean"`
+	LatencyExecute                  streamCmdLatency `json:"latencyExecute"`
+	LatencyTotalMean                uint32           `json:"latencyTotal_mean"`
+	LatencyTotal                    streamCmdLatency `json:"latencyTotal"`
+}
 
+type streamCmdHealthMetric struct {
 	// Health
 	RequestCount       uint32 `json:"requestCount"`
 	ErrorCount         uint32 `json:"errorCount"`
 	ErrorPct           uint32 `json:"errorPercentage"`
 	CircuitBreakerOpen bool   `json:"isCircuitBreakerOpen"`
+}
 
+type streamCmdRollingCountMetric struct {
 	RollingCountCollapsedRequests  uint32 `json:"rollingCountCollapsedRequests"`
 	RollingCountExceptionsThrown   uint32 `json:"rollingCountExceptionsThrown"`
 	RollingCountFailure            uint32 `json:"rollingCountFailure"`
@@ -262,14 +277,9 @@ type streamCmdMetric struct {
 	RollingCountSuccess            uint32 `json:"rollingCountSuccess"`
 	RollingCountThreadPoolRejected uint32 `json:"rollingCountThreadPoolRejected"`
 	RollingCountTimeout            uint32 `json:"rollingCountTimeout"`
+}
 
-	CurrentConcurrentExecutionCount uint32 `json:"currentConcurrentExecutionCount"`
-
-	LatencyExecuteMean uint32           `json:"latencyExecute_mean"`
-	LatencyExecute     streamCmdLatency `json:"latencyExecute"`
-	LatencyTotalMean   uint32           `json:"latencyTotal_mean"`
-	LatencyTotal       streamCmdLatency `json:"latencyTotal"`
-
+type steamCmdPropertiesMetric struct {
 	// Properties
 	CircuitBreakerRequestVolumeThreshold             uint32 `json:"propertyValue_circuitBreakerRequestVolumeThreshold"`
 	CircuitBreakerSleepWindow                        uint32 `json:"propertyValue_circuitBreakerSleepWindowInMilliseconds"`

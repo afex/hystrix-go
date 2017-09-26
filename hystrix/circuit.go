@@ -17,7 +17,7 @@ type CircuitBreaker struct {
 	mutex                  *sync.RWMutex
 	openedOrLastTestedTime int64
 
-	executorPool *executorPool
+	executorPool *bufferedExecutorPool
 	metrics      *metricExchange
 }
 
@@ -42,7 +42,7 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 		// because we released the rlock before we obtained the exclusive lock,
 		// we need to double check that some other thread didn't beat us to
 		// creation.
-		if cb, ok := circuitBreakers[name]; ok {
+		if cb, present := circuitBreakers[name]; present {
 			return cb, false, nil
 		}
 		circuitBreakers[name] = newCircuitBreaker(name)
@@ -70,7 +70,7 @@ func newCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
 	c.Name = name
 	c.metrics = newMetricExchange(name)
-	c.executorPool = newExecutorPool(name)
+	c.executorPool = newBufferedExecutorPool(name)
 	c.mutex = &sync.RWMutex{}
 
 	return c
@@ -170,10 +170,7 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		return fmt.Errorf("no event types sent for metrics")
 	}
 
-	circuit.mutex.RLock()
-	o := circuit.open
-	circuit.mutex.RUnlock()
-	if eventTypes[0] == "success" && o {
+	if eventTypes[0] == "success" && circuit.open {
 		circuit.setClose()
 	}
 

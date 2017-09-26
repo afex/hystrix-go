@@ -44,7 +44,7 @@ func (r *Timing) SortedDurations() []time.Duration {
 	t := r.LastCachedTime
 	r.Mutex.RUnlock()
 
-	if t+time.Duration(1*time.Second).Nanoseconds() > time.Now().UnixNano() {
+	if t+time.Second.Nanoseconds() > time.Now().UnixNano() {
 		// don't recalculate if current cache is still fresh
 		return r.CachedSortedDurations
 	}

@@ -3,26 +3,28 @@ package hystrix
 import (
 	"sync"
 
-	"github.com/afex/hystrix-go/hystrix/rolling"
+	"github.com/vermapratyush/hystrix-go/hystrix/rolling"
 )
 
-type poolMetrics struct {
+type bufferedPoolMetrics struct {
 	Mutex   *sync.RWMutex
-	Updates chan poolMetricsUpdate
+	Updates chan bufferedPoolMetricsUpdate
 
-	Name              string
-	MaxActiveRequests *rolling.Number
-	Executed          *rolling.Number
+	Name               string
+	MaxActiveRequests  *rolling.Number
+	MaxWaitingRequests *rolling.Number
+	Executed           *rolling.Number
 }
 
-type poolMetricsUpdate struct {
-	activeCount int
+type bufferedPoolMetricsUpdate struct {
+	activeCount  int
+	waitingCount int
 }
 
-func newPoolMetrics(name string) *poolMetrics {
-	m := &poolMetrics{}
+func newBufferedPoolMetrics(name string) *bufferedPoolMetrics {
+	m := &bufferedPoolMetrics{}
 	m.Name = name
-	m.Updates = make(chan poolMetricsUpdate)
+	m.Updates = make(chan bufferedPoolMetricsUpdate)
 	m.Mutex = &sync.RWMutex{}
 
 	m.Reset()
@@ -32,20 +34,22 @@ func newPoolMetrics(name string) *poolMetrics {
 	return m
 }
 
-func (m *poolMetrics) Reset() {
+func (m *bufferedPoolMetrics) Reset() {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
 	m.MaxActiveRequests = rolling.NewNumber()
+	m.MaxWaitingRequests = rolling.NewNumber()
 	m.Executed = rolling.NewNumber()
 }
 
-func (m *poolMetrics) Monitor() {
+func (m *bufferedPoolMetrics) Monitor() {
 	for u := range m.Updates {
 		m.Mutex.RLock()
 
 		m.Executed.Increment(1)
 		m.MaxActiveRequests.UpdateMax(float64(u.activeCount))
+		m.MaxWaitingRequests.UpdateMax(float64(u.waitingCount))
 
 		m.Mutex.RUnlock()
 	}
