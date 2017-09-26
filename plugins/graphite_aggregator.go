@@ -22,6 +22,7 @@ var makeCounterFunc = func() interface{} { return metrics.NewCounter() }
 // on how metrics are aggregated and expressed in graphite.
 type GraphiteCollector struct {
 	attemptsPrefix          string
+	queueSizePrefix         string
 	errorsPrefix            string
 	successesPrefix         string
 	failuresPrefix          string
@@ -60,6 +61,7 @@ func NewGraphiteCollector(name string) metricCollector.MetricCollector {
 	return &GraphiteCollector{
 		attemptsPrefix:          name + ".attempts",
 		errorsPrefix:            name + ".errors",
+		queueSizePrefix:         name + ".queueLength",
 		successesPrefix:         name + ".successes",
 		failuresPrefix:          name + ".failures",
 		rejectsPrefix:           name + ".rejects",
@@ -92,6 +94,12 @@ func (g *GraphiteCollector) updateTimerMetric(prefix string, dur time.Duration) 
 // This registers as a counter in the graphite collector.
 func (g *GraphiteCollector) IncrementAttempts() {
 	g.incrementCounterMetric(g.attemptsPrefix)
+}
+
+// IncrementQueueSize increments the number of elements in the queue.
+// Request that would have otherwise been rejected, but was queued before executing/rejection
+func (g *GraphiteCollector) IncrementQueueSize() {
+	g.incrementCounterMetric(g.queueSizePrefix)
 }
 
 // IncrementErrors increments the number of unsuccessful attempts.
