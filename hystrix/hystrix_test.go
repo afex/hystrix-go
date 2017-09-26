@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"testing/quick"
 )
 
 func TestSuccess(t *testing.T) {

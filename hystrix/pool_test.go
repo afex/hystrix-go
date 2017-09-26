@@ -85,6 +85,7 @@ func TestWaitingCount(t *testing.T) {
 
 		Convey("WaitingTicket should be max-10", func() {
 			<-checkpoint
+			time.Sleep(500 * time.Millisecond)
 			So(pool.WaitingCount(), ShouldEqual, pool.QueueSizeRejectionThreshold-10)
 		})
 
