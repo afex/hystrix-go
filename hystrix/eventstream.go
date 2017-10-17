@@ -171,9 +171,7 @@ func (sh *StreamHandler) publishThreadPools(pool *bufferedExecutorPool) error {
 	if err != nil {
 		return err
 	}
-	_ = sh.writeToRequests(eventBytes)
-
-	return nil
+	return sh.writeToRequests(eventBytes)
 }
 
 func (sh *StreamHandler) writeToRequests(eventBytes []byte) error {
