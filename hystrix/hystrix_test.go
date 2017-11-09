@@ -88,12 +88,11 @@ func TestBadRequest(t *testing.T) {
 			So(<-resultChan, ShouldEqual, 1)
 
 			Convey("an error should have been returned", func() {
-				So(len(errChan), ShouldEqual, 1)
 				err := <-errChan
-				br, ok := err.(BadRequest)
+				So(err, ShouldNotBeNil)
+				_, ok := err.(BadRequest)
 				Convey("it should be a bad request", func() {
 					So(ok, ShouldBeTrue)
-					So(br, ShouldNotBeNil)
 				})
 			})
 			Convey("fallback should not have been called", func() {
@@ -134,12 +133,11 @@ func TestBadRequestInFallback(t *testing.T) {
 			So(<-resultChan, ShouldEqual, 1)
 
 			Convey("an error should have been returned", func() {
-				So(len(errChan), ShouldEqual, 1)
 				err := <-errChan
-				br, ok := err.(BadRequest)
+				So(err, ShouldNotBeNil)
+				_, ok := err.(BadRequest)
 				Convey("it should be a bad request", func() {
 					So(ok, ShouldBeTrue)
-					So(br, ShouldNotBeNil)
 				})
 			})
 			Convey("metrics have been recorded properly", func() {
