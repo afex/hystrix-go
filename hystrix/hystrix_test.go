@@ -104,10 +104,53 @@ func TestBadRequest(t *testing.T) {
 				cb, _, _ := GetCircuit("")
 				Convey("request was successful", func() {
 					So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 1)
-				})
-				Convey("request had no failures", func() {
 					So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 0)
+				})
+				Convey("fallback had no successes", func() {
 					So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 0)
+				})
+			})
+		})
+	})
+}
+
+func TestBadRequestInFallback(t *testing.T) {
+	Convey("given a command which fails, and whose fallback returns a bad request", t, func() {
+		defer Flush()
+
+		resultChan := make(chan int)
+		errChan := Go("", func() error {
+			return fmt.Errorf("error")
+		}, func(err error) error {
+			defer func() {
+				resultChan <- 1
+			}()
+			return badRequest{
+				error: fmt.Errorf("bad request"),
+			}
+		})
+
+		Convey("When the bad request occurs in the fallback", func() {
+			So(<-resultChan, ShouldEqual, 1)
+
+			Convey("an error should have been returned", func() {
+				So(len(errChan), ShouldEqual, 1)
+				err := <-errChan
+				br, ok := err.(BadRequest)
+				Convey("it should be a bad request", func() {
+					So(ok, ShouldBeTrue)
+					So(br, ShouldNotBeNil)
+				})
+			})
+			Convey("metrics have been recorded properly", func() {
+				time.Sleep(10 * time.Millisecond)
+				cb, _, _ := GetCircuit("")
+				Convey("request was not successful", func() {
+					So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 0)
+					So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 1)
+				})
+				Convey("fallback was successful", func() {
+					So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
 				})
 			})
 		})

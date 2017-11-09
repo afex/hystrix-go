@@ -267,12 +267,11 @@ func (c *command) tryFallback(err error) error {
 	}
 
 	fallbackErr := c.fallback(err)
-	if fallbackErr != nil {
-		c.reportEvent("fallback-failure")
-		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
+	if _, ok := fallbackErr.(BadRequest); ok || fallbackErr == nil {
+		c.reportEvent("fallback-success")
+		return fallbackErr
 	}
 
-	c.reportEvent("fallback-success")
-
-	return nil
+	c.reportEvent("fallback-failure")
+	return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
 }
