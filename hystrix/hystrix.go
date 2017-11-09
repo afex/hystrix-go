@@ -20,6 +20,29 @@ func (e CircuitError) Error() string {
 	return "hystrix: " + e.Message
 }
 
+// A BadRequest is an error which is treated as a successful call.
+// The fallback function will not be executed when a BadRequest is returned.
+// BadRequests do not count against failure metrics
+type BadRequest interface {
+	error
+	BadRequest()
+}
+
+type badRequest struct {
+	error
+}
+
+func (br badRequest) BadRequest() {
+	return
+}
+
+// NewBadRequest wraps the specified error such that it satisfies the BadRequest interface
+func NewBadRequest(err error) BadRequest {
+	return badRequest{
+		error: err,
+	}
+}
+
 // command models the state used for a single execution on a circuit. "hystrix command" is commonly
 // used to describe the pairing of your run/fallback functions with a circuit.
 type command struct {
@@ -142,7 +165,9 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			defer reportAllEvent()
 			cmd.runDuration = time.Since(runStart)
 			returnTicket()
-			if runErr != nil {
+			if badRequest, ok := runErr.(BadRequest); ok {
+				cmd.errChan <- badRequest
+			} else if runErr != nil {
 				cmd.errorWithFallback(runErr)
 				return
 			}

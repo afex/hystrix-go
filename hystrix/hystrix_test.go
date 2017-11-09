@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"testing/quick"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestSuccess(t *testing.T) {
@@ -61,6 +62,65 @@ func TestFallback(t *testing.T) {
 				So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 1)
 				So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
 			})
+		})
+	})
+}
+
+func TestBadRequest(t *testing.T) {
+	Convey("given a command which fails with a bad request, and whose fallback returns nil", t, func() {
+		defer Flush()
+		fellBack := false
+
+		resultChan := make(chan int)
+		errChan := Go("", func() error {
+			defer func() {
+				resultChan <- 1
+			}()
+			return badRequest{
+				error: fmt.Errorf("error"),
+			}
+		}, func(err error) error {
+			fellBack = true
+			return nil
+		})
+
+		Convey("When the bad request is returned", func() {
+			So(<-resultChan, ShouldEqual, 1)
+
+			Convey("an error should have been returned", func() {
+				So(len(errChan), ShouldEqual, 1)
+				err := <-errChan
+				br, ok := err.(BadRequest)
+				Convey("it should be a bad request", func() {
+					So(ok, ShouldBeTrue)
+					So(br, ShouldNotBeNil)
+				})
+			})
+			Convey("fallback should not have been called", func() {
+				So(fellBack, ShouldBeFalse)
+			})
+			Convey("metrics have been recorded properly", func() {
+				time.Sleep(10 * time.Millisecond)
+				cb, _, _ := GetCircuit("")
+				Convey("request was successful", func() {
+					So(cb.metrics.DefaultCollector().Successes().Sum(time.Now()), ShouldEqual, 1)
+				})
+				Convey("request had no failures", func() {
+					So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 0)
+					So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 0)
+				})
+			})
+		})
+	})
+}
+
+func TestNewBadRequest(t *testing.T) {
+	Convey("when NewBadRequest is called with an error", t, func() {
+		var err error
+		err = NewBadRequest(fmt.Errorf("error"))
+		Convey("It returns a BadRequest", func() {
+			_, ok := err.(BadRequest)
+			So(ok, ShouldBeTrue)
 		})
 	})
 }
