@@ -1,6 +1,7 @@
 package hystrix
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -9,6 +10,8 @@ import (
 
 type runFunc func() error
 type fallbackFunc func(error) error
+type runFuncC func(context.Context) error
+type fallbackFuncC func(context.Context, error) error
 
 // A CircuitError is an error which models various failure states of execution,
 // such as the circuit being open or a timeout.
@@ -25,15 +28,15 @@ func (e CircuitError) Error() string {
 type command struct {
 	sync.Mutex
 
-	ticket       *struct{}
-	start        time.Time
-	errChan      chan error
-	finished     chan bool
-	circuit      *CircuitBreaker
-	run          runFunc
-	fallback     fallbackFunc
-	runDuration  time.Duration
-	events       []string
+	ticket      *struct{}
+	start       time.Time
+	errChan     chan error
+	finished    chan bool
+	circuit     *CircuitBreaker
+	run         runFuncC
+	fallback    fallbackFuncC
+	runDuration time.Duration
+	events      []string
 }
 
 var (
@@ -51,12 +54,30 @@ var (
 //
 // Define a fallback function if you want to define some code to execute during outages.
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
+	runC := func(ctx context.Context) error {
+		return run()
+	}
+	var fallbackC fallbackFuncC
+	if fallback != nil {
+		fallbackC = func(ctx context.Context, err error) error {
+			return fallback(err)
+		}
+	}
+	return GoC(context.Background(), name, runC, fallbackC)
+}
+
+// GoC runs your function while tracking the health of previous calls to it.
+// If your function begins slowing down or failing repeatedly, we will block
+// new calls to it for you to give the dependent service time to repair.
+//
+// Define a fallback function if you want to define some code to execute during outages.
+func GoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC) chan error {
 	cmd := &command{
-		run:          run,
-		fallback:     fallback,
-		start:        time.Now(),
-		errChan:      make(chan error, 1),
-		finished:     make(chan bool, 1),
+		run:      run,
+		fallback: fallback,
+		start:    time.Now(),
+		errChan:  make(chan error, 1),
+		finished: make(chan bool, 1),
 	}
 
 	// dont have methods with explicit params and returns
@@ -107,7 +128,7 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			cmd.Unlock()
 			returnOnce.Do(func() {
 				returnTicket()
-				cmd.errorWithFallback(ErrCircuitOpen)
+				cmd.errorWithFallback(ctx, ErrCircuitOpen)
 				reportAllEvent()
 			})
 			return
@@ -130,20 +151,20 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			cmd.Unlock()
 			returnOnce.Do(func() {
 				returnTicket()
-				cmd.errorWithFallback(ErrMaxConcurrency)
+				cmd.errorWithFallback(ctx, ErrMaxConcurrency)
 				reportAllEvent()
 			})
 			return
 		}
 
 		runStart := time.Now()
-		runErr := run()
+		runErr := run(ctx)
 		returnOnce.Do(func() {
 			defer reportAllEvent()
 			cmd.runDuration = time.Since(runStart)
 			returnTicket()
 			if runErr != nil {
-				cmd.errorWithFallback(runErr)
+				cmd.errorWithFallback(ctx, runErr)
 				return
 			}
 			cmd.reportEvent("success")
@@ -157,10 +178,17 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 		select {
 		case <-cmd.finished:
 			// returnOnce has been executed in another goroutine
+		case <-ctx.Done():
+			returnOnce.Do(func() {
+				returnTicket()
+				cmd.errorWithFallback(ctx, ctx.Err())
+				reportAllEvent()
+			})
+			return
 		case <-timer.C:
 			returnOnce.Do(func() {
 				returnTicket()
-				cmd.errorWithFallback(ErrTimeout)
+				cmd.errorWithFallback(ctx, ErrTimeout)
 				reportAllEvent()
 			})
 			return
@@ -173,10 +201,25 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 // Do runs your function in a synchronous manner, blocking until either your function succeeds
 // or an error is returned, including hystrix circuit errors
 func Do(name string, run runFunc, fallback fallbackFunc) error {
+	runC := func(ctx context.Context) error {
+		return run()
+	}
+	var fallbackC fallbackFuncC
+	if fallback != nil {
+		fallbackC = func(ctx context.Context, err error) error {
+			return fallback(err)
+		}
+	}
+	return DoC(context.Background(), name, runC, fallbackC)
+}
+
+// DoC runs your function in a synchronous manner, blocking until either your function succeeds
+// or an error is returned, including hystrix circuit errors
+func DoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC) error {
 	done := make(chan struct{}, 1)
 
-	r := func() error {
-		err := run()
+	r := func(ctx context.Context) error {
+		err := run(ctx)
 		if err != nil {
 			return err
 		}
@@ -185,8 +228,8 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 		return nil
 	}
 
-	f := func(e error) error {
-		err := fallback(e)
+	f := func(ctx context.Context, e error) error {
+		err := fallback(ctx, e)
 		if err != nil {
 			return err
 		}
@@ -197,9 +240,9 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 
 	var errChan chan error
 	if fallback == nil {
-		errChan = Go(name, r, nil)
+		errChan = GoC(ctx, name, r, nil)
 	} else {
-		errChan = Go(name, r, f)
+		errChan = GoC(ctx, name, r, f)
 	}
 
 	select {
@@ -218,7 +261,18 @@ func (c *command) reportEvent(eventType string) {
 }
 
 // errorWithFallback triggers the fallback while reporting the appropriate metric events.
-func (c *command) errorWithFallback(err error) {
+func (c *command) errorWithFallback(ctx context.Context, err error) {
+	// If context was canceled, we shouldn't modify the circuit because the error
+	// was not caused by the command execution but instead by some caller above
+	// in the stack. Treating cancelations as command errors can cause circuits to
+	// open despite commands being able to complete successfully. We don't need to
+	// attempt a fallback here, because the context is canceled and any further
+	// computation is wasted.
+	if ctx.Err() == context.Canceled {
+		c.errChan <- err
+		return
+	}
+
 	eventType := "failure"
 	if err == ErrCircuitOpen {
 		eventType = "short-circuit"
@@ -229,19 +283,19 @@ func (c *command) errorWithFallback(err error) {
 	}
 
 	c.reportEvent(eventType)
-	fallbackErr := c.tryFallback(err)
+	fallbackErr := c.tryFallback(ctx, err)
 	if fallbackErr != nil {
 		c.errChan <- fallbackErr
 	}
 }
 
-func (c *command) tryFallback(err error) error {
+func (c *command) tryFallback(ctx context.Context, err error) error {
 	if c.fallback == nil {
 		// If we don't have a fallback return the original error.
 		return err
 	}
 
-	fallbackErr := c.fallback(err)
+	fallbackErr := c.fallback(ctx, err)
 	if fallbackErr != nil {
 		c.reportEvent("fallback-failure")
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
