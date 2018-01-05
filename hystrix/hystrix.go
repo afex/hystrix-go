@@ -181,7 +181,7 @@ func GoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC)
 		case <-ctx.Done():
 			returnOnce.Do(func() {
 				returnTicket()
-				cmd.errorWithFallback(ctx, ctx.Err())
+				cmd.errChan <- ctx.Err()
 				reportAllEvent()
 			})
 			return
@@ -262,17 +262,6 @@ func (c *command) reportEvent(eventType string) {
 
 // errorWithFallback triggers the fallback while reporting the appropriate metric events.
 func (c *command) errorWithFallback(ctx context.Context, err error) {
-	// If context was canceled, we shouldn't modify the circuit because the error
-	// was not caused by the command execution but instead by some caller above
-	// in the stack. Treating cancelations as command errors can cause circuits to
-	// open despite commands being able to complete successfully. We don't need to
-	// attempt a fallback here, because the context is canceled and any further
-	// computation is wasted.
-	if ctx.Err() == context.Canceled {
-		c.errChan <- err
-		return
-	}
-
 	eventType := "failure"
 	if err == ErrCircuitOpen {
 		eventType = "short-circuit"
