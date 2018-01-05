@@ -3,6 +3,8 @@ package hystrix
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
@@ -41,6 +43,55 @@ func (sh *StreamHandler) Stop() {
 var _ http.Handler = (*StreamHandler)(nil)
 
 func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	if req.URL.Path == "/config" {
+		data := struct {
+			Code    int         `json:"code"`
+			Message string      `json:"message"`
+			Data    interface{} `json:"data"`
+		}{
+			Code:    0,
+			Message: "Successful!",
+			Data:    nil,
+		}
+
+		if req.Method == "GET" {
+			configs := map[string]CommandConfig{}
+			for name, r := range GetCircuitSettings() {
+				configs[name] = CommandConfig{
+					Timeout:                int(r.Timeout.Nanoseconds() / 1e6),
+					MaxConcurrentRequests:  r.MaxConcurrentRequests,
+					ErrorPercentThreshold:  r.ErrorPercentThreshold,
+					RequestVolumeThreshold: int(r.RequestVolumeThreshold),
+					SleepWindow:            int(r.SleepWindow.Nanoseconds() / 1e6),
+				}
+			}
+			data.Data = configs
+		} else {
+			result, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				sh.error(rw, 1001, err)
+				return
+			}
+			var data struct {
+				CommandName string        `json:"command_name"`
+				Config      CommandConfig `json:"config"`
+			}
+			err = json.Unmarshal(result, &data)
+			if err != nil {
+				sh.error(rw, 1002, err)
+				return
+			}
+			if data.CommandName == "" || data.Config.Timeout == 0 || data.Config.ErrorPercentThreshold == 0 || data.Config.MaxConcurrentRequests == 0 || data.Config.RequestVolumeThreshold == 0 || data.Config.SleepWindow == 0 {
+				sh.error(rw, 1003, fmt.Errorf(`Params Valid error, "command_name,timeout,max_concurrent_requests,request_volume_threshold,sleep_window,error_percent_threshold"`))
+				return
+			}
+			ConfigureCommand(data.CommandName, data.Config)
+			ResetCircuit(data.CommandName)
+		}
+		rturnData, _ := json.Marshal(data)
+		rw.Write(rturnData)
+		return
+	}
 	// Make sure that the writer supports flushing.
 	f, ok := rw.(http.Flusher)
 	if !ok {
@@ -55,6 +106,7 @@ func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Add("Content-Type", "text/event-stream")
 	rw.Header().Set("Cache-Control", "no-cache")
 	rw.Header().Set("Connection", "keep-alive")
+	rw.Header().Set("Access-Control-Allow-Origin", "*")
 	for {
 		select {
 		case <-notify:
@@ -68,6 +120,17 @@ func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			f.Flush()
 		}
 	}
+}
+
+func (sh *StreamHandler) error(rw http.ResponseWriter, code int, err error) {
+	var data struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	data.Code = code
+	data.Message = fmt.Sprintf("error :%s", err.Error())
+	d, _ := json.Marshal(data)
+	rw.Write(d)
 }
 
 func (sh *StreamHandler) loop() {
