@@ -18,12 +18,14 @@ var (
 	DefaultErrorPercentThreshold = 50
 )
 
+// Settings Setting for the hystrixCommand
 type Settings struct {
-	Timeout                time.Duration
-	MaxConcurrentRequests  int
-	RequestVolumeThreshold uint64
-	SleepWindow            time.Duration
-	ErrorPercentThreshold  int
+	Timeout                     time.Duration
+	MaxConcurrentRequests       int
+	RequestVolumeThreshold      uint64
+	SleepWindow                 time.Duration
+	ErrorPercentThreshold       int
+	QueueSizeRejectionThreshold int
 }
 
 // CommandConfig is used to tune circuit settings at runtime
@@ -33,6 +35,8 @@ type CommandConfig struct {
 	RequestVolumeThreshold int `json:"request_volume_threshold"`
 	SleepWindow            int `json:"sleep_window"`
 	ErrorPercentThreshold  int `json:"error_percent_threshold"`
+	// for more details refer - https://github.com/Netflix/Hystrix/wiki/Configuration#maxqueuesize
+	QueueSizeRejectionThreshold int `json:"queue_size_rejection_threshold"`
 }
 
 var circuitSettings map[string]*Settings
@@ -80,12 +84,20 @@ func ConfigureCommand(name string, config CommandConfig) {
 		errorPercent = config.ErrorPercentThreshold
 	}
 
+	// queueSizeRejectionThreshold should ideally be a function of DefaultMaxConcurrent
+	// drawing parallels with netflix/hystrix default setting, it is set equal to DefaultMaxConcurrent
+	queueSizeRejectionThreshold := max
+	if config.QueueSizeRejectionThreshold != 0 {
+		queueSizeRejectionThreshold = config.QueueSizeRejectionThreshold
+	}
+
 	circuitSettings[name] = &Settings{
-		Timeout:                time.Duration(timeout) * time.Millisecond,
-		MaxConcurrentRequests:  max,
-		RequestVolumeThreshold: uint64(volume),
-		SleepWindow:            time.Duration(sleep) * time.Millisecond,
-		ErrorPercentThreshold:  errorPercent,
+		Timeout:                     time.Duration(timeout) * time.Millisecond,
+		MaxConcurrentRequests:       max,
+		RequestVolumeThreshold:      uint64(volume),
+		SleepWindow:                 time.Duration(sleep) * time.Millisecond,
+		ErrorPercentThreshold:       errorPercent,
+		QueueSizeRejectionThreshold: queueSizeRejectionThreshold,
 	}
 }
 
@@ -102,6 +114,7 @@ func getSettings(name string) *Settings {
 	return s
 }
 
+// GetCircuitSettings Returns a copy of the hystrix circuit map
 func GetCircuitSettings() map[string]*Settings {
 	copy := make(map[string]*Settings)
 

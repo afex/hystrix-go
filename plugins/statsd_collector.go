@@ -18,6 +18,7 @@ type StatsdCollector struct {
 	client                  statsd.Statter
 	circuitOpenPrefix       string
 	attemptsPrefix          string
+	queueSizePrefix         string
 	errorsPrefix            string
 	successesPrefix         string
 	failuresPrefix          string
@@ -96,6 +97,7 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 		circuitOpenPrefix:       name + ".circuitOpen",
 		attemptsPrefix:          name + ".attempts",
 		errorsPrefix:            name + ".errors",
+		queueSizePrefix:         name + ".queueLength",
 		successesPrefix:         name + ".successes",
 		failuresPrefix:          name + ".failures",
 		rejectsPrefix:           name + ".rejects",
@@ -134,6 +136,12 @@ func (g *StatsdCollector) updateTimerMetric(prefix string, dur time.Duration) {
 // This registers as a counter in the Statsd collector.
 func (g *StatsdCollector) IncrementAttempts() {
 	g.incrementCounterMetric(g.attemptsPrefix)
+}
+
+// IncrementQueuedItem increments the number of elements in the queue.
+// Request that would have otherwise been rejected, but was queued before executing/rejection
+func (g *StatsdCollector) IncrementQueuedItem() {
+	g.incrementCounterMetric(g.queueSizePrefix)
 }
 
 // IncrementErrors increments the number of unsuccessful attempts.
