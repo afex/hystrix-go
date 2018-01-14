@@ -96,9 +96,9 @@ func (g *GraphiteCollector) IncrementAttempts() {
 	g.incrementCounterMetric(g.attemptsPrefix)
 }
 
-// IncrementQueueSize increments the number of elements in the queue.
+// IncrementQueuedItem increments the number of elements in the queue.
 // Request that would have otherwise been rejected, but was queued before executing/rejection
-func (g *GraphiteCollector) IncrementQueueSize() {
+func (g *GraphiteCollector) IncrementQueuedItem() {
 	g.incrementCounterMetric(g.queueSizePrefix)
 }
 

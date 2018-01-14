@@ -121,8 +121,8 @@ func (dc *DatadogCollector) IncrementAttempts() {
 	_ = dc.client.Count(dmAttempts, 1, dc.tags, 1.0)
 }
 
-// IncrementQueueSize increments the number of elements in the queue.
-func (dc *DatadogCollector) IncrementQueueSize() {
+// IncrementQueuedItem increments the number of elements in the queue.
+func (dc *DatadogCollector) IncrementQueuedItem() {
 	_ = dc.client.Count(dmQueueLength, 1, dc.tags, 1.0)
 }
 

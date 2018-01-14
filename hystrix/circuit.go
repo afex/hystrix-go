@@ -165,7 +165,7 @@ func (circuit *CircuitBreaker) setClose() {
 }
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
-func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration) error {
+func (circuit *CircuitBreaker) ReportEvent(eventTypes map[string]struct{}, start time.Time, runDuration time.Duration) error {
 	if len(eventTypes) == 0 {
 		return fmt.Errorf("no event types sent for metrics")
 	}
@@ -173,7 +173,7 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 	circuit.mutex.RLock()
 	o := circuit.open
 	circuit.mutex.RUnlock()
-	if eventTypes[0] == "success" && o {
+	if _, isSuccess := eventTypes["success"]; isSuccess && o {
 		circuit.setClose()
 	}
 

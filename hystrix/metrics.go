@@ -9,9 +9,9 @@ import (
 )
 
 type commandExecution struct {
-	Types       []string      `json:"types"`
-	Start       time.Time     `json:"start_time"`
-	RunDuration time.Duration `json:"run_duration"`
+	Types       map[string]struct{} `json:"types"`
+	Start       time.Time           `json:"start_time"`
+	RunDuration time.Duration       `json:"run_duration"`
 }
 
 type metricExchange struct {
@@ -30,7 +30,6 @@ func newMetricExchange(name string) *metricExchange {
 	m.Mutex = &sync.RWMutex{}
 	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()
-
 	go m.Monitor()
 
 	return m
@@ -49,6 +48,7 @@ func (m *metricExchange) DefaultCollector() *metricCollector.DefaultMetricCollec
 }
 
 func (m *metricExchange) Monitor() {
+
 	for update := range m.Updates {
 		// we only grab a read lock to make sure Reset() isn't changing the numbers.
 		m.Mutex.RLock()
@@ -65,46 +65,51 @@ func (m *metricExchange) Monitor() {
 	}
 }
 
+func isEventPresent(eventMap map[string]struct{}, key string) bool {
+	_, present := eventMap[key]
+	return present
+}
+
 func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCollector.MetricCollector, update *commandExecution, totalDuration time.Duration) {
 	// granular metrics
-	if update.Types[0] == "success" {
+	if isEventPresent(update.Types, "success") {
 		collector.IncrementAttempts()
 		collector.IncrementSuccesses()
 	}
-	if update.Types[0] == "failure" {
+	if isEventPresent(update.Types, "failure") {
 		collector.IncrementFailures()
 
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
-	if update.Types[0] == "rejected" {
+	if isEventPresent(update.Types, "rejected") {
 		collector.IncrementRejects()
 
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
-	if update.Types[0] == "short-circuit" {
+	if isEventPresent(update.Types, "short-circuit") {
 		collector.IncrementShortCircuits()
 
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
-	if update.Types[0] == "timeout" {
+	if isEventPresent(update.Types, "timeout") {
 		collector.IncrementTimeouts()
 
 		collector.IncrementAttempts()
 		collector.IncrementErrors()
 	}
-	if update.Types[0] == "queued" {
-		collector.IncrementQueueSize()
+	if isEventPresent(update.Types, "queued") {
+		collector.IncrementQueuedItem()
 	}
 
 	if len(update.Types) > 1 {
 		// fallback metrics
-		if update.Types[1] == "fallback-success" {
+		if isEventPresent(update.Types, "fallback-success") {
 			collector.IncrementFallbackSuccesses()
 		}
-		if update.Types[1] == "fallback-failure" {
+		if isEventPresent(update.Types, "fallback-failure") {
 			collector.IncrementFallbackFailures()
 		}
 	}

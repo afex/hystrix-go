@@ -70,7 +70,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	// dont have methods with explicit params and returns
 	// let data come in and out naturally, like with any closure
 	// explicit error return to give place for us to kill switch the operation (fallback)
-
 	circuit, _, err := GetCircuit(name)
 	if err != nil {
 		cmd.errChan <- err
@@ -154,7 +153,10 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 			<-cmd.ticketChecked
 			cmd.Lock()
 			cmd.circuit.executorPool.Return(cmd.ticket)
-			copyEvents := append([]string(nil), cmd.events...)
+			copyEvents := make(map[string]struct{})
+			for _, event := range cmd.events {
+				copyEvents[event] = struct{}{}
+			}
 			cmd.Unlock()
 
 			err := cmd.circuit.ReportEvent(copyEvents, cmd.start, cmd.getRunDuration())

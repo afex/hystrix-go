@@ -16,8 +16,6 @@ var (
 	DefaultSleepWindow = 5000
 	// DefaultErrorPercentThreshold causes circuits to open once the rolling measure of errors exceeds this percent of requests
 	DefaultErrorPercentThreshold = 50
-	// DefaultQueueSizeRejectionThreshold reject requests when the queue size exceeds the given limit
-	DefaultQueueSizeRejectionThreshold = DefaultMaxConcurrent * 5
 )
 
 // Settings Setting for the hystrixCommand
@@ -86,7 +84,9 @@ func ConfigureCommand(name string, config CommandConfig) {
 		errorPercent = config.ErrorPercentThreshold
 	}
 
-	queueSizeRejectionThreshold := DefaultQueueSizeRejectionThreshold
+	// queueSizeRejectionThreshold should ideally be a function of DefaultMaxConcurrent
+	// drawing parallels with netflix/hystrix default setting, it is set equal to DefaultMaxConcurrent
+	queueSizeRejectionThreshold := max
 	if config.QueueSizeRejectionThreshold != 0 {
 		queueSizeRejectionThreshold = config.QueueSizeRejectionThreshold
 	}

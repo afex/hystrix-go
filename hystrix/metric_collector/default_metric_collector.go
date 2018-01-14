@@ -138,8 +138,8 @@ func (d *DefaultMetricCollector) IncrementAttempts() {
 	d.numRequests.Increment(1)
 }
 
-// IncrementQueueSize increments the number of elements in the queue.
-func (d *DefaultMetricCollector) IncrementQueueSize() {
+// IncrementQueuedItem increments the number of elements in the queue.
+func (d *DefaultMetricCollector) IncrementQueuedItem() {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 	d.queueSize.Increment(1)
