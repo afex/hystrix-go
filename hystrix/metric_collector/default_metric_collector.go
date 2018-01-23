@@ -29,6 +29,7 @@ type DefaultMetricCollector struct {
 	fallbackFailures  *rolling.Number
 	totalDuration     *rolling.Timing
 	runDuration       *rolling.Timing
+	userDuration      *rolling.Timing
 }
 
 func newDefaultMetricCollector(name string) MetricCollector {
@@ -193,6 +194,13 @@ func (d *DefaultMetricCollector) UpdateRunDuration(runDuration time.Duration) {
 	d.runDuration.Add(runDuration)
 }
 
+// UpdateUserDuration updates the internal counter of how much latency the caller felt when made when using the blocking Do()
+func (d *DefaultMetricCollector) UpdateUserDuration(userDuration time.Duration) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	d.userDuration.Add(userDuration)
+}
+
 // Reset resets all metrics in this collector to 0.
 func (d *DefaultMetricCollector) Reset() {
 	d.mutex.Lock()
@@ -209,4 +217,5 @@ func (d *DefaultMetricCollector) Reset() {
 	d.fallbackFailures = rolling.NewNumber()
 	d.totalDuration = rolling.NewTiming()
 	d.runDuration = rolling.NewTiming()
+	d.userDuration = rolling.NewTiming()
 }

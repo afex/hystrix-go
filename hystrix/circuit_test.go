@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-	"testing/quick"
 	"math/rand"
+	"testing/quick"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestGetCircuit(t *testing.T) {
@@ -86,7 +87,7 @@ func TestReportEventOpenThenClose(t *testing.T) {
 			So(cb.metrics.IsHealthy(time.Now()), ShouldBeFalse)
 
 			Convey("and a success is reported", func() {
-				err = cb.ReportEvent([]string{"success"}, time.Now(), 0)
+				err = cb.ReportEvent([]string{"success"}, time.Now(), 0, 0)
 				So(err, ShouldEqual, nil)
 
 				Convey("the circuit does not open then close", func() {
@@ -103,10 +104,10 @@ func TestReportEventMultiThreaded(t *testing.T) {
 		defer Flush()
 		// Make the circuit easily open and close intermittently.
 		ConfigureCommand("", CommandConfig{
-			MaxConcurrentRequests: 1,
-			ErrorPercentThreshold: 1,
+			MaxConcurrentRequests:  1,
+			ErrorPercentThreshold:  1,
 			RequestVolumeThreshold: 1,
-			SleepWindow: 10,
+			SleepWindow:            10,
 		})
 		cb, _, _ := GetCircuit("")
 		count := 5
@@ -128,7 +129,7 @@ func TestReportEventMultiThreaded(t *testing.T) {
 				if rand.Intn(3) == 1 {
 					eventType = "success"
 				}
-				err := cb.ReportEvent([]string{eventType}, time.Now(), time.Second)
+				err := cb.ReportEvent([]string{eventType}, time.Now(), time.Second, time.Second)
 				if err != nil {
 					t.Error(err)
 				}

@@ -28,6 +28,7 @@ type StatsdCollector struct {
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
 	runDurationPrefix       string
+	userDurationPrefix      string
 	sampleRate              float32
 }
 
@@ -105,6 +106,7 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 		fallbackFailuresPrefix:  name + ".fallbackFailures",
 		totalDurationPrefix:     name + ".totalDuration",
 		runDurationPrefix:       name + ".runDuration",
+		userDurationPrefix:      name + ".userDuration",
 		sampleRate:              s.sampleRate,
 	}
 }
@@ -200,6 +202,12 @@ func (g *StatsdCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
 // This registers as a timer in the Statsd collector.
 func (g *StatsdCollector) UpdateRunDuration(runDuration time.Duration) {
 	g.updateTimerMetric(g.runDurationPrefix, runDuration)
+}
+
+// UpdateUserDuration updates the internal counter of how much latency the caller felt when made when using the blocking Do()
+// This registers as a timer in the Statsd collector.
+func (g *StatsdCollector) UpdateUserDuration(userDuration time.Duration) {
+	g.updateTimerMetric(g.userDurationPrefix, userDuration)
 }
 
 // Reset is a noop operation in this collector.

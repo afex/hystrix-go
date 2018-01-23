@@ -32,6 +32,7 @@ type GraphiteCollector struct {
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
 	runDurationPrefix       string
+	userDurationPrefix      string
 }
 
 // GraphiteCollectorConfig provides configuration that the graphite client will need.
@@ -69,6 +70,7 @@ func NewGraphiteCollector(name string) metricCollector.MetricCollector {
 		fallbackFailuresPrefix:  name + ".fallbackFailures",
 		totalDurationPrefix:     name + ".totalDuration",
 		runDurationPrefix:       name + ".runDuration",
+		userDurationPrefix:      name + ".userDuration",
 	}
 }
 
@@ -156,6 +158,12 @@ func (g *GraphiteCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
 // This registers as a timer in the graphite collector.
 func (g *GraphiteCollector) UpdateRunDuration(runDuration time.Duration) {
 	g.updateTimerMetric(g.runDurationPrefix, runDuration)
+}
+
+// UpdateUserDuration updates the internal counter of how much latency the caller felt when made when using the blocking Do()
+// This registers as a timer in the graphite collector.
+func (g *GraphiteCollector) UpdateUserDuration(userDuration time.Duration) {
+	g.updateTimerMetric(g.userDurationPrefix, userDuration)
 }
 
 // Reset is a noop operation in this collector.

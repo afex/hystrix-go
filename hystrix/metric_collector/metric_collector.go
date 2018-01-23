@@ -64,9 +64,11 @@ type MetricCollector interface {
 	// IncrementFallbackFailures increments the number of failures that occurred during the execution of the fallback function.
 	IncrementFallbackFailures()
 	// UpdateTotalDuration updates the internal counter of how long we've run for.
-	UpdateTotalDuration(timeSinceStart time.Duration)
+	UpdateTotalDuration(time.Duration)
 	// UpdateRunDuration updates the internal counter of how long the last run took.
-	UpdateRunDuration(runDuration time.Duration)
+	UpdateRunDuration(time.Duration)
+	// UpdateUserDuration updates the internal counter of how much latency the caller felt when made when using the blocking Do()
+	UpdateUserDuration(time.Duration)
 	// Reset resets the internal counters and timers.
 	Reset()
 }

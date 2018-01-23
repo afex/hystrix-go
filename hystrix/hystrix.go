@@ -25,16 +25,17 @@ func (e CircuitError) Error() string {
 type command struct {
 	sync.Mutex
 
-	name        string
-	ticket      *struct{}
-	start       time.Time
-	errChan     chan error
-	finished    chan bool
-	circuit     *CircuitBreaker
-	run         runFunc
-	fallback    fallbackFunc
-	runDuration time.Duration
-	events      []string
+	name         string
+	ticket       *struct{}
+	start        time.Time
+	errChan      chan error
+	finished     chan bool
+	circuit      *CircuitBreaker
+	run          runFunc
+	fallback     fallbackFunc
+	runDuration  time.Duration
+	userDuration time.Duration
+	events       []string
 }
 
 var (
@@ -67,7 +68,6 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 // Do runs your function in a synchronous manner, blocking until either your function succeeds
 // or an error is returned, including hystrix circuit errors
 func Do(name string, run runFunc, fallback fallbackFunc) error {
-
 	done := make(chan struct{}, 1)
 
 	r := func() error {
@@ -140,7 +140,7 @@ func (c *command) Go() chan error {
 	// goroutine runs errWithFallback() and reportAllEvent().
 	returnOnce := &sync.Once{}
 	reportAllEvent := func() {
-		err := c.circuit.ReportEvent(c.events, c.start, c.runDuration)
+		err := c.circuit.ReportEvent(c.events, c.start, c.runDuration, c.userDuration)
 		if err != nil {
 			log.Print(err)
 		}
@@ -191,6 +191,9 @@ func (c *command) Go() chan error {
 
 		runStart := time.Now()
 		runErr := c.run()
+		if runErr == nil || c.fallback == nil {
+			c.userDuration = time.Since(c.start)
+		}
 		returnOnce.Do(func() {
 			defer reportAllEvent()
 			c.runDuration = time.Since(runStart)
@@ -255,6 +258,7 @@ func (c *command) tryFallback(err error) error {
 	}
 
 	fallbackErr := c.fallback(err)
+	c.userDuration = time.Since(c.start)
 	if fallbackErr != nil {
 		c.reportEvent("fallback-failure")
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)

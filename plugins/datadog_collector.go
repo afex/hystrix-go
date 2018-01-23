@@ -27,6 +27,7 @@ const (
 	DM_FallbackFailures  = "hystrix.fallbackFailures"
 	DM_TotalDuration     = "hystrix.totalDuration"
 	DM_RunDuration       = "hystrix.runDuration"
+	DM_UserDuration      = "hystrix.userDuration"
 )
 
 type (
@@ -178,6 +179,12 @@ func (dc *DatadogCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
 func (dc *DatadogCollector) UpdateRunDuration(runDuration time.Duration) {
 	ms := float64(runDuration.Nanoseconds() / 1000000)
 	dc.client.TimeInMilliseconds(DM_RunDuration, ms, dc.tags, 1.0)
+}
+
+// UpdateUserDuration updates the internal counter of how much latency the caller felt when made when using the blocking Do()
+func (dc *DatadogCollector) UpdateUserDuration(userDuration time.Duration) {
+	ms := float64(userDuration.Nanoseconds() / 1000000)
+	dc.client.TimeInMilliseconds(DM_UserDuration, ms, dc.tags, 1.0)
 }
 
 // Reset is a noop operation in this collector.

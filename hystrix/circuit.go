@@ -165,7 +165,7 @@ func (circuit *CircuitBreaker) setClose() {
 }
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
-func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration) error {
+func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration, userDuration time.Duration) error {
 	if len(eventTypes) == 0 {
 		return fmt.Errorf("no event types sent for metrics")
 	}
@@ -179,9 +179,10 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 
 	select {
 	case circuit.metrics.Updates <- &commandExecution{
-		Types:       eventTypes,
-		Start:       start,
-		RunDuration: runDuration,
+		Types:        eventTypes,
+		Start:        start,
+		RunDuration:  runDuration,
+		UserDuration: userDuration,
 	}:
 	default:
 		return CircuitError{Message: fmt.Sprintf("metrics channel (%v) is at capacity", circuit.Name)}

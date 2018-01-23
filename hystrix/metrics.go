@@ -9,9 +9,10 @@ import (
 )
 
 type commandExecution struct {
-	Types       []string      `json:"types"`
-	Start       time.Time     `json:"start_time"`
-	RunDuration time.Duration `json:"run_duration"`
+	Types        []string      `json:"types"`
+	Start        time.Time     `json:"start_time"`
+	RunDuration  time.Duration `json:"run_duration"`
+	UserDuration time.Duration
 }
 
 type metricExchange struct {
@@ -108,6 +109,7 @@ func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCo
 
 	collector.UpdateTotalDuration(totalDuration)
 	collector.UpdateRunDuration(update.RunDuration)
+	collector.UpdateUserDuration(update.UserDuration)
 
 	wg.Done()
 }
