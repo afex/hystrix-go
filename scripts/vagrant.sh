@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-wget -q https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.6.2.linux-amd64.tar.gz
+wget -q https://storage.googleapis.com/golang/go1.9.4.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.9.4.linux-amd64.tar.gz
 
 apt-get update
 apt-get -y install git mercurial apache2-utils
@@ -20,3 +20,5 @@ go get github.com/rcrowley/go-metrics
 go get github.com/DataDog/datadog-go/statsd
 
 chown -R vagrant:vagrant /go
+
+echo "cd /go/src/github.com/afex/hystrix-go" >> /home/vagrant/.bashrc
