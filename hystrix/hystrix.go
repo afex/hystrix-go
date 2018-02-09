@@ -181,7 +181,7 @@ func GoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC)
 		case <-ctx.Done():
 			returnOnce.Do(func() {
 				returnTicket()
-				cmd.errChan <- ctx.Err()
+				cmd.errorWithFallback(ctx, ctx.Err())
 				reportAllEvent()
 			})
 			return
@@ -269,6 +269,10 @@ func (c *command) errorWithFallback(ctx context.Context, err error) {
 		eventType = "rejected"
 	} else if err == ErrTimeout {
 		eventType = "timeout"
+	} else if err == context.Canceled {
+		eventType = "context_canceled"
+	} else if err == context.DeadlineExceeded {
+		eventType = "context_deadline_exceeded"
 	}
 
 	c.reportEvent(eventType)

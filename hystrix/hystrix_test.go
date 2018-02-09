@@ -393,7 +393,7 @@ func TestContextHandling(t *testing.T) {
 	Convey("with a run command which times out", t, func() {
 		defer Flush()
 
-		ConfigureCommand("", CommandConfig{Timeout: 10})
+		ConfigureCommand("", CommandConfig{Timeout: 15})
 		cb, _, err := GetCircuit("")
 		if err != nil {
 			t.Fatal(err)
@@ -406,23 +406,57 @@ func TestContextHandling(t *testing.T) {
 			return nil
 		}
 
+		fallback := func(ctx context.Context, e error) error {
+			return nil
+		}
+
 		Convey("with a valid context", func() {
 			errChan := GoC(context.Background(), "", run, nil)
-			time.Sleep(20 * time.Millisecond)
+			time.Sleep(25 * time.Millisecond)
 			So((<-errChan).Error(), ShouldEqual, ErrTimeout.Error())
 			So(cb.metrics.DefaultCollector().NumRequests().Sum(time.Now()), ShouldEqual, 1)
 			So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 0)
 			So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().ContextCanceled().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().ContextDeadlineExceeded().Sum(time.Now()), ShouldEqual, 0)
+		})
+
+		Convey("with a valid context and a fallback", func() {
+			errChan := GoC(context.Background(), "", run, fallback)
+			time.Sleep(25 * time.Millisecond)
+			So(len(errChan), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().NumRequests().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().ContextCanceled().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().ContextDeadlineExceeded().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
 		})
 
 		Convey("with a context timeout", func() {
 			testCtx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
 			errChan := GoC(testCtx, "", run, nil)
-			time.Sleep(20 * time.Millisecond)
+			time.Sleep(25 * time.Millisecond)
 			So((<-errChan).Error(), ShouldEqual, context.DeadlineExceeded.Error())
-			So(cb.metrics.DefaultCollector().NumRequests().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().NumRequests().Sum(time.Now()), ShouldEqual, 1)
 			So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 0)
 			So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().ContextCanceled().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().ContextDeadlineExceeded().Sum(time.Now()), ShouldEqual, 1)
+			cancel()
+		})
+
+		Convey("with a context timeout and a fallback", func() {
+			testCtx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+			errChan := GoC(testCtx, "", run, fallback)
+			time.Sleep(25 * time.Millisecond)
+			So(len(errChan), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().NumRequests().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().ContextCanceled().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().ContextDeadlineExceeded().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
 			cancel()
 		})
 
@@ -431,12 +465,30 @@ func TestContextHandling(t *testing.T) {
 			errChan := GoC(testCtx, "", run, nil)
 			time.Sleep(5 * time.Millisecond)
 			cancel()
-			time.Sleep(15 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 			So((<-errChan).Error(), ShouldEqual, context.Canceled.Error())
-			So(cb.metrics.DefaultCollector().NumRequests().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().NumRequests().Sum(time.Now()), ShouldEqual, 1)
 			So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 0)
 			So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().ContextCanceled().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().ContextDeadlineExceeded().Sum(time.Now()), ShouldEqual, 0)
 		})
+
+		Convey("with a canceled context and a fallback", func() {
+			testCtx, cancel := context.WithCancel(context.Background())
+			errChan := GoC(testCtx, "", run, fallback)
+			time.Sleep(5 * time.Millisecond)
+			cancel()
+			time.Sleep(20 * time.Millisecond)
+			So(len(errChan), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().NumRequests().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().Failures().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().Timeouts().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().ContextCanceled().Sum(time.Now()), ShouldEqual, 1)
+			So(cb.metrics.DefaultCollector().ContextDeadlineExceeded().Sum(time.Now()), ShouldEqual, 0)
+			So(cb.metrics.DefaultCollector().FallbackSuccesses().Sum(time.Now()), ShouldEqual, 1)
+		})
+
 	})
 }
 
