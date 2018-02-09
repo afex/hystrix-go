@@ -39,34 +39,26 @@ func (m *metricCollectorRegistry) Register(initMetricCollector func(string) Metr
 	m.registry = append(m.registry, initMetricCollector)
 }
 
+type MetricResult struct {
+	Attempts          float64
+	Errors            float64
+	Successes         float64
+	Failures          float64
+	Rejects           float64
+	ShortCircuits     float64
+	Timeouts          float64
+	FallbackSuccesses float64
+	FallbackFailures  float64
+	TotalDuration     time.Duration
+	RunDuration       time.Duration
+}
+
 // MetricCollector represents the contract that all collectors must fulfill to gather circuit statistics.
 // Implementations of this interface do not have to maintain locking around thier data stores so long as
 // they are not modified outside of the hystrix context.
 type MetricCollector interface {
-	// IncrementAttempts increments the number of updates.
-	IncrementAttempts()
-	// IncrementErrors increments the number of unsuccessful attempts.
-	// Attempts minus Errors will equal successes within a time range.
-	// Errors are any result from an attempt that is not a success.
-	IncrementErrors()
-	// IncrementSuccesses increments the number of requests that succeed.
-	IncrementSuccesses()
-	// IncrementFailures increments the number of requests that fail.
-	IncrementFailures()
-	// IncrementRejects increments the number of requests that are rejected.
-	IncrementRejects()
-	// IncrementShortCircuits increments the number of requests that short circuited due to the circuit being open.
-	IncrementShortCircuits()
-	// IncrementTimeouts increments the number of timeouts that occurred in the circuit breaker.
-	IncrementTimeouts()
-	// IncrementFallbackSuccesses increments the number of successes that occurred during the execution of the fallback function.
-	IncrementFallbackSuccesses()
-	// IncrementFallbackFailures increments the number of failures that occurred during the execution of the fallback function.
-	IncrementFallbackFailures()
-	// UpdateTotalDuration updates the internal counter of how long we've run for.
-	UpdateTotalDuration(timeSinceStart time.Duration)
-	// UpdateRunDuration updates the internal counter of how long the last run took.
-	UpdateRunDuration(runDuration time.Duration)
+	// Update accepts a set of metrics from a command execution for remote instrumentation
+	Update(MetricResult)
 	// Reset resets the internal counters and timers.
 	Reset()
 }

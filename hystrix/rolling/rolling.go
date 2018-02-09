@@ -51,6 +51,10 @@ func (r *Number) removeOldBuckets() {
 
 // Increment increments the number in current timeBucket.
 func (r *Number) Increment(i float64) {
+	if i == 0 {
+		return
+	}
+
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 

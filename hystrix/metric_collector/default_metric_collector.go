@@ -2,7 +2,6 @@ package metricCollector
 
 import (
 	"sync"
-	"time"
 
 	"github.com/afex/hystrix-go/hystrix/rolling"
 )
@@ -115,82 +114,22 @@ func (d *DefaultMetricCollector) RunDuration() *rolling.Timing {
 	return d.runDuration
 }
 
-// IncrementAttempts increments the number of requests seen in the latest time bucket.
-func (d *DefaultMetricCollector) IncrementAttempts() {
+func (d *DefaultMetricCollector) Update(r MetricResult) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
-	d.numRequests.Increment(1)
-}
 
-// IncrementErrors increments the number of errors seen in the latest time bucket.
-// Errors are any result from an attempt that is not a success.
-func (d *DefaultMetricCollector) IncrementErrors() {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.errors.Increment(1)
-}
+	d.numRequests.Increment(r.Attempts)
+	d.errors.Increment(r.Errors)
+	d.successes.Increment(r.Successes)
+	d.failures.Increment(r.Failures)
+	d.rejects.Increment(r.Rejects)
+	d.shortCircuits.Increment(r.ShortCircuits)
+	d.timeouts.Increment(r.Timeouts)
+	d.fallbackSuccesses.Increment(r.FallbackSuccesses)
+	d.fallbackFailures.Increment(r.FallbackFailures)
 
-// IncrementSuccesses increments the number of successes seen in the latest time bucket.
-func (d *DefaultMetricCollector) IncrementSuccesses() {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.successes.Increment(1)
-}
-
-// IncrementFailures increments the number of failures seen in the latest time bucket.
-func (d *DefaultMetricCollector) IncrementFailures() {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.failures.Increment(1)
-}
-
-// IncrementRejects increments the number of rejected requests seen in the latest time bucket.
-func (d *DefaultMetricCollector) IncrementRejects() {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.rejects.Increment(1)
-}
-
-// IncrementShortCircuits increments the number of rejected requests seen in the latest time bucket.
-func (d *DefaultMetricCollector) IncrementShortCircuits() {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.shortCircuits.Increment(1)
-}
-
-// IncrementTimeouts increments the number of requests that timed out in the latest time bucket.
-func (d *DefaultMetricCollector) IncrementTimeouts() {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.timeouts.Increment(1)
-}
-
-// IncrementFallbackSuccesses increments the number of successful calls to the fallback function in the latest time bucket.
-func (d *DefaultMetricCollector) IncrementFallbackSuccesses() {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.fallbackSuccesses.Increment(1)
-}
-
-// IncrementFallbackFailures increments the number of failed calls to the fallback function in the latest time bucket.
-func (d *DefaultMetricCollector) IncrementFallbackFailures() {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.fallbackFailures.Increment(1)
-}
-
-// UpdateTotalDuration updates the total amount of time this circuit has been running.
-func (d *DefaultMetricCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.totalDuration.Add(timeSinceStart)
-}
-
-// UpdateRunDuration updates the amount of time the latest request took to complete.
-func (d *DefaultMetricCollector) UpdateRunDuration(runDuration time.Duration) {
-	d.mutex.RLock()
-	defer d.mutex.RUnlock()
-	d.runDuration.Add(runDuration)
+	d.totalDuration.Add(r.TotalDuration)
+	d.runDuration.Add(r.RunDuration)
 }
 
 // Reset resets all metrics in this collector to 0.
