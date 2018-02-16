@@ -16,9 +16,9 @@ type CircuitBreaker struct {
 	forceOpen              bool
 	mutex                  *sync.RWMutex
 	openedOrLastTestedTime int64
-
-	executorPool *executorPool
-	metrics      *metricExchange
+	openedLastTime         int64
+	executorPool           *executorPool
+	metrics                *metricExchange
 }
 
 var (
@@ -51,6 +51,14 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 	}
 
 	return circuitBreakers[name], !ok, nil
+}
+
+// ResetCircuit returns the circuit for the given command and whether this call created it.
+func ResetCircuit(name string) (*CircuitBreaker, bool, error) {
+	circuitBreakersMutex.Lock()
+	defer circuitBreakersMutex.Unlock()
+	circuitBreakers[name] = newCircuitBreaker(name)
+	return circuitBreakers[name], false, nil
 }
 
 // Flush purges all circuit and metric information from memory.
@@ -144,8 +152,8 @@ func (circuit *CircuitBreaker) setOpen() {
 		return
 	}
 
-	log.Printf("hystrix-go: opening circuit %v", circuit.Name)
-
+	log.Printf("hystrix-go: opening circuit %v;LastTestedTime:%d", circuit.Name, circuit.openedOrLastTestedTime)
+	circuit.openedLastTime = time.Now().UnixNano()
 	circuit.openedOrLastTestedTime = time.Now().UnixNano()
 	circuit.open = true
 }
@@ -153,15 +161,15 @@ func (circuit *CircuitBreaker) setOpen() {
 func (circuit *CircuitBreaker) setClose() {
 	circuit.mutex.Lock()
 	defer circuit.mutex.Unlock()
-
 	if !circuit.open {
 		return
 	}
-
-	log.Printf("hystrix-go: closing circuit %v", circuit.Name)
-
-	circuit.open = false
-	circuit.metrics.Reset()
+	now := time.Now().UnixNano()
+	if now > circuit.openedLastTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
+		log.Printf("hystrix-go: closing circuit,%v;LastTestedTime:%d", circuit.Name, circuit.openedOrLastTestedTime)
+		circuit.open = false
+		circuit.metrics.Reset()
+	}
 }
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.

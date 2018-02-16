@@ -24,16 +24,15 @@ func (e CircuitError) Error() string {
 // used to describe the pairing of your run/fallback functions with a circuit.
 type command struct {
 	sync.Mutex
-
-	ticket       *struct{}
-	start        time.Time
-	errChan      chan error
-	finished     chan bool
-	circuit      *CircuitBreaker
-	run          runFunc
-	fallback     fallbackFunc
-	runDuration  time.Duration
-	events       []string
+	ticket      *struct{}
+	start       time.Time
+	errChan     chan error
+	finished    chan bool
+	circuit     *CircuitBreaker
+	run         runFunc
+	fallback    fallbackFunc
+	runDuration time.Duration
+	events      []string
 }
 
 var (
@@ -52,11 +51,11 @@ var (
 // Define a fallback function if you want to define some code to execute during outages.
 func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 	cmd := &command{
-		run:          run,
-		fallback:     fallback,
-		start:        time.Now(),
-		errChan:      make(chan error, 1),
-		finished:     make(chan bool, 1),
+		run:      run,
+		fallback: fallback,
+		start:    time.Now(),
+		errChan:  make(chan error, 1),
+		finished: make(chan bool, 1),
 	}
 
 	// dont have methods with explicit params and returns
