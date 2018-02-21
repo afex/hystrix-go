@@ -1,7 +1,6 @@
 package plugins
 
 import (
-	"time"
 
 	// Developed on https://github.com/DataDog/datadog-go/tree/a27810dd518c69be741a7fd5d0e39f674f615be8
 	"github.com/DataDog/datadog-go/statsd"
@@ -115,68 +114,41 @@ func NewDatadogCollectorWithClient(client DatadogClient) func(string) metricColl
 	}
 }
 
-// IncrementAttempts increments the number of calls to this circuit.
-func (dc *DatadogCollector) IncrementAttempts() {
-	dc.client.Count(DM_Attempts, 1, dc.tags, 1.0)
-}
+func (dc *DatadogCollector) Update(r metricCollector.MetricResult) {
+	if r.Attempts > 0 {
+		dc.client.Count(DM_Attempts, int64(r.Attempts), dc.tags, 1.0)
+	}
+	if r.Errors > 0 {
+		dc.client.Count(DM_Errors, int64(r.Errors), dc.tags, 1.0)
+	}
+	if r.Successes > 0 {
+		dc.client.Gauge(DM_CircuitOpen, 0, dc.tags, 1.0)
+		dc.client.Count(DM_Successes, int64(r.Successes), dc.tags, 1.0)
+	}
+	if r.Failures > 0 {
+		dc.client.Count(DM_Failures, int64(r.Failures), dc.tags, 1.0)
+	}
+	if r.Rejects > 0 {
+		dc.client.Count(DM_Rejects, int64(r.Rejects), dc.tags, 1.0)
+	}
+	if r.ShortCircuits > 0 {
+		dc.client.Gauge(DM_CircuitOpen, 1, dc.tags, 1.0)
+		dc.client.Count(DM_ShortCircuits, int64(r.ShortCircuits), dc.tags, 1.0)
+	}
+	if r.Timeouts > 0 {
+		dc.client.Count(DM_Timeouts, int64(r.Timeouts), dc.tags, 1.0)
+	}
+	if r.FallbackSuccesses > 0 {
+		dc.client.Count(DM_FallbackSuccesses, int64(r.FallbackSuccesses), dc.tags, 1.0)
+	}
+	if r.FallbackFailures > 0 {
+		dc.client.Count(DM_FallbackFailures, int64(r.FallbackFailures), dc.tags, 1.0)
+	}
 
-// IncrementErrors increments the number of unsuccessful attempts.
-// Attempts minus Errors will equal successes within a time range.
-// Errors are any result from an attempt that is not a success.
-func (dc *DatadogCollector) IncrementErrors() {
-	dc.client.Count(DM_Errors, 1, dc.tags, 1.0)
-}
-
-// IncrementSuccesses increments the number of requests that succeed.
-func (dc *DatadogCollector) IncrementSuccesses() {
-	dc.client.Gauge(DM_CircuitOpen, 0, dc.tags, 1.0)
-	dc.client.Count(DM_Successes, 1, dc.tags, 1.0)
-}
-
-// IncrementFailures increments the number of requests that fail.
-func (dc *DatadogCollector) IncrementFailures() {
-	dc.client.Count(DM_Failures, 1, dc.tags, 1.0)
-}
-
-// IncrementRejects increments the number of requests that are rejected.
-func (dc *DatadogCollector) IncrementRejects() {
-	dc.client.Count(DM_Rejects, 1, dc.tags, 1.0)
-}
-
-// IncrementShortCircuits increments the number of requests that short circuited
-// due to the circuit being open.
-func (dc *DatadogCollector) IncrementShortCircuits() {
-	dc.client.Gauge(DM_CircuitOpen, 1, dc.tags, 1.0)
-	dc.client.Count(DM_ShortCircuits, 1, dc.tags, 1.0)
-}
-
-// IncrementTimeouts increments the number of timeouts that occurred in the
-// circuit breaker.
-func (dc *DatadogCollector) IncrementTimeouts() {
-	dc.client.Count(DM_Timeouts, 1, dc.tags, 1.0)
-}
-
-// IncrementFallbackSuccesses increments the number of successes that occurred
-// during the execution of the fallback function.
-func (dc *DatadogCollector) IncrementFallbackSuccesses() {
-	dc.client.Count(DM_FallbackSuccesses, 1, dc.tags, 1.0)
-}
-
-// IncrementFallbackFailures increments the number of failures that occurred
-// during the execution of the fallback function.
-func (dc *DatadogCollector) IncrementFallbackFailures() {
-	dc.client.Count(DM_FallbackFailures, 1, dc.tags, 1.0)
-}
-
-// UpdateTotalDuration updates the internal counter of how long we've run for.
-func (dc *DatadogCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
-	ms := float64(timeSinceStart.Nanoseconds() / 1000000)
+	ms := float64(r.TotalDuration.Nanoseconds() / 1000000)
 	dc.client.TimeInMilliseconds(DM_TotalDuration, ms, dc.tags, 1.0)
-}
 
-// UpdateRunDuration updates the internal counter of how long the last run took.
-func (dc *DatadogCollector) UpdateRunDuration(runDuration time.Duration) {
-	ms := float64(runDuration.Nanoseconds() / 1000000)
+	ms = float64(r.RunDuration.Nanoseconds() / 1000000)
 	dc.client.TimeInMilliseconds(DM_RunDuration, ms, dc.tags, 1.0)
 }
 

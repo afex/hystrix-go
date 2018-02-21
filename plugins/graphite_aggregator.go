@@ -72,12 +72,15 @@ func NewGraphiteCollector(name string) metricCollector.MetricCollector {
 	}
 }
 
-func (g *GraphiteCollector) incrementCounterMetric(prefix string) {
+func (g *GraphiteCollector) incrementCounterMetric(prefix string, i float64) {
+	if i == 0 {
+		return
+	}
 	c, ok := metrics.GetOrRegister(prefix, makeCounterFunc).(metrics.Counter)
 	if !ok {
 		return
 	}
-	c.Inc(1)
+	c.Inc(int64(i))
 }
 
 func (g *GraphiteCollector) updateTimerMetric(prefix string, dur time.Duration) {
@@ -88,74 +91,18 @@ func (g *GraphiteCollector) updateTimerMetric(prefix string, dur time.Duration) 
 	c.Update(dur)
 }
 
-// IncrementAttempts increments the number of calls to this circuit.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementAttempts() {
-	g.incrementCounterMetric(g.attemptsPrefix)
-}
-
-// IncrementErrors increments the number of unsuccessful attempts.
-// Attempts minus Errors will equal successes within a time range.
-// Errors are any result from an attempt that is not a success.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementErrors() {
-	g.incrementCounterMetric(g.errorsPrefix)
-
-}
-
-// IncrementSuccesses increments the number of requests that succeed.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementSuccesses() {
-	g.incrementCounterMetric(g.successesPrefix)
-
-}
-
-// IncrementFailures increments the number of requests that fail.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementFailures() {
-	g.incrementCounterMetric(g.failuresPrefix)
-}
-
-// IncrementRejects increments the number of requests that are rejected.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementRejects() {
-	g.incrementCounterMetric(g.rejectsPrefix)
-}
-
-// IncrementShortCircuits increments the number of requests that short circuited due to the circuit being open.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementShortCircuits() {
-	g.incrementCounterMetric(g.shortCircuitsPrefix)
-}
-
-// IncrementTimeouts increments the number of timeouts that occurred in the circuit breaker.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementTimeouts() {
-	g.incrementCounterMetric(g.timeoutsPrefix)
-}
-
-// IncrementFallbackSuccesses increments the number of successes that occurred during the execution of the fallback function.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementFallbackSuccesses() {
-	g.incrementCounterMetric(g.fallbackSuccessesPrefix)
-}
-
-// IncrementFallbackFailures increments the number of failures that occurred during the execution of the fallback function.
-// This registers as a counter in the graphite collector.
-func (g *GraphiteCollector) IncrementFallbackFailures() {
-	g.incrementCounterMetric(g.fallbackFailuresPrefix)
-}
-
-// UpdateTotalDuration updates the internal counter of how long we've run for.
-// This registers as a timer in the graphite collector.
-func (g *GraphiteCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
-	g.updateTimerMetric(g.totalDurationPrefix, timeSinceStart)
-}
-
-// UpdateRunDuration updates the internal counter of how long the last run took.
-// This registers as a timer in the graphite collector.
-func (g *GraphiteCollector) UpdateRunDuration(runDuration time.Duration) {
-	g.updateTimerMetric(g.runDurationPrefix, runDuration)
+func (g *GraphiteCollector) Update(r metricCollector.MetricResult) {
+	g.incrementCounterMetric(g.attemptsPrefix, r.Attempts)
+	g.incrementCounterMetric(g.errorsPrefix, r.Errors)
+	g.incrementCounterMetric(g.successesPrefix, r.Successes)
+	g.incrementCounterMetric(g.failuresPrefix, r.Failures)
+	g.incrementCounterMetric(g.rejectsPrefix, r.Rejects)
+	g.incrementCounterMetric(g.shortCircuitsPrefix, r.ShortCircuits)
+	g.incrementCounterMetric(g.timeoutsPrefix, r.Timeouts)
+	g.incrementCounterMetric(g.fallbackSuccessesPrefix, r.FallbackSuccesses)
+	g.incrementCounterMetric(g.fallbackFailuresPrefix, r.FallbackFailures)
+	g.updateTimerMetric(g.totalDurationPrefix, r.TotalDuration)
+	g.updateTimerMetric(g.runDurationPrefix, r.RunDuration)
 }
 
 // Reset is a noop operation in this collector.
