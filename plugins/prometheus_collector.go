@@ -3,7 +3,6 @@ package plugins
 import (
 	"github.com/afex/hystrix-go/hystrix/metric_collector"
 	"github.com/prometheus/client_golang/prometheus"
-	"time"
 )
 
 // Constant namespace for metrics
@@ -163,64 +162,19 @@ func (hm *PrometheusCollector) Collector(name string) metricCollector.MetricColl
 	return hc
 }
 
-// IncrementAttempts increments the number of updates.
-func (hc *cmdCollector) IncrementAttempts() {
-	hc.metrics.attempts.WithLabelValues(hc.commandName).Inc()
-}
-
-// IncrementErrors increments the number of unsuccessful attempts.
-// Attempts minus Errors will equal successes within a time range.
-// Errors are any result from an attempt that is not a success.
-func (hc *cmdCollector) IncrementErrors() {
-	hc.metrics.errors.WithLabelValues(hc.commandName).Inc()
-}
-
-// IncrementSuccesses increments the number of requests that succeed.
-func (hc *cmdCollector) IncrementSuccesses() {
-	hc.metrics.successes.WithLabelValues(hc.commandName).Inc()
-}
-
-// IncrementFailures increments the number of requests that fail.
-func (hc *cmdCollector) IncrementFailures() {
-	hc.metrics.failures.WithLabelValues(hc.commandName).Inc()
-}
-
-// IncrementRejects increments the number of requests that are rejected.
-func (hc *cmdCollector) IncrementRejects() {
-	hc.metrics.rejects.WithLabelValues(hc.commandName).Inc()
-}
-
-// IncrementShortCircuits increments the number of requests that short circuited due to the circuit being open.
-func (hc *cmdCollector) IncrementShortCircuits() {
-	hc.metrics.shortCircuits.WithLabelValues(hc.commandName).Inc()
-}
-
-// IncrementTimeouts increments the number of timeouts that occurred in the circuit breaker.
-func (hc *cmdCollector) IncrementTimeouts() {
-	hc.metrics.timeouts.WithLabelValues(hc.commandName).Inc()
-}
-
-// IncrementFallbackSuccesses increments the number of successes that occurred during the execution of the fallback function.
-func (hc *cmdCollector) IncrementFallbackSuccesses() {
-	hc.metrics.fallbackSuccesses.WithLabelValues(hc.commandName).Inc()
-}
-
-// IncrementFallbackFailures increments the number of failures that occurred during the execution of the fallback function.
-func (hc *cmdCollector) IncrementFallbackFailures() {
-	hc.metrics.fallbackFailures.WithLabelValues(hc.commandName).Inc()
-}
-
-// UpdateTotalDuration updates the internal counter of how long we've run for.
-func (hc *cmdCollector) UpdateTotalDuration(timeSinceStart time.Duration) {
-	hc.metrics.totalDuration.WithLabelValues(hc.commandName).Set(timeSinceStart.Seconds())
-}
-
-// UpdateRunDuration updates the internal counter of how long the last run took.
-func (hc *cmdCollector) UpdateRunDuration(runDuration time.Duration) {
-	hc.metrics.runDuration.WithLabelValues(hc.commandName).Observe(runDuration.Seconds())
+func (hc *cmdCollector) Update(result metricCollector.MetricResult) {
+	hc.metrics.attempts.WithLabelValues(hc.commandName).Add(result.Attempts)
+	hc.metrics.errors.WithLabelValues(hc.commandName).Add(result.Errors)
+	hc.metrics.successes.WithLabelValues(hc.commandName).Add(result.Successes)
+	hc.metrics.failures.WithLabelValues(hc.commandName).Add(result.Failures)
+	hc.metrics.rejects.WithLabelValues(hc.commandName).Add(result.Rejects)
+	hc.metrics.shortCircuits.WithLabelValues(hc.commandName).Add(result.ShortCircuits)
+	hc.metrics.timeouts.WithLabelValues(hc.commandName).Add(result.Timeouts)
+	hc.metrics.fallbackSuccesses.WithLabelValues(hc.commandName).Add(result.FallbackSuccesses)
+	hc.metrics.fallbackFailures.WithLabelValues(hc.commandName).Add(result.FallbackFailures)
+	hc.metrics.totalDuration.WithLabelValues(hc.commandName).Set(result.TotalDuration.Seconds())
 }
 
 // Reset resets the internal counters and timers.
 func (hc *cmdCollector) Reset() {
-
 }
