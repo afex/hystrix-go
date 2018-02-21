@@ -67,47 +67,43 @@ func (m *metricExchange) Monitor() {
 
 func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCollector.MetricCollector, update *commandExecution, totalDuration time.Duration) {
 	// granular metrics
+	r := metricCollector.MetricResult{
+		Attempts:      1,
+		TotalDuration: totalDuration,
+		RunDuration:   update.RunDuration,
+	}
+
 	if update.Types[0] == "success" {
-		collector.IncrementAttempts()
-		collector.IncrementSuccesses()
+		r.Successes = 1
 	}
 	if update.Types[0] == "failure" {
-		collector.IncrementFailures()
-
-		collector.IncrementAttempts()
-		collector.IncrementErrors()
+		r.Failures = 1
+		r.Errors = 1
 	}
 	if update.Types[0] == "rejected" {
-		collector.IncrementRejects()
-
-		collector.IncrementAttempts()
-		collector.IncrementErrors()
+		r.Rejects = 1
+		r.Errors = 1
 	}
 	if update.Types[0] == "short-circuit" {
-		collector.IncrementShortCircuits()
-
-		collector.IncrementAttempts()
-		collector.IncrementErrors()
+		r.ShortCircuits = 1
+		r.Errors = 1
 	}
 	if update.Types[0] == "timeout" {
-		collector.IncrementTimeouts()
-
-		collector.IncrementAttempts()
-		collector.IncrementErrors()
+		r.Timeouts = 1
+		r.Errors = 1
 	}
 
 	if len(update.Types) > 1 {
 		// fallback metrics
 		if update.Types[1] == "fallback-success" {
-			collector.IncrementFallbackSuccesses()
+			r.FallbackSuccesses = 1
 		}
 		if update.Types[1] == "fallback-failure" {
-			collector.IncrementFallbackFailures()
+			r.FallbackFailures = 1
 		}
 	}
 
-	collector.UpdateTotalDuration(totalDuration)
-	collector.UpdateRunDuration(update.RunDuration)
+	collector.Update(r)
 
 	wg.Done()
 }
