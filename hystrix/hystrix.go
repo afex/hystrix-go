@@ -242,7 +242,13 @@ func (c *command) tryFallback(err error) error {
 	}
 
 	fallbackErr := c.fallback(err)
-	if fallbackErr != nil {
+	if fallbackErr == err {
+		// If the fallback returns the original error, we want to preserve it. We also do
+		// not want to track it as either failure or success, but instead pretend that the
+		// fallback never happened. This allows for conditional fallbacks that only apply
+		// to specific errors.
+		return err
+	} else if fallbackErr != nil {
 		c.reportEvent("fallback-failure")
 		return fmt.Errorf("fallback failed with '%v'. run error was '%v'", fallbackErr, err)
 	}
