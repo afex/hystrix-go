@@ -18,11 +18,13 @@ type DefaultMetricCollector struct {
 	numRequests *rolling.Number
 	errors      *rolling.Number
 
-	successes     *rolling.Number
-	failures      *rolling.Number
-	rejects       *rolling.Number
-	shortCircuits *rolling.Number
-	timeouts      *rolling.Number
+	successes               *rolling.Number
+	failures                *rolling.Number
+	rejects                 *rolling.Number
+	shortCircuits           *rolling.Number
+	timeouts                *rolling.Number
+	contextCanceled         *rolling.Number
+	contextDeadlineExceeded *rolling.Number
 
 	fallbackSuccesses *rolling.Number
 	fallbackFailures  *rolling.Number
@@ -93,6 +95,18 @@ func (d *DefaultMetricCollector) FallbackSuccesses() *rolling.Number {
 	return d.fallbackSuccesses
 }
 
+func (d *DefaultMetricCollector) ContextCanceled() *rolling.Number {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	return d.contextCanceled
+}
+
+func (d *DefaultMetricCollector) ContextDeadlineExceeded() *rolling.Number {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+	return d.contextDeadlineExceeded
+}
+
 // FallbackFailures returns the rolling number of fallback failures
 func (d *DefaultMetricCollector) FallbackFailures() *rolling.Number {
 	d.mutex.RLock()
@@ -127,6 +141,8 @@ func (d *DefaultMetricCollector) Update(r MetricResult) {
 	d.timeouts.Increment(r.Timeouts)
 	d.fallbackSuccesses.Increment(r.FallbackSuccesses)
 	d.fallbackFailures.Increment(r.FallbackFailures)
+	d.contextCanceled.Increment(r.ContextCanceled)
+	d.contextDeadlineExceeded.Increment(r.ContextDeadlineExceeded)
 
 	d.totalDuration.Add(r.TotalDuration)
 	d.runDuration.Add(r.RunDuration)
@@ -146,6 +162,8 @@ func (d *DefaultMetricCollector) Reset() {
 	d.timeouts = rolling.NewNumber()
 	d.fallbackSuccesses = rolling.NewNumber()
 	d.fallbackFailures = rolling.NewNumber()
+	d.contextCanceled = rolling.NewNumber()
+	d.contextDeadlineExceeded = rolling.NewNumber()
 	d.totalDuration = rolling.NewTiming()
 	d.runDuration = rolling.NewTiming()
 }

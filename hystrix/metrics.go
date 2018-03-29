@@ -73,24 +73,25 @@ func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCo
 		RunDuration:   update.RunDuration,
 	}
 
-	if update.Types[0] == "success" {
+	switch update.Types[0] {
+	case "success":
 		r.Successes = 1
-	}
-	if update.Types[0] == "failure" {
+	case "failure":
 		r.Failures = 1
 		r.Errors = 1
-	}
-	if update.Types[0] == "rejected" {
+	case "rejected":
 		r.Rejects = 1
 		r.Errors = 1
-	}
-	if update.Types[0] == "short-circuit" {
+	case "short-circuit":
 		r.ShortCircuits = 1
 		r.Errors = 1
-	}
-	if update.Types[0] == "timeout" {
+	case "timeout":
 		r.Timeouts = 1
 		r.Errors = 1
+	case "context_canceled":
+		r.ContextCanceled = 1
+	case "context_deadline_exceeded":
+		r.ContextDeadlineExceeded = 1
 	}
 
 	if len(update.Types) > 1 {
