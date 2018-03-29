@@ -40,17 +40,19 @@ func (m *metricCollectorRegistry) Register(initMetricCollector func(string) Metr
 }
 
 type MetricResult struct {
-	Attempts          float64
-	Errors            float64
-	Successes         float64
-	Failures          float64
-	Rejects           float64
-	ShortCircuits     float64
-	Timeouts          float64
-	FallbackSuccesses float64
-	FallbackFailures  float64
-	TotalDuration     time.Duration
-	RunDuration       time.Duration
+	Attempts                float64
+	Errors                  float64
+	Successes               float64
+	Failures                float64
+	Rejects                 float64
+	ShortCircuits           float64
+	Timeouts                float64
+	FallbackSuccesses       float64
+	FallbackFailures        float64
+	ContextCanceled         float64
+	ContextDeadlineExceeded float64
+	TotalDuration           time.Duration
+	RunDuration             time.Duration
 }
 
 // MetricCollector represents the contract that all collectors must fulfill to gather circuit statistics.
