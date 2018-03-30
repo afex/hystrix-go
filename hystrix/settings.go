@@ -118,6 +118,7 @@ func GetCircuitSettings() map[string]*Settings {
 	return copy
 }
 
-func SetDefaultLogger(l logger) {
+// SetLogger configures the logger that will be used.
+func SetLogger(l logger) {
 	logger = l
 }

@@ -18,8 +18,6 @@ type CircuitBreaker struct {
 
 	executorPool *executorPool
 	metrics      *metricExchange
-
-	customLogger logger
 }
 
 var (
@@ -129,7 +127,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
-			circuit.log("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
+			logger.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
 		}
 		return swapped
 	}
@@ -145,7 +143,7 @@ func (circuit *CircuitBreaker) setOpen() {
 		return
 	}
 
-	circuit.log("hystrix-go: opening circuit %v", circuit.Name)
+	logger.Printf("hystrix-go: opening circuit %v", circuit.Name)
 
 	circuit.openedOrLastTestedTime = time.Now().UnixNano()
 	circuit.open = true
@@ -159,7 +157,7 @@ func (circuit *CircuitBreaker) setClose() {
 		return
 	}
 
-	circuit.log("hystrix-go: closing circuit %v", circuit.Name)
+	logger.Printf("hystrix-go: closing circuit %v", circuit.Name)
 
 	circuit.open = false
 	circuit.metrics.Reset()
@@ -189,16 +187,4 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 	}
 
 	return nil
-}
-
-func (circuit *CircuitBreaker) WithLogger(l logger) {
-	circuit.customLogger = l
-}
-
-func (circuit *CircuitBreaker) log(format string, items ...interface{}) {
-	if circuit.customLogger != nil {
-		circuit.customLogger.Printf(format, items...)
-	} else {
-		logger.Printf(format, items...)
-	}
 }
