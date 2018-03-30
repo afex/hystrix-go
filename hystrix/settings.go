@@ -37,6 +37,7 @@ type CommandConfig struct {
 
 var circuitSettings map[string]*Settings
 var settingsMutex *sync.RWMutex
+var logger logger
 
 func init() {
 	circuitSettings = make(map[string]*Settings)
@@ -112,4 +113,8 @@ func GetCircuitSettings() map[string]*Settings {
 	settingsMutex.RUnlock()
 
 	return copy
+}
+
+func SetDefaultLogger(l logger) {
+	logger = l
 }
