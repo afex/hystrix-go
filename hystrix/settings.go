@@ -118,7 +118,7 @@ func GetCircuitSettings() map[string]*Settings {
 	return copy
 }
 
-// SetLogger configures the logger that will be used.
+// SetLogger configures the logger that will be used. This only applies to the hystrix package.
 func SetLogger(l logger) {
 	logger = l
 }
