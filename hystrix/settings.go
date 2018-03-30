@@ -39,12 +39,12 @@ type CommandConfig struct {
 
 var circuitSettings map[string]*Settings
 var settingsMutex *sync.RWMutex
-var logger logger
+var log logger
 
 func init() {
 	circuitSettings = make(map[string]*Settings)
 	settingsMutex = &sync.RWMutex{}
-	logger = DefaultLogger
+	log = DefaultLogger
 }
 
 // Configure applies settings for a set of circuits
@@ -120,5 +120,5 @@ func GetCircuitSettings() map[string]*Settings {
 
 // SetLogger configures the logger that will be used. This only applies to the hystrix package.
 func SetLogger(l logger) {
-	logger = l
+	log = l
 }

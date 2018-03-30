@@ -109,7 +109,7 @@ func GoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC)
 	reportAllEvent := func() {
 		err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
 		if err != nil {
-			logger.Printf(err)
+			log.Printf(err.Error())
 		}
 	}
 
