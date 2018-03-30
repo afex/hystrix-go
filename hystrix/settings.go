@@ -16,6 +16,8 @@ var (
 	DefaultSleepWindow = 5000
 	// DefaultErrorPercentThreshold causes circuits to open once the rolling measure of errors exceeds this percent of requests
 	DefaultErrorPercentThreshold = 50
+	// DefaultLogger is the default logger that will be used in the Hystrix package. By default prints nothing.
+	DefaultLogger = NoopLogger{}
 )
 
 type Settings struct {
@@ -42,6 +44,7 @@ var logger logger
 func init() {
 	circuitSettings = make(map[string]*Settings)
 	settingsMutex = &sync.RWMutex{}
+	logger = DefaultLogger
 }
 
 // Configure applies settings for a set of circuits
