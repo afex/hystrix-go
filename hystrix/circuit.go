@@ -1,8 +1,7 @@
 package hystrix
 
 import (
-	"fmt"
-	"log"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,6 +10,8 @@ import (
 // CircuitBreaker is created for each ExecutorPool to track whether requests
 // should be attempted, or rejected if the Health of the circuit is too low.
 type CircuitBreaker struct {
+	logger
+
 	Name                   string
 	open                   bool
 	forceOpen              bool
@@ -67,13 +68,13 @@ func Flush() {
 
 // newCircuitBreaker creates a CircuitBreaker with associated Health
 func newCircuitBreaker(name string) *CircuitBreaker {
-	c := &CircuitBreaker{}
-	c.Name = name
-	c.metrics = newMetricExchange(name)
-	c.executorPool = newExecutorPool(name)
-	c.mutex = &sync.RWMutex{}
-
-	return c
+	return &CircuitBreaker{
+		Name:         name,
+		metrics:      newMetricExchange(name),
+		executorPool: newExecutorPool(name),
+		mutex:        &sync.RWMutex{},
+		logger:       getSettings(name).Logger,
+	}
 }
 
 // toggleForceOpen allows manually causing the fallback logic for all instances
@@ -128,7 +129,7 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 	if circuit.open && now > openedOrLastTestedTime+getSettings(circuit.Name).SleepWindow.Nanoseconds() {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
-			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
+			circuit.logger.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
 		}
 		return swapped
 	}
@@ -144,7 +145,7 @@ func (circuit *CircuitBreaker) setOpen() {
 		return
 	}
 
-	log.Printf("hystrix-go: opening circuit %v", circuit.Name)
+	circuit.logger.Printf("hystrix-go: opening circuit %v", circuit.Name)
 
 	circuit.openedOrLastTestedTime = time.Now().UnixNano()
 	circuit.open = true
@@ -158,7 +159,7 @@ func (circuit *CircuitBreaker) setClose() {
 		return
 	}
 
-	log.Printf("hystrix-go: closing circuit %v", circuit.Name)
+	circuit.logger.Printf("hystrix-go: closing circuit %v", circuit.Name)
 
 	circuit.open = false
 	circuit.metrics.Reset()
@@ -167,7 +168,7 @@ func (circuit *CircuitBreaker) setClose() {
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
 func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time, runDuration time.Duration) error {
 	if len(eventTypes) == 0 {
-		return fmt.Errorf("no event types sent for metrics")
+		return errors.New("no event types sent for metrics")
 	}
 
 	circuit.mutex.RLock()
@@ -184,7 +185,7 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		RunDuration: runDuration,
 	}:
 	default:
-		return CircuitError{Message: fmt.Sprintf("metrics channel (%v) is at capacity", circuit.Name)}
+		return CircuitError{Message: "metrics channel (" + circuit.Name + ") is at capacity"}
 	}
 
 	return nil

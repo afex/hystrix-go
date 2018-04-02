@@ -3,7 +3,6 @@ package hystrix
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 )
@@ -110,7 +109,7 @@ func GoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC)
 	reportAllEvent := func() {
 		err := cmd.circuit.ReportEvent(cmd.events, cmd.start, cmd.runDuration)
 		if err != nil {
-			log.Print(err)
+			cmd.circuit.logger.Printf("%v", err)
 		}
 	}
 
