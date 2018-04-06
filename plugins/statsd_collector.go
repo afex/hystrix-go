@@ -121,6 +121,9 @@ func (g *StatsdCollector) setGauge(prefix string, value int64) {
 }
 
 func (g *StatsdCollector) incrementCounterMetric(prefix string, i float64) {
+	if i == 0 {
+		return
+	}
 	err := g.client.Inc(prefix, int64(i), g.sampleRate)
 	if err != nil {
 		log.Printf("Error sending statsd metrics %s", prefix)
