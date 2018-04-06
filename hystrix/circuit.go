@@ -2,7 +2,6 @@ package hystrix
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
