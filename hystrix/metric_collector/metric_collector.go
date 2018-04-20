@@ -53,6 +53,7 @@ type MetricResult struct {
 	ContextDeadlineExceeded float64
 	TotalDuration           time.Duration
 	RunDuration             time.Duration
+	ConcurrencyInUse        float64
 }
 
 // MetricCollector represents the contract that all collectors must fulfill to gather circuit statistics.

@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-	"testing/quick"
 	"math/rand"
+	"testing/quick"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestGetCircuit(t *testing.T) {
@@ -103,10 +104,10 @@ func TestReportEventMultiThreaded(t *testing.T) {
 		defer Flush()
 		// Make the circuit easily open and close intermittently.
 		ConfigureCommand("", CommandConfig{
-			MaxConcurrentRequests: 1,
-			ErrorPercentThreshold: 1,
+			MaxConcurrentRequests:  1,
+			ErrorPercentThreshold:  1,
 			RequestVolumeThreshold: 1,
-			SleepWindow: 10,
+			SleepWindow:            10,
 		})
 		cb, _, _ := GetCircuit("")
 		count := 5

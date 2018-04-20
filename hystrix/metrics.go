@@ -9,9 +9,10 @@ import (
 )
 
 type commandExecution struct {
-	Types       []string      `json:"types"`
-	Start       time.Time     `json:"start_time"`
-	RunDuration time.Duration `json:"run_duration"`
+	Types            []string      `json:"types"`
+	Start            time.Time     `json:"start_time"`
+	RunDuration      time.Duration `json:"run_duration"`
+	ConcurrencyInUse float64       `json:"concurrency_inuse"`
 }
 
 type metricExchange struct {
@@ -68,9 +69,10 @@ func (m *metricExchange) Monitor() {
 func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCollector.MetricCollector, update *commandExecution, totalDuration time.Duration) {
 	// granular metrics
 	r := metricCollector.MetricResult{
-		Attempts:      1,
-		TotalDuration: totalDuration,
-		RunDuration:   update.RunDuration,
+		Attempts:         1,
+		TotalDuration:    totalDuration,
+		RunDuration:      update.RunDuration,
+		ConcurrencyInUse: update.ConcurrencyInUse,
 	}
 
 	switch update.Types[0] {
