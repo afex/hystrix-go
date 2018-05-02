@@ -176,11 +176,17 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 		circuit.setClose()
 	}
 
+	var concurrencyInUse float64
+	if circuit.executorPool.Max > 0 {
+		concurrencyInUse = float64(circuit.executorPool.ActiveCount()) / float64(circuit.executorPool.Max)
+	}
+
 	select {
 	case circuit.metrics.Updates <- &commandExecution{
-		Types:       eventTypes,
-		Start:       start,
-		RunDuration: runDuration,
+		Types:            eventTypes,
+		Start:            start,
+		RunDuration:      runDuration,
+		ConcurrencyInUse: concurrencyInUse,
 	}:
 	default:
 		return CircuitError{Message: fmt.Sprintf("metrics channel (%v) is at capacity", circuit.Name)}
