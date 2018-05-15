@@ -42,11 +42,12 @@ func (c byDuration) Less(i, j int) bool { return c[i] < c[j] }
 func (r *Timing) SortedDurations() []time.Duration {
 	r.Mutex.RLock()
 	t := r.LastCachedTime
+	cachedDurations := r.CachedSortedDurations
 	r.Mutex.RUnlock()
 
 	if t+time.Duration(1*time.Second).Nanoseconds() > time.Now().UnixNano() {
 		// don't recalculate if current cache is still fresh
-		return r.CachedSortedDurations
+		return cachedDurations
 	}
 
 	var durations byDuration
