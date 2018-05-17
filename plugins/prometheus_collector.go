@@ -173,6 +173,7 @@ func (hc *cmdCollector) Update(result metricCollector.MetricResult) {
 	hc.metrics.fallbackSuccesses.WithLabelValues(hc.commandName).Add(result.FallbackSuccesses)
 	hc.metrics.fallbackFailures.WithLabelValues(hc.commandName).Add(result.FallbackFailures)
 	hc.metrics.totalDuration.WithLabelValues(hc.commandName).Set(result.TotalDuration.Seconds())
+	hc.metrics.runDuration.WithLabelValues(hc.commandName).Observe(result.TotalDuration.Seconds())
 }
 
 // Reset resets the internal counters and timers.
