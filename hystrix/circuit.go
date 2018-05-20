@@ -194,3 +194,9 @@ func (circuit *CircuitBreaker) ReportEvent(eventTypes []string, start time.Time,
 
 	return nil
 }
+
+func (circuit *CircuitBreaker) ResizePool(n int) {
+	circuit.mutex.Lock()
+	circuit.executorPool.resize(n)
+	circuit.mutex.Unlock()
+}

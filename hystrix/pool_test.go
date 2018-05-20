@@ -44,3 +44,60 @@ func TestActiveCount(t *testing.T) {
 		})
 	})
 }
+
+func TestResizeTicketInUse(t *testing.T) {
+	defer Flush()
+
+	Convey("Given a pool of size 10 with one active ticket", t, func() {
+		pool := newExecutorPool("pool")
+		So(len(pool.Tickets), ShouldEqual, 10)
+		<-pool.Tickets
+		So(pool.ActiveCount(), ShouldEqual, 1)
+
+		Convey("resizing it to 5 should result in", func() {
+			pool.resize(5)
+			Convey("An active count of 1", func() {
+				So(pool.ActiveCount(), ShouldEqual, 1)
+			})
+			Convey("A pool size of 5", func() {
+				So(pool.Max, ShouldEqual, 5)
+			})
+			Convey("And 4 available tickets", func() {
+				So(len(pool.Tickets), ShouldEqual, 4)
+			})
+		})
+	})
+}
+
+func TestResizeToSmall(t *testing.T) {
+	defer Flush()
+
+	Convey("Given a pool of size 10 with one active ticket", t, func() {
+		pool := newExecutorPool("pool")
+		So(len(pool.Tickets), ShouldEqual, 10)
+		ticketa := <-pool.Tickets
+		ticketb := <-pool.Tickets
+		So(pool.ActiveCount(), ShouldEqual, 2)
+
+		pool.resize(1)
+		Convey("resizing it to 1 should result in", func() {
+			Convey("An active count of 2", func() {
+				So(pool.ActiveCount(), ShouldEqual, 2)
+			})
+			Convey("And a pool size of 1", func() {
+				So(pool.Max, ShouldEqual, 1)
+			})
+		})
+
+		Convey("Returning the active tickets should result in", func() {
+			pool.Return(ticketa)
+			pool.Return(ticketb)
+			Convey("An active count of 0", func() {
+				So(pool.ActiveCount(), ShouldEqual, 0)
+			})
+			Convey("And one available ticket", func() {
+				So(len(pool.Tickets), ShouldEqual, 1)
+			})
+		})
+	})
+}
