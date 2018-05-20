@@ -75,9 +75,9 @@ func newCircuitBreaker(name string) *CircuitBreaker {
 	return c
 }
 
-// toggleForceOpen allows manually causing the fallback logic for all instances
+// ToggleForceOpen allows manually causing the fallback logic for all instances
 // of a given command.
-func (circuit *CircuitBreaker) toggleForceOpen(toggle bool) error {
+func (circuit *CircuitBreaker) ToggleForceOpen(toggle bool) error {
 	circuit, _, err := GetCircuit(circuit.Name)
 	if err != nil {
 		return err
