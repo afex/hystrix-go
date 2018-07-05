@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"errors"
 )
 
 // CircuitBreaker is created for each ExecutorPool to track whether requests
@@ -13,12 +14,18 @@ type CircuitBreaker struct {
 	Name                   string
 	open                   bool
 	forceOpen              bool
+	forceClosed            bool
 	mutex                  *sync.RWMutex
 	openedOrLastTestedTime int64
 
 	executorPool *executorPool
 	metrics      *metricExchange
 }
+
+var (
+	// ErrCBNotExist occurs when no CircuitBreaker exists
+	ErrCBNotExist = errors.New("circuit breaker not exist")
+)
 
 var (
 	circuitBreakersMutex *sync.RWMutex
@@ -28,6 +35,17 @@ var (
 func init() {
 	circuitBreakersMutex = &sync.RWMutex{}
 	circuitBreakers = make(map[string]*CircuitBreaker)
+}
+
+// IsCircuitBreakerOpen returns whether a circuitBreaker is open for an interface
+func IsCircuitBreakerOpen(name string) (bool, error) {
+	circuitBreakersMutex.Lock()
+	defer circuitBreakersMutex.Unlock()
+	if c, ok := circuitBreakers[name]; ok {
+		return c.IsOpen(), nil
+	} else {
+		return false, ErrCBNotExist
+	}
 }
 
 // GetCircuit returns the circuit for the given command and whether this call created it.
@@ -51,6 +69,17 @@ func GetCircuit(name string) (*CircuitBreaker, bool, error) {
 
 	return circuitBreakers[name], !ok, nil
 }
+func FlushByName(name string) {
+	circuitBreakersMutex.Lock()
+	defer circuitBreakersMutex.Unlock()
+	cb, ok := circuitBreakers[name]
+	if ok {
+		cb.metrics.Reset()
+		cb.executorPool.Metrics.Reset()
+		delete(circuitBreakers, name)
+	}
+
+}
 
 // Flush purges all circuit and metric information from memory.
 func Flush() {
@@ -71,7 +100,8 @@ func newCircuitBreaker(name string) *CircuitBreaker {
 	c.metrics = newMetricExchange(name)
 	c.executorPool = newExecutorPool(name)
 	c.mutex = &sync.RWMutex{}
-
+	c.forceOpen = getSettings(name).ForceOpen
+	c.forceClosed = getSettings(name).ForceClose
 	return c
 }
 
@@ -115,6 +145,13 @@ func (circuit *CircuitBreaker) IsOpen() bool {
 // When the circuit is open, this call will occasionally return true to measure whether the external service
 // has recovered.
 func (circuit *CircuitBreaker) AllowRequest() bool {
+	//force open has highest priority
+	if circuit.forceOpen {
+		return false
+	}
+	if circuit.forceClosed {
+		return true
+	}
 	return !circuit.IsOpen() || circuit.allowSingleTest()
 }
 

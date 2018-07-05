@@ -26,6 +26,9 @@ type Settings struct {
 	RequestVolumeThreshold uint64
 	SleepWindow            time.Duration
 	ErrorPercentThreshold  int
+	ForceFallback bool
+	ForceOpen     bool
+	ForceClose    bool
 }
 
 // CommandConfig is used to tune circuit settings at runtime
