@@ -69,6 +69,7 @@ func (m *metricExchange) Monitor() {
 func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCollector.MetricCollector, update *commandExecution, totalDuration time.Duration) {
 	// granular metrics
 	r := metricCollector.MetricResult{
+		Name:		  m.Name,
 		Attempts:         1,
 		TotalDuration:    totalDuration,
 		RunDuration:      update.RunDuration,
