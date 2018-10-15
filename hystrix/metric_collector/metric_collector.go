@@ -40,6 +40,7 @@ func (m *metricCollectorRegistry) Register(initMetricCollector func(string) Metr
 }
 
 type MetricResult struct {
+	Name 			string
 	Attempts                float64
 	Errors                  float64
 	Successes               float64
