@@ -58,7 +58,7 @@ func (m *metricExchange) Monitor() {
 		wg := &sync.WaitGroup{}
 		for _, collector := range m.metricCollectors {
 			wg.Add(1)
-			go m.IncrementMetrics(wg, collector, update, totalDuration)
+			m.IncrementMetrics(wg, collector, update, totalDuration)
 		}
 		wg.Wait()
 
