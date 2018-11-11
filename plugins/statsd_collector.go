@@ -30,6 +30,7 @@ type StatsdCollector struct {
 	deadlinePrefix          string
 	totalDurationPrefix     string
 	runDurationPrefix       string
+	maxConcurrencyPrefix	string
 	concurrencyInUsePrefix  string
 	sampleRate              float32
 }
@@ -111,6 +112,7 @@ func (s *StatsdCollectorClient) NewStatsdCollector(name string) metricCollector.
 		totalDurationPrefix:     name + ".totalDuration",
 		runDurationPrefix:       name + ".runDuration",
 		concurrencyInUsePrefix:  name + ".concurrencyInUse",
+		maxConcurrencyPrefix:	 name + ".maxConcurrency",
 		sampleRate:              s.sampleRate,
 	}
 }
@@ -167,6 +169,7 @@ func (g *StatsdCollector) Update(r metricCollector.MetricResult) {
 	g.updateTimerMetric(g.totalDurationPrefix, r.TotalDuration)
 	g.updateTimerMetric(g.runDurationPrefix, r.RunDuration)
 	g.updateTimingMetric(g.concurrencyInUsePrefix, int64(100*r.ConcurrencyInUse))
+	g.setGauge(g.maxConcurrencyPrefix, int64(r.MaxConcurrency))
 }
 
 // Reset is a noop operation in this collector.

@@ -54,6 +54,7 @@ type MetricResult struct {
 	TotalDuration           time.Duration
 	RunDuration             time.Duration
 	ConcurrencyInUse        float64
+	MaxConcurrency		  	int
 }
 
 // MetricCollector represents the contract that all collectors must fulfill to gather circuit statistics.
