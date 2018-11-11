@@ -73,6 +73,7 @@ func (m *metricExchange) IncrementMetrics(wg *sync.WaitGroup, collector metricCo
 		TotalDuration:    totalDuration,
 		RunDuration:      update.RunDuration,
 		ConcurrencyInUse: update.ConcurrencyInUse,
+		MaxConcurrency:	  getSettings(m.Name).MaxConcurrentRequests,
 	}
 
 	switch update.Types[0] {
