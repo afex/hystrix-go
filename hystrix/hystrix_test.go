@@ -2,6 +2,7 @@ package hystrix
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -211,6 +212,25 @@ func TestFailedFallback(t *testing.T) {
 			err := <-errChan
 
 			So(err.Error(), ShouldEqual, "fallback failed with 'fallback_error'. run error was 'run_error'")
+		})
+	})
+}
+
+func TestErrorTypeForTimeoutRunWithFailedFallback(t *testing.T) {
+	Convey("when your run function times out and fallback functions return an error", t, func() {
+		defer Flush()
+		ConfigureCommand("", CommandConfig{Timeout: 100})
+		errChan := GoC(context.Background(), "", func(ctx context.Context) error {
+			time.Sleep(200 * time.Millisecond)
+			return nil
+		}, func(ctx context.Context, err error) error {
+			return fmt.Errorf("fallback_error")
+		})
+
+		Convey("the returned error should contain both errors and should be of type ErrTimeout", func() {
+			err := <-errChan
+			So(errors.Is(err, ErrTimeout), ShouldBeTrue)
+			So(err.Error(), ShouldEqual, "fallback failed with 'fallback_error'. run error was 'hystrix: timeout'")
 		})
 	})
 }
