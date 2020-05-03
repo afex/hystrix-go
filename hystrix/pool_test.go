@@ -1,6 +1,7 @@
 package hystrix
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ func TestReturn(t *testing.T) {
 	defer Flush()
 
 	Convey("when returning a ticket to the pool", t, func() {
-		pool := newExecutorPool("pool")
+		pool := newExecutorPool(context.Background(),"pool")
 		ticket := <-pool.Tickets
 		pool.Return(ticket)
 		time.Sleep(1 * time.Millisecond)
@@ -25,7 +26,7 @@ func TestActiveCount(t *testing.T) {
 	defer Flush()
 
 	Convey("when 3 tickets are pulled", t, func() {
-		pool := newExecutorPool("pool")
+		pool := newExecutorPool(context.Background(), "pool")
 		<-pool.Tickets
 		<-pool.Tickets
 		ticket := <-pool.Tickets

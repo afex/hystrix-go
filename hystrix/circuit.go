@@ -1,6 +1,7 @@
 package hystrix
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -18,6 +19,8 @@ type CircuitBreaker struct {
 
 	executorPool *executorPool
 	metrics      *metricExchange
+	ctx          context.Context
+	cancelFunc   context.CancelFunc
 }
 
 var (
@@ -60,6 +63,7 @@ func Flush() {
 	for name, cb := range circuitBreakers {
 		cb.metrics.Reset()
 		cb.executorPool.Metrics.Reset()
+		cb.cancelFunc()
 		delete(circuitBreakers, name)
 	}
 }
@@ -67,9 +71,10 @@ func Flush() {
 // newCircuitBreaker creates a CircuitBreaker with associated Health
 func newCircuitBreaker(name string) *CircuitBreaker {
 	c := &CircuitBreaker{}
+	c.ctx, c.cancelFunc = context.WithCancel(context.TODO())
 	c.Name = name
-	c.metrics = newMetricExchange(name)
-	c.executorPool = newExecutorPool(name)
+	c.metrics = newMetricExchange(c.ctx, name)
+	c.executorPool = newExecutorPool(c.ctx, name)
 	c.mutex = &sync.RWMutex{}
 
 	return c

@@ -1,6 +1,7 @@
 package hystrix
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,7 +9,7 @@ import (
 )
 
 func metricFailingPercent(p int) *metricExchange {
-	m := newMetricExchange("")
+	m := newMetricExchange(context.Background(), "")
 	for i := 0; i < 100; i++ {
 		t := "success"
 		if i < p {
