@@ -118,19 +118,3 @@ if err != nil {
 
 metricCollector.Registry.Register(c.NewStatsdCollector)
 ```
-
-FAQ
----
-
-**What happens if my run function panics? Does hystrix-go trigger the fallback?**
-
-No. hystrix-go does not use ```recover()``` so panics will kill the process like normal.
-
-Build and Test
---------------
-
-- Install vagrant and VirtualBox
-- Clone the hystrix-go repository
-- Inside the hystrix-go directory, run ```vagrant up```, then ```vagrant ssh```
-- ```cd /go/src/github.com/afex/hystrix-go```
-- ```go test ./...```
