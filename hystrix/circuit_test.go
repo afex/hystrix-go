@@ -1,13 +1,12 @@
 package hystrix
 
 import (
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
-
-	"math/rand"
 	"testing/quick"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
