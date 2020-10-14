@@ -95,6 +95,15 @@ hystrix.ConfigureCommand("my_command", hystrix.CommandConfig{
 
 You can also use ```hystrix.Configure()``` which accepts a ```map[string]CommandConfig```.
 
+
+### Enable State Change Callback
+In your main.go, register the Callback handler for a command which will be called in a goroutine.
+
+```go
+callback.Register("my_command", func(name string, state callback.State) {
+		fmt.Println("Name ", name, " State ", state)
+})
+```
 ### Enable dashboard metrics
 
 In your main.go, register the event stream HTTP handler on a port and launch it in a goroutine.  Once you configure turbine for your [Hystrix Dashboard](https://github.com/Netflix/Hystrix/tree/master/hystrix-dashboard) to start streaming events, your commands will automatically begin appearing.

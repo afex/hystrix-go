@@ -5,6 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/afex/hystrix-go/hystrix/callback"
 )
 
 // CircuitBreaker is created for each ExecutorPool to track whether requests
@@ -128,6 +130,8 @@ func (circuit *CircuitBreaker) allowSingleTest() bool {
 		swapped := atomic.CompareAndSwapInt64(&circuit.openedOrLastTestedTime, openedOrLastTestedTime, now)
 		if swapped {
 			log.Printf("hystrix-go: allowing single test to possibly close circuit %v", circuit.Name)
+
+			callback.Invoke(circuit.Name, callback.AllowSingle)
 		}
 		return swapped
 	}
@@ -144,9 +148,11 @@ func (circuit *CircuitBreaker) setOpen() {
 	}
 
 	log.Printf("hystrix-go: opening circuit %v", circuit.Name)
-
 	circuit.openedOrLastTestedTime = time.Now().UnixNano()
 	circuit.open = true
+
+	callback.Invoke(circuit.Name, callback.Open)
+
 }
 
 func (circuit *CircuitBreaker) setClose() {
@@ -161,6 +167,9 @@ func (circuit *CircuitBreaker) setClose() {
 
 	circuit.open = false
 	circuit.metrics.Reset()
+
+	callback.Invoke(circuit.Name, callback.Close)
+
 }
 
 // ReportEvent records command metrics for tracking recent error rates and exposing data to the dashboard.
