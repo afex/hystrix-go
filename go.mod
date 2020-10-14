@@ -10,4 +10,4 @@ require (
 	github.com/stretchr/testify v1.6.1 // indirect
 )
 
-replace github.com/afex/hystrix-go => github.com/ContinuumLLC/hystrix-go v1.0.0
+replace github.com/afex/hystrix-go => github.com/ContinuumLLC/hystrix-go v1.0.1
