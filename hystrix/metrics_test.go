@@ -1,14 +1,17 @@
 package hystrix
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"go.uber.org/goleak"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func metricFailingPercent(p int) *metricExchange {
-	m := newMetricExchange("")
+	m := newMetricExchange(context.Background(), "")
 	for i := 0; i < 100; i++ {
 		t := "success"
 		if i < p {
@@ -42,4 +45,8 @@ func TestErrorPercent(t *testing.T) {
 
 		})
 	})
+}
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
 }
