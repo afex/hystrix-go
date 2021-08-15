@@ -46,7 +46,10 @@ func (m *poolMetrics) Monitor(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case u := <-m.Updates:
+		case u, ok := <-m.Updates:
+			if !ok {
+				return
+			}
 			m.Mutex.RLock()
 			m.Executed.Increment(1)
 			m.MaxActiveRequests.UpdateMax(float64(u.activeCount))

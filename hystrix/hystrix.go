@@ -100,7 +100,7 @@ func GoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC)
 		for !ticketChecked {
 			ticketCond.Wait()
 		}
-		cmd.circuit.executorPool.Return(cmd.ticket)
+		cmd.circuit.executorPool.Return(cmd.circuit.ctx, cmd.ticket)
 		cmd.Unlock()
 	}
 	// Shared by the following two goroutines. It ensures only the faster

@@ -25,15 +25,21 @@ func newExecutorPool(ctx context.Context, name string) *executorPool {
 	return p
 }
 
-func (p *executorPool) Return(ticket *struct{}) {
+func (p *executorPool) Return(ctx context.Context, ticket *struct{}) {
 	if ticket == nil {
 		return
 	}
 
-	p.Metrics.Updates <- poolMetricsUpdate{
-		activeCount: p.ActiveCount(),
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			p.Metrics.Updates <- poolMetricsUpdate{activeCount: p.ActiveCount()}
+			p.Tickets <- ticket
+			return
+		}
 	}
-	p.Tickets <- ticket
 }
 
 func (p *executorPool) ActiveCount() int {

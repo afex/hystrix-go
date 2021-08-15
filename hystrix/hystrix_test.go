@@ -73,7 +73,10 @@ func TestTimeout(t *testing.T) {
 		ConfigureCommand("", CommandConfig{Timeout: 100})
 
 		resultChan := make(chan int)
-		errChan := GoC(context.Background(), "", func(ctx context.Context) error {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		errChan := GoC(ctx, "", func(ctx context.Context) error {
 			time.Sleep(1 * time.Second)
 			resultChan <- 1
 			return nil
@@ -99,7 +102,10 @@ func TestTimeoutEmptyFallback(t *testing.T) {
 		ConfigureCommand("", CommandConfig{Timeout: 100})
 
 		resultChan := make(chan int)
-		errChan := GoC(context.Background(), "", func(ctx context.Context) error {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		errChan := GoC(ctx, "", func(ctx context.Context) error {
 			time.Sleep(1 * time.Second)
 			resultChan <- 1
 			return nil
@@ -131,12 +137,14 @@ func TestMaxConcurrent(t *testing.T) {
 			resultChan <- 1
 			return nil
 		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		Convey("and 3 of those commands try to execute at the same time", func() {
 			var good, bad int
 
 			for i := 0; i < 3; i++ {
-				errChan := GoC(context.Background(), "", run, nil)
+				errChan := GoC(ctx, "", run, nil)
 				time.Sleep(10 * time.Millisecond)
 
 				select {
@@ -346,11 +354,20 @@ func TestReturnTicket_QuickCheck(t *testing.T) {
 	compareTicket := func() bool {
 		defer Flush()
 		ConfigureCommand("", CommandConfig{Timeout: 2})
-		errChan := GoC(context.Background(), "", func(ctx context.Context) error {
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		errChan := GoC(ctx, "", func(ctx context.Context) error {
+			//there are multiple ways to block here, the following sequence of steps
+			//will block:: c := make(chan struct{});  <-c; return nil // should block
+			//however, this would leak the internal GoC.func goroutine
+			//another non-leaking way to do this would be to simply: return ErrTimeout
 			c := make(chan struct{})
-			<-c // should block
+			<-c // should block (hence we add an exception in go-leak)
 			return nil
 		}, nil)
+
 		err := <-errChan
 		So(err, ShouldResemble, ErrTimeout)
 		cb, _, err := GetCircuit("")
@@ -371,10 +388,16 @@ func TestReturnTicket(t *testing.T) {
 		defer Flush()
 
 		ConfigureCommand("", CommandConfig{Timeout: 10})
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-		errChan := GoC(context.Background(), "", func(ctx context.Context) error {
+		errChan := GoC(ctx, "", func(ctx context.Context) error {
+			//there are multiple ways to block here, the following sequence of steps
+			//will block:: c := make(chan struct{});  <-c; return nil // should block
+			//however, this would leak the internal GoC.func goroutine
+			//another non-leaking way to do this would be to simply: return ErrTimeout
 			c := make(chan struct{})
-			<-c // should block
+			<-c // should block (hence we add an exception in go-leak)
 			return nil
 		}, nil)
 
