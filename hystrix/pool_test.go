@@ -9,10 +9,11 @@ import (
 )
 
 func TestReturn(t *testing.T) {
-	defer Flush()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
 	Convey("when returning a ticket to the pool", t, func() {
-		pool := newExecutorPool(context.Background(), "pool")
+		pool := newExecutorPool(ctx, "pool")
 		ticket := <-pool.Tickets
 		pool.Return(ticket)
 		time.Sleep(1 * time.Millisecond)
@@ -23,10 +24,11 @@ func TestReturn(t *testing.T) {
 }
 
 func TestActiveCount(t *testing.T) {
-	defer Flush()
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
 	Convey("when 3 tickets are pulled", t, func() {
-		pool := newExecutorPool(context.Background(), "pool")
+		pool := newExecutorPool(ctx, "pool")
 		<-pool.Tickets
 		<-pool.Tickets
 		ticket := <-pool.Tickets

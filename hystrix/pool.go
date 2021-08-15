@@ -1,6 +1,8 @@
 package hystrix
 
-import "context"
+import (
+	"context"
+)
 
 type executorPool struct {
 	Name    string

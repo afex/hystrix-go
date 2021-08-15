@@ -2,7 +2,6 @@ package hystrix
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/afex/hystrix-go/hystrix/rolling"
@@ -46,14 +45,11 @@ func (m *poolMetrics) Monitor(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("No longer waiting in (m *poolMetrics) Monitor(ctx context.Context)")
 			return
 		case u := <-m.Updates:
 			m.Mutex.RLock()
-
 			m.Executed.Increment(1)
 			m.MaxActiveRequests.UpdateMax(float64(u.activeCount))
-
 			m.Mutex.RUnlock()
 		}
 	}
