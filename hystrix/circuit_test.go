@@ -74,7 +74,6 @@ func TestMultithreadedGetCircuit(t *testing.T) {
 func TestReportEventOpenThenClose(t *testing.T) {
 	Convey("when a circuit is closed", t, func() {
 		defer Flush()
-
 		ConfigureCommand("", CommandConfig{ErrorPercentThreshold: 50})
 
 		cb, _, err := GetCircuit("")
@@ -83,7 +82,7 @@ func TestReportEventOpenThenClose(t *testing.T) {
 		openedTime := cb.openedOrLastTestedTime
 
 		Convey("but the metrics are unhealthy", func() {
-			cb.metrics = metricFailingPercent(100)
+			cb.metrics = metricFailingPercentWithContext(cb.ctx, 100)
 			So(cb.metrics.IsHealthy(time.Now()), ShouldBeFalse)
 
 			Convey("and a success is reported", func() {

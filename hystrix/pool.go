@@ -1,5 +1,9 @@
 package hystrix
 
+import (
+	"context"
+)
+
 type executorPool struct {
 	Name    string
 	Metrics *poolMetrics
@@ -7,10 +11,10 @@ type executorPool struct {
 	Tickets chan *struct{}
 }
 
-func newExecutorPool(name string) *executorPool {
+func newExecutorPool(ctx context.Context, name string) *executorPool {
 	p := &executorPool{}
 	p.Name = name
-	p.Metrics = newPoolMetrics(name)
+	p.Metrics = newPoolMetrics(ctx, name)
 	p.Max = getSettings(name).MaxConcurrentRequests
 
 	p.Tickets = make(chan *struct{}, p.Max)
@@ -21,15 +25,21 @@ func newExecutorPool(name string) *executorPool {
 	return p
 }
 
-func (p *executorPool) Return(ticket *struct{}) {
+func (p *executorPool) Return(ctx context.Context, ticket *struct{}) {
 	if ticket == nil {
 		return
 	}
 
-	p.Metrics.Updates <- poolMetricsUpdate{
-		activeCount: p.ActiveCount(),
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			p.Metrics.Updates <- poolMetricsUpdate{activeCount: p.ActiveCount()}
+			p.Tickets <- ticket
+			return
+		}
 	}
-	p.Tickets <- ticket
 }
 
 func (p *executorPool) ActiveCount() int {

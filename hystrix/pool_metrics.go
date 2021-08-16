@@ -1,6 +1,7 @@
 package hystrix
 
 import (
+	"context"
 	"sync"
 
 	"github.com/afex/hystrix-go/hystrix/rolling"
@@ -19,7 +20,7 @@ type poolMetricsUpdate struct {
 	activeCount int
 }
 
-func newPoolMetrics(name string) *poolMetrics {
+func newPoolMetrics(ctx context.Context, name string) *poolMetrics {
 	m := &poolMetrics{}
 	m.Name = name
 	m.Updates = make(chan poolMetricsUpdate)
@@ -27,7 +28,7 @@ func newPoolMetrics(name string) *poolMetrics {
 
 	m.Reset()
 
-	go m.Monitor()
+	go m.Monitor(ctx)
 
 	return m
 }
@@ -40,13 +41,19 @@ func (m *poolMetrics) Reset() {
 	m.Executed = rolling.NewNumber()
 }
 
-func (m *poolMetrics) Monitor() {
-	for u := range m.Updates {
-		m.Mutex.RLock()
-
-		m.Executed.Increment(1)
-		m.MaxActiveRequests.UpdateMax(float64(u.activeCount))
-
-		m.Mutex.RUnlock()
+func (m *poolMetrics) Monitor(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case u, ok := <-m.Updates:
+			if !ok {
+				return
+			}
+			m.Mutex.RLock()
+			m.Executed.Increment(1)
+			m.MaxActiveRequests.UpdateMax(float64(u.activeCount))
+			m.Mutex.RUnlock()
+		}
 	}
 }

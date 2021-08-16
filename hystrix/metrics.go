@@ -1,10 +1,11 @@
 package hystrix
 
 import (
+	"context"
 	"sync"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
+	metricCollector "github.com/afex/hystrix-go/hystrix/metric_collector"
 	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
@@ -23,7 +24,7 @@ type metricExchange struct {
 	metricCollectors []metricCollector.MetricCollector
 }
 
-func newMetricExchange(name string) *metricExchange {
+func newMetricExchange(ctx context.Context, name string) *metricExchange {
 	m := &metricExchange{}
 	m.Name = name
 
@@ -32,12 +33,12 @@ func newMetricExchange(name string) *metricExchange {
 	m.metricCollectors = metricCollector.Registry.InitializeMetricCollectors(name)
 	m.Reset()
 
-	go m.Monitor()
+	go m.Monitor(ctx)
 
 	return m
 }
 
-// The Default Collector function will panic if collectors are not setup to specification.
+// DefaultCollector will panic if collectors are not setup to specification.
 func (m *metricExchange) DefaultCollector() *metricCollector.DefaultMetricCollector {
 	if len(m.metricCollectors) < 1 {
 		panic("No Metric Collectors Registered.")
@@ -49,20 +50,27 @@ func (m *metricExchange) DefaultCollector() *metricCollector.DefaultMetricCollec
 	return collection
 }
 
-func (m *metricExchange) Monitor() {
-	for update := range m.Updates {
-		// we only grab a read lock to make sure Reset() isn't changing the numbers.
-		m.Mutex.RLock()
+func (m *metricExchange) Monitor(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case u, ok := <-m.Updates:
+			if !ok {
+				return
+			}
+			// we only grab a read lock to make sure Reset() isn't changing the numbers.
+			m.Mutex.RLock()
 
-		totalDuration := time.Since(update.Start)
-		wg := &sync.WaitGroup{}
-		for _, collector := range m.metricCollectors {
-			wg.Add(1)
-			go m.IncrementMetrics(wg, collector, update, totalDuration)
+			totalDuration := time.Since(u.Start)
+			wg := &sync.WaitGroup{}
+			for _, collector := range m.metricCollectors {
+				wg.Add(1)
+				go m.IncrementMetrics(wg, collector, u, totalDuration)
+			}
+			wg.Wait()
+			m.Mutex.RUnlock()
 		}
-		wg.Wait()
-
-		m.Mutex.RUnlock()
 	}
 }
 
