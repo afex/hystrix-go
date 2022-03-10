@@ -3,11 +3,11 @@
 package plugins
 
 import (
+	metricCollector "github.com/cs-lexliu/hystrix-go/hystrix/metric_collector"
 	"net"
 	"strings"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
 	"github.com/rcrowley/go-metrics"
 )
 

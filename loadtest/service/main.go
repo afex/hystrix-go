@@ -4,6 +4,9 @@ package main
 
 import (
 	"flag"
+	"github.com/cs-lexliu/hystrix-go/hystrix"
+	metricCollector "github.com/cs-lexliu/hystrix-go/hystrix/metric_collector"
+	"github.com/cs-lexliu/hystrix-go/plugins"
 	"log"
 	"math/rand"
 	"net/http"
@@ -11,10 +14,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix"
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
-	"github.com/afex/hystrix-go/plugins"
-	"github.com/cactus/go-statsd-client/statsd"
+	"github.com/cactus/go-statsd-client/v5/statsd"
 )
 
 const (

@@ -1,9 +1,8 @@
 package metricCollector
 
 import (
+	"github.com/cs-lexliu/hystrix-go/hystrix/rolling"
 	"sync"
-
-	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
 // DefaultMetricCollector holds information about the circuit state.

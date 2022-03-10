@@ -3,11 +3,10 @@ package hystrix
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/cs-lexliu/hystrix-go/hystrix/rolling"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
 const (

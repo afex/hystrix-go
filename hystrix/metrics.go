@@ -1,11 +1,10 @@
 package hystrix
 
 import (
+	metricCollector "github.com/cs-lexliu/hystrix-go/hystrix/metric_collector"
+	"github.com/cs-lexliu/hystrix-go/hystrix/rolling"
 	"sync"
 	"time"
-
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
-	"github.com/afex/hystrix-go/hystrix/rolling"
 )
 
 type commandExecution struct {

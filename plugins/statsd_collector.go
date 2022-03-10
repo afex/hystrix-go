@@ -1,12 +1,13 @@
 package plugins
 
 import (
+	"fmt"
+	metricCollector "github.com/cs-lexliu/hystrix-go/hystrix/metric_collector"
 	"log"
 	"strings"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
-	"github.com/cactus/go-statsd-client/statsd"
+	"github.com/cactus/go-statsd-client/v5/statsd"
 )
 
 // StatsdCollector fulfills the metricCollector interface allowing users to ship circuit
@@ -73,15 +74,31 @@ func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorC
 		sampleRate = 1
 	}
 
-	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, 1*time.Second, flushBytes)
-	if err != nil {
-		log.Printf("Could not initiale buffered client: %s. Falling back to a Noop Statsd client", err)
-		c, _ = statsd.NewNoopClient()
-	}
-	return &StatsdCollectorClient{
-		client:     c,
+	client := &StatsdCollectorClient{
 		sampleRate: sampleRate,
-	}, err
+	}
+
+	clientConfig := &statsd.ClientConfig{
+		Address:       config.StatsdAddr,
+		Prefix:        config.Prefix,
+		UseBuffered:   true,
+		FlushInterval: 1 * time.Second,
+		FlushBytes:    flushBytes,
+	}
+	c, err := statsd.NewClientWithConfig(clientConfig)
+	if err == nil {
+		client.client = c
+		return client, nil
+	}
+
+	log.Printf("Could not initiale buffered client: %s. Falling back to a client without buffer", err)
+	clientConfig.UseBuffered = false
+	c, err = statsd.NewClientWithConfig(clientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("fail to create statsd client: %w", err)
+	}
+	client.client = c
+	return client, nil
 }
 
 // NewStatsdCollector creates a collector for a specific circuit. The
