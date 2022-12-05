@@ -13,6 +13,7 @@ import (
 
 var makeTimerFunc = func() interface{} { return metrics.NewTimer() }
 var makeCounterFunc = func() interface{} { return metrics.NewCounter() }
+var makeGaugeFunc = func() interface{} { return metrics.NewGaugeFloat64() }
 
 // GraphiteCollector fulfills the metricCollector interface allowing users to ship circuit
 // stats to a graphite backend. To use users must call InitializeGraphiteCollector before
@@ -32,6 +33,7 @@ type GraphiteCollector struct {
 	fallbackFailuresPrefix  string
 	totalDurationPrefix     string
 	runDurationPrefix       string
+	concurrencyInUsePrefix  string
 }
 
 // GraphiteCollectorConfig provides configuration that the graphite client will need.
@@ -69,6 +71,7 @@ func NewGraphiteCollector(name string) metricCollector.MetricCollector {
 		fallbackFailuresPrefix:  name + ".fallbackFailures",
 		totalDurationPrefix:     name + ".totalDuration",
 		runDurationPrefix:       name + ".runDuration",
+		concurrencyInUsePrefix:  name + ".concurrencyInUse",
 	}
 }
 
@@ -91,6 +94,14 @@ func (g *GraphiteCollector) updateTimerMetric(prefix string, dur time.Duration) 
 	c.Update(dur)
 }
 
+func (g *GraphiteCollector) updateGaugeMetric(prefix string, data float64) {
+	c, ok := metrics.GetOrRegister(prefix, makeGaugeFunc()).(metrics.GaugeFloat64)
+	if !ok {
+		return
+	}
+	c.Update(data)
+}
+
 func (g *GraphiteCollector) Update(r metricCollector.MetricResult) {
 	g.incrementCounterMetric(g.attemptsPrefix, r.Attempts)
 	g.incrementCounterMetric(g.errorsPrefix, r.Errors)
@@ -103,6 +114,7 @@ func (g *GraphiteCollector) Update(r metricCollector.MetricResult) {
 	g.incrementCounterMetric(g.fallbackFailuresPrefix, r.FallbackFailures)
 	g.updateTimerMetric(g.totalDurationPrefix, r.TotalDuration)
 	g.updateTimerMetric(g.runDurationPrefix, r.RunDuration)
+	g.updateGaugeMetric(g.concurrencyInUsePrefix, r.ConcurrencyInUse)
 }
 
 // Reset is a noop operation in this collector.
