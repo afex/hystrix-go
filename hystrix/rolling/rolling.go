@@ -63,7 +63,7 @@ func (r *Number) getCurrentBucket() *numberBucket {
 }
 
 func (r *Number) removeOldBuckets() {
-	now := time.Now().Unix() - r.window
+	now := time.Now().Unix() - 20
 
 	for timestamp := range r.Buckets {
 		if timestamp <= now {
@@ -106,7 +106,7 @@ func (r *Number) Sum(now time.Time) float64 {
 	defer r.Mutex.RUnlock()
 
 	for timestamp, bucket := range r.Buckets {
-		if timestamp >= now.Unix()-r.window {
+		if timestamp >= now.Unix()-20 {
 			sum += bucket.Value
 		}
 	}
@@ -122,7 +122,7 @@ func (r *Number) Max(now time.Time) float64 {
 	defer r.Mutex.RUnlock()
 
 	for timestamp, bucket := range r.Buckets {
-		if timestamp >= now.Unix()-r.window {
+		if timestamp >= now.Unix()-20 {
 			if bucket.Value > max {
 				max = bucket.Value
 			}
@@ -133,8 +133,8 @@ func (r *Number) Max(now time.Time) float64 {
 }
 
 func (r *Number) Avg(now time.Time) float64 {
-	if r.window == 0 { // unexpected 0
-		return r.Sum(now)
-	}
-	return r.Sum(now) / float64(r.window)
+	//if r.window == 0 { // unexpected 0
+	//	return r.Sum(now)
+	//}
+	return r.Sum(now) / float64(20)
 }
