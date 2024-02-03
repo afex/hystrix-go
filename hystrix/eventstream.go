@@ -41,12 +41,16 @@ func (sh *StreamHandler) Stop() {
 var _ http.Handler = (*StreamHandler)(nil)
 
 func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	// Make sure that the writer supports flushing.
-	f, ok := rw.(http.Flusher)
-	if !ok {
-		http.Error(rw, "Streaming unsupported!", http.StatusInternalServerError)
-		return
-	}
+	// WARNING:
+	// ... benefit of forking - we can remove this check, because we can let ourselves
+	// get burned if we forget to implement Flusher...
+
+	//// Make sure that the writer supports flushing.
+	//f, ok := rw.(http.Flusher)
+	//if !ok {
+	//	http.Error(rw, "Streaming unsupported!", http.StatusInternalServerError)
+	//	return
+	//}
 	events := sh.register(req)
 	defer sh.unregister(req)
 
