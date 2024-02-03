@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/afex/hystrix-go/hystrix"
-	"github.com/afex/hystrix-go/plugins"
 	"github.com/cactus/go-statsd-client/v5/statsd"
+	"github.com/presencelearning/hystrix-go/plugins"
 )
 
 const (

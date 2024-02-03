@@ -4,7 +4,6 @@ import (
 
 	// Developed on https://github.com/DataDog/datadog-go/tree/a27810dd518c69be741a7fd5d0e39f674f615be8
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
 )
 
 // These metrics are constants because we're leveraging the Datadog tagging
@@ -72,20 +71,21 @@ type (
 // prefix may be an empty string
 //
 // Example use
-//  package main
 //
-//  import (
-//  	"github.com/afex/hystrix-go/plugins"
-//  	"github.com/afex/hystrix-go/hystrix/metric_collector"
-//  )
+//	package main
 //
-//  func main() {
-//  	collector, err := plugins.NewDatadogCollector("localhost:8125", "")
-//  	if err != nil {
-//  		panic(err)
-//  	}
-//  	metricCollector.Registry.Register(collector)
-//  }
+//	import (
+//		"github.com/presencelearning/hystrix-go/plugins"
+//		"github.com/afex/hystrix-go/hystrix/metric_collector"
+//	)
+//
+//	func main() {
+//		collector, err := plugins.NewDatadogCollector("localhost:8125", "")
+//		if err != nil {
+//			panic(err)
+//		}
+//		metricCollector.Registry.Register(collector)
+//	}
 func NewDatadogCollector(addr, prefix string) (func(string) metricCollector.MetricCollector, error) {
 
 	c, err := statsd.NewBuffered(addr, 100)
