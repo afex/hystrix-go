@@ -13,6 +13,7 @@ import (
 
 	"github.com/cactus/go-statsd-client/v5/statsd"
 	"github.com/presencelearning/hystrix-go/hystrix"
+	_ "github.com/presencelearning/hystrix-go/hystrix/metric_collector"
 	"github.com/presencelearning/hystrix-go/plugins"
 )
 
