@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	metricCollector "github.com/presencelearning/hystrix-go/hystrix/metric_collector"
 	"github.com/presencelearning/hystrix-go/hystrix/rolling"
 )
 

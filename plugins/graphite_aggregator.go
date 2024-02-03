@@ -6,6 +6,9 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	metricCollector "github.com/presencelearning/hystrix-go/hystrix/metric_collector"
+	_ "github.com/rcrowley/go-metrics"
 )
 
 var makeTimerFunc = func() interface{} { return metrics.NewTimer() }

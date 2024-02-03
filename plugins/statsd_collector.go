@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/cactus/go-statsd-client/v5/statsd"
-	_ "github.com/presencelearning/hystrix-go/hystrix/metric_collector"
+	metricCollector "github.com/presencelearning/hystrix-go/hystrix/metric_collector"
 )
 
 // StatsdCollector fulfills the metricCollector interface allowing users to ship circuit
