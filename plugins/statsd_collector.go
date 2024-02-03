@@ -76,7 +76,8 @@ func InitializeStatsdCollector(config *StatsdCollectorConfig) (*StatsdCollectorC
 	c, err := statsd.NewBufferedClient(config.StatsdAddr, config.Prefix, 1*time.Second, flushBytes)
 	if err != nil {
 		log.Printf("Could not initiale buffered client: %s. Falling back to a Noop Statsd client", err)
-		c, _ = statsd.NewNoopClient()
+		var nilClient statsd.Statter
+		c = nilClient
 	}
 	return &StatsdCollectorClient{
 		client:     c,
