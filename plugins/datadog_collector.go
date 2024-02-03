@@ -76,7 +76,7 @@ type (
 //
 //	import (
 //		"github.com/presencelearning/hystrix-go/plugins"
-//		"github.com/afex/hystrix-go/hystrix/metric_collector"
+//		"github.com/presencelearning/hystrix-go/hystrix/metric_collector"
 //	)
 //
 //	func main() {

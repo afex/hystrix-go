@@ -11,8 +11,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix"
 	"github.com/cactus/go-statsd-client/v5/statsd"
+	"github.com/presencelearning/hystrix-go/hystrix"
 	"github.com/presencelearning/hystrix-go/plugins"
 )
 

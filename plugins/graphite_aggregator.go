@@ -6,9 +6,6 @@ import (
 	"net"
 	"strings"
 	"time"
-
-	"github.com/afex/hystrix-go/hystrix/metric_collector"
-	"github.com/rcrowley/go-metrics"
 )
 
 var makeTimerFunc = func() interface{} { return metrics.NewTimer() }
