@@ -41,18 +41,14 @@ func (sh *StreamHandler) Stop() {
 var _ http.Handler = (*StreamHandler)(nil)
 
 func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	// WARNING:
-	// ... benefit of forking - we can remove this check, because we can let ourselves
-	// get burned if we forget to implement Flusher...
-
-	//// Make sure that the writer supports flushing.
-	//f, ok := rw.(http.Flusher)
-	//if !ok {
-	//	http.Error(rw, "Streaming unsupported!", http.StatusInternalServerError)
-	//	return
-	//}
-	events := sh.register(req)
-	defer sh.unregister(req)
+	// Make sure that the writer supports flushing.
+	f, ok := rw.(http.Flusher)
+	if !ok {
+		http.Error(rw, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
+	events := sh.Register(req)
+	defer sh.Unregister(req)
 
 	notify := rw.(http.CloseNotifier).CloseNotify()
 
@@ -206,7 +202,7 @@ func (sh *StreamHandler) writeToRequests(eventBytes []byte) error {
 	return nil
 }
 
-func (sh *StreamHandler) register(req *http.Request) <-chan []byte {
+func (sh *StreamHandler) Register(req *http.Request) <-chan []byte {
 	sh.mu.RLock()
 	events, ok := sh.requests[req]
 	sh.mu.RUnlock()
@@ -221,7 +217,7 @@ func (sh *StreamHandler) register(req *http.Request) <-chan []byte {
 	return events
 }
 
-func (sh *StreamHandler) unregister(req *http.Request) {
+func (sh *StreamHandler) Unregister(req *http.Request) {
 	sh.mu.Lock()
 	delete(sh.requests, req)
 	sh.mu.Unlock()
