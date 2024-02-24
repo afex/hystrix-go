@@ -50,7 +50,7 @@ func (sh *StreamHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	events := sh.Register(req)
 	defer sh.Unregister(req)
 
-	notify := rw.(http.CloseNotifier).CloseNotify()
+	notify := req.Context().Done()
 
 	rw.Header().Add("Content-Type", "text/event-stream")
 	rw.Header().Set("Cache-Control", "no-cache")
