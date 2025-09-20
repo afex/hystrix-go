@@ -20,6 +20,7 @@ var (
 	DefaultLogger = NoopLogger{}
 )
 
+//Settings is used to tune circuit settings
 type Settings struct {
 	Timeout                time.Duration
 	MaxConcurrentRequests  int
@@ -106,6 +107,7 @@ func getSettings(name string) *Settings {
 	return s
 }
 
+//GetCircuitSettings returns Circuit Settings for each command
 func GetCircuitSettings() map[string]*Settings {
 	copy := make(map[string]*Settings)
 
