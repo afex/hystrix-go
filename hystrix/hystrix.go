@@ -27,15 +27,16 @@ func (e CircuitError) Error() string {
 type command struct {
 	sync.Mutex
 
-	ticket      *struct{}
-	start       time.Time
-	errChan     chan error
-	finished    chan bool
-	circuit     *CircuitBreaker
-	run         runFuncC
-	fallback    fallbackFuncC
-	runDuration time.Duration
-	events      []string
+	ticket          *struct{}
+	start           time.Time
+	errChan         chan error
+	finished        chan bool
+	circuit         *CircuitBreaker
+	run             runFuncC
+	fallback        fallbackFuncC
+	runDuration     time.Duration
+	events          []string
+	successNotifier func()
 }
 
 var (
@@ -71,12 +72,17 @@ func Go(name string, run runFunc, fallback fallbackFunc) chan error {
 //
 // Define a fallback function if you want to define some code to execute during outages.
 func GoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC) chan error {
+	return goC(ctx, name, run, fallback, nil)
+}
+
+func goC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC, successNotifier func()) chan error {
 	cmd := &command{
-		run:      run,
-		fallback: fallback,
-		start:    time.Now(),
-		errChan:  make(chan error, 1),
-		finished: make(chan bool, 1),
+		run:             run,
+		fallback:        fallback,
+		start:           time.Now(),
+		errChan:         make(chan error, 1),
+		finished:        make(chan bool, 1),
+		successNotifier: successNotifier,
 	}
 
 	// dont have methods with explicit params and returns
@@ -167,6 +173,9 @@ func GoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC)
 				return
 			}
 			cmd.reportEvent("success")
+			if cmd.successNotifier != nil {
+				cmd.successNotifier()
+			}
 		})
 	}()
 
@@ -212,37 +221,40 @@ func Do(name string, run runFunc, fallback fallbackFunc) error {
 	return DoC(context.Background(), name, runC, fallbackC)
 }
 
+// testAfterSuccessCommitted, when set, runs after DoC has claimed a
+// successful run and before DoC returns. Tests cancel the context here.
+var testAfterSuccessCommitted func()
+
 // DoC runs your function in a synchronous manner, blocking until either your function succeeds
 // or an error is returned, including hystrix circuit errors
 func DoC(ctx context.Context, name string, run runFuncC, fallback fallbackFuncC) error {
 	done := make(chan struct{}, 1)
 
 	r := func(ctx context.Context) error {
-		err := run(ctx)
-		if err != nil {
-			return err
+		return run(ctx)
+	}
+
+	var f fallbackFuncC
+	if fallback != nil {
+		f = func(ctx context.Context, e error) error {
+			err := fallback(ctx, e)
+			if err != nil {
+				return err
+			}
+			done <- struct{}{}
+			return nil
 		}
-
-		done <- struct{}{}
-		return nil
 	}
 
-	f := func(ctx context.Context, e error) error {
-		err := fallback(ctx, e)
-		if err != nil {
-			return err
+	// Signal only after the success path owns the outcome. Signaling from
+	// inside run lets the caller cancel before that claim, and the timer
+	// then runs the fallback for a run that already succeeded.
+	errChan := goC(ctx, name, r, f, func() {
+		if testAfterSuccessCommitted != nil {
+			testAfterSuccessCommitted()
 		}
-
 		done <- struct{}{}
-		return nil
-	}
-
-	var errChan chan error
-	if fallback == nil {
-		errChan = GoC(ctx, name, r, nil)
-	} else {
-		errChan = GoC(ctx, name, r, f)
-	}
+	})
 
 	select {
 	case <-done:
